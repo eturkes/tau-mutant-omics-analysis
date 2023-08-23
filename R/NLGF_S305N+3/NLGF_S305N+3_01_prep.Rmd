@@ -78,13 +78,14 @@ source(file.path("..", "utils.R"))
 
 # Useful variables.
 # -----------------
+analysis_no <- 1
 data_name <- unlist(strsplit(getwd(), "/"))[6] # Name of dataset derived from path.
 
 data_dir <- file.path(
   "..", "..", "data", "low-coverage",
   "03-Cellranger_mapping", "Cellranger_output_with_introns", "NaotoS6_NLGF_S305N+3_with_introns", "outs"
 )
-cache_dir <- file.path("..", "..", "cache", data_name) # Store intermediate data objects here.
+cache_dir <- file.path("..", "..", "cache", data_name, paste0("0", analysis_no)) # Store intermediate data objects here.
 if (!dir.exists(cache_dir)) {
   dir.create(cache_dir, recursive = TRUE)
 }
