@@ -62,7 +62,7 @@ The toggle at the start of the document controls the visibility of all chunks.
 # -----------------------------------------------------
 library(conflicted)
 conflicts_prefer(matrixStats::rowMedians, .quiet = TRUE)
-packages <- c("SingleCellExperiment", "scuttle", "DT", "Seurat", "parallel", "ggplot2", "dplyr", "ggrepel", "viridis")
+packages <- c("SingleCellExperiment", "scuttle", "DT", "Seurat", "parallelly", "ggplot2", "dplyr", "ggrepel", "viridis")
 invisible(suppressPackageStartupMessages(lapply(packages, FUN = library, character.only = TRUE)))
 # -----------------------------------------------------
 

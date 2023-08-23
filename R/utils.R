@@ -286,7 +286,7 @@ parallel_plan <- function(object, parallel_override = NULL) {
     # Distribute free memory (minus 10 GiB) across available cores.
     # -------------------------------------------------------------
     mem <- mem - 10 * 1024 ^ 3
-    mem <- mem / detectCores()
+    mem <- mem / availableCores()
     # -------------------------------------------------------------
 
     # Enable parallelization only if `object` can fit in `future.globals.maxSize` (plus 1 Gib).
