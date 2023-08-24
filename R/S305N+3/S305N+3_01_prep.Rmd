@@ -1,5 +1,5 @@
 ---
-title: "NLGF S305N+3 - 01 Prep"
+title: "S305N+3 - 01 Prep"
 author:
   - name: "Emir Turkes"
 date: '`r strftime(Sys.time(), format = "%B %d, %Y")`'
