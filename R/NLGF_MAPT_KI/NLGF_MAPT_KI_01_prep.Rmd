@@ -260,7 +260,6 @@ if (protocol[4] == "umis") {
 }
 
 if (length(mito) != 0) {
-  print("subsets_mito_percent")
   red_dim_plot(seurat, x = "umap1", y = "umap2", color = "subsets_mito_percent", type = "cont") +
     ggtitle("subsets_mito_percent")
 }
