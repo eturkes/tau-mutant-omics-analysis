@@ -112,14 +112,16 @@ datatable_download <- function(dt) {
 #' @param parallel_override See function \code{"parallel_plan"}.
 #' @param cc Logical, whether to perform cell-cycle scoring.
 #' @param res_divider, what to divide number of cells by to arrive at clustering resolution.
+#' @param conserve_memory, Logical, whether to use conserve.memory in sctransform.
 #' @examples
 #' cluster_pipeline(
-#'   seurat = seurat, cache_dir = cache_dir, sub_name = "neuronal", protocol = protocol,
-#'   vars_to_regress = "mito_percent", parallel_override = NULL, cc = FALSE, res_divider = 1000
+#'   seurat = seurat, cache_dir = cache_dir, sub_name = "neuronal",
+#'   protocol = protocol, vars_to_regress = "mito_percent", parallel_override = NULL,
+#'   cc = FALSE, res_divider = 1000, conserve.memory = TRUE
 #' )
 cluster_pipeline <- function(
-    seurat, cache_dir, sub_name, protocol,
-    vars_to_regress, parallel_override, cc = TRUE, res_divider = 3000
+    seurat, cache_dir, sub_name, protocol, vars_to_regress,
+    parallel_override, cc = TRUE, res_divider = 3000, conserve_memory = FALSE
 ) {
 
   rds <- file.path(cache_dir, paste0(sub_name, "_seurat.rds"))
@@ -134,12 +136,20 @@ cluster_pipeline <- function(
       # Warning in theta.ml(y = y, mu = fit$fitted): iteration limit reached
       # ---------------------------------------------------------------------------------
       parallel_plan(seurat, parallel_override)
-      seurat <- suppressWarnings(
-        SCTransform(
-          seurat, vars.to.regress = vars_to_regress, vst.flavor = "v2",
-          return.only.var.genes = FALSE, verbose = FALSE
+      if (conserve_memory == TRUE) {
+        seurat <- suppressWarnings(
+          SCTransform(
+            seurat, vars.to.regress = vars_to_regress, vst.flavor = "v2",
+            conserve.memory = TRUE, verbose = FALSE
+          )
         )
-      )
+      } else if (conserve_memory == FALSE) {
+        seurat <- suppressWarnings(
+          SCTransform(
+            seurat, vars.to.regress = vars_to_regress, vst.flavor = "v2", verbose = FALSE
+          )
+        )
+      }
       # ---------------------------------------------------------------------------------
 
       # Perform PCA.
