@@ -4,6 +4,9 @@
 # Environmental variables
 .env
 
+# Container files
+*.sif
+
 # Log files
 nohup.out
 
