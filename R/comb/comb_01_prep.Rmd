@@ -198,6 +198,8 @@ if (protocol[4] == "umis") {
   red_dim_plot(seurat, x = "umap1", y = "umap2", color = "nCount_RNA", type = "cont") + ggtitle("nCount_RNA")
 }
 
+red_dim_plot(seurat, x = "umap1", y = "umap2", color = "subsets_mito_percent", type = "cont") +
+  ggtitle("subsets_mito_percent")
 red_dim_plot(seurat, x = "umap1", y = "umap2", color = "subsets_ribo_percent", type = "cont") +
   ggtitle("subsets_ribo_percent")
 ```
