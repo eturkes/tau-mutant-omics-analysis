@@ -109,7 +109,10 @@ if (file.exists(rds)) {
 
   file_list <- list.files(file.path(cache_dir, "..", ".."), recursive = TRUE)
   if (length(grep("comb", file_list)) > 0) {
-    file_list <- file_list[-grep("comb", file_list)] 
+    file_list <- file_list[-grep("comb", file_list)]
+  }
+  if (length(grep("ref-datasets", file_list)) > 0) {
+    file_list <- file_list[-grep("ref-datasets", file_list)]
   }
   files <- vector("list", length(file_list))
   for (i in seq_along(files)) {
