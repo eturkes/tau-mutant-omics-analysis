@@ -128,6 +128,10 @@ if (file.exists(rds)) {
   }
 
   seurat <- merge(files[[1]], c(files[[2]], files[[3]], files[[4]], files[[5]], files[[6]]))
+  seurat@meta.data[grep("SCT", colnames(seurat@meta.data))] <- NULL
+  seurat@meta.data[grep("pANN", colnames(seurat@meta.data))] <- NULL
+  seurat@meta.data[grep("DF", colnames(seurat@meta.data))] <- NULL
+
   seurat$sample <- c(
     rep(sub("\\/.*", "", file_list[1]), ncol(files[[1]])),
     rep(sub("\\/.*", "", file_list[2]), ncol(files[[2]])),
@@ -138,16 +142,10 @@ if (file.exists(rds)) {
   )
 
   ribo <- grep("^RP[SL][[:digit:]]", rownames(seurat), ignore.case = TRUE)
-
   sce <- as.SingleCellExperiment(seurat)
   sce <- addPerCellQC(sce, list(ribo = ribo))
   seurat$subsets_ribo_percent <- sce$subsets_ribo_percent
   rm(sce)
-
-  remove <- names(seurat@meta.data)[grep("SCT_snn", names(seurat@meta.data))]
-  for (name in remove) {
-    seurat[[name]] <- NULL
-  }
 
   saveRDS(seurat, file = rds)
 }
