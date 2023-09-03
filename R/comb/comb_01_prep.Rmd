@@ -93,7 +93,7 @@ parallel_override <- 0 # See `parallel_plan` in `utils.R`.
 # Metadata to plot after dimensionality reduction and clustering.
 # Values in list can include "no_legend and/or "no_label" to exclude those.
 # -------------------------------------------------------------------------
-metadata_to_plot <- vector("list", length = 2)
+metadata_to_plot <- vector("list", length = 3)
 names(metadata_to_plot) <- c("seurat_clusters", "sample", "doublets")
 metadata_to_plot[[2]] <- "no_label"
 metadata_to_plot[[3]] <- "no_label"
