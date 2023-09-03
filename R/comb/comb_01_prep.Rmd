@@ -94,8 +94,9 @@ parallel_override <- 0 # See `parallel_plan` in `utils.R`.
 # Values in list can include "no_legend and/or "no_label" to exclude those.
 # -------------------------------------------------------------------------
 metadata_to_plot <- vector("list", length = 2)
-names(metadata_to_plot) <- c("seurat_clusters", "sample")
+names(metadata_to_plot) <- c("seurat_clusters", "sample", "doublets")
 metadata_to_plot[[2]] <- "no_label"
+metadata_to_plot[[3]] <- "no_label"
 # -------------------------------------------------------------------------
 ```
 
@@ -108,12 +109,7 @@ if (file.exists(rds)) {
 } else {
 
   file_list <- list.files(file.path(cache_dir, "..", ".."), recursive = TRUE)
-  if (length(grep("comb", file_list)) > 0) {
-    file_list <- file_list[-grep("comb", file_list)]
-  }
-  if (length(grep("ref-datasets", file_list)) > 0) {
-    file_list <- file_list[-grep("ref-datasets", file_list)]
-  }
+  file_list <- file_list[grep("seurat_doubletfinder.rds", file_list)]
   files <- vector("list", length(file_list))
   for (i in seq_along(files)) {
     files[[i]] <- readRDS(file.path(cache_dir, "..", "..", file_list[i]))

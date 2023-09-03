@@ -31,9 +31,11 @@ RUN apt-get update \
         -e "install.packages('Seurat')" \
         -e "install.packages('viridis')" \
         -e "install.packages('BiocManager')" \
+        -e "install.packages('remotes')" \
         -e "BiocManager::install('SingleCellExperiment')" \
         -e "BiocManager::install('scuttle')" \
         -e "BiocManager::install('glmGamPoi')" \
+        -e "remotes::install_github('chris-mcginnis-ucsf/DoubletFinder')" \
     && apt-get clean \
     && rm -Rf /var/lib/apt/lists/ \
         /tmp/downloaded_packages/ \

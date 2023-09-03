@@ -62,7 +62,10 @@ The toggle at the start of the document controls the visibility of all chunks.
 # -----------------------------------------------------
 library(conflicted)
 conflicts_prefer(matrixStats::rowMedians, .quiet = TRUE)
-packages <- c("SingleCellExperiment", "scuttle", "DT", "Seurat", "parallelly", "ggplot2", "dplyr", "ggrepel", "viridis")
+packages <- c(
+  "SingleCellExperiment", "scuttle", "DT", "Seurat", "parallelly", "ggplot2", "dplyr", "ggrepel", "viridis",
+  "DoubletFinder"
+)
 invisible(suppressPackageStartupMessages(lapply(packages, FUN = library, character.only = TRUE)))
 # -----------------------------------------------------
 
@@ -263,6 +266,39 @@ if (length(mito) != 0) {
   red_dim_plot(seurat, x = "umap1", y = "umap2", color = "subsets_mito_percent", type = "cont") +
     ggtitle("subsets_mito_percent")
 }
+```
+
+# Doublet Detection
+
+DoubletFinder is used to detect doublets.
+
+```{r}
+rds <- file.path(cache_dir, "seurat_doubletfinder.rds")
+rds2 <- file.path(cache_dir, "bcmvn.rds")
+if (file.exists(rds)) {
+  seurat <- readRDS(rds)
+  bcmvn <- readRDS(rds2)
+} else {
+  sweep <- summarizeSweep(paramSweep_v3(seurat, PCs = 1:30, sct = TRUE, num.cores = availableCores()))
+  poi <- round(0.12 * nrow(seurat@meta.data))
+  bcmvn <- find.pK(sweep)
+
+  seurat <- doubletFinder_v3(seurat, PCs = 1:30, pK = 0.12, nExp = poi, sct = TRUE)
+  seurat$doublets <- seurat@meta.data[[grep("DF", colnames(seurat@meta.data))]]
+
+  saveRDS(seurat, file = rds)
+  saveRDS(bcmvn, file = rds2)
+}
+
+pK <- as.numeric(as.character(bcmvn$pK))
+pK_choose = pK[which(bcmvn$BCmetric %in% max(bcmvn$BCmetric))]
+par(mar = c(5, 4, 4, 8) + 1, cex.main = 1.2, font.main = 2)
+plot(x = pK, y = bcmvn$BCmetric, pch = 16, type = "b", col = "blue", lty = 1)
+abline(v = pK_choose, lwd = 2, col = "red", lty = 2)
+title("BCmvn Distribution")
+text(pK_choose, max(bcmvn$BCmetric), as.character(pK_choose), pos = 4, col = "red")
+
+red_dim_plot(seurat, x = "umap1", y = "umap2", color = "doublets")
 ```
 
 # References
