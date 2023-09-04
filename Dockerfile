@@ -35,6 +35,8 @@ RUN apt-get update \
         -e "BiocManager::install('SingleCellExperiment')" \
         -e "BiocManager::install('scuttle')" \
         -e "BiocManager::install('glmGamPoi')" \
+        -e "BiocManager::install('biomaRt')" \
+        -e "BiocManager::install('limma')" \
         -e "remotes::install_github('chris-mcginnis-ucsf/DoubletFinder')" \
     && apt-get clean \
     && rm -Rf /var/lib/apt/lists/ \

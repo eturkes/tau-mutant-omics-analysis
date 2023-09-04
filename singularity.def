@@ -18,6 +18,8 @@ From: rocker/rstudio:4.3.1
         -e "BiocManager::install('SingleCellExperiment')" \
         -e "BiocManager::install('scuttle')" \
         -e "BiocManager::install('glmGamPoi')" \
+        -e "BiocManager::install('biomaRt')" \
+        -e "BiocManager::install('limma')" \
         -e "remotes::install_github('chris-mcginnis-ucsf/DoubletFinder')"
     apt-get clean
     rm -Rf \

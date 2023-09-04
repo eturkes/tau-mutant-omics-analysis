@@ -100,6 +100,34 @@ datatable_download <- function(dt) {
   )
 }
 
+#' Adds download buttons, horizontal scrolling, exponential values to \code{"DT::datatable"}.
+#'
+#' @param dt A data.table object.
+#' @examples
+#' datatable_download_exp(dt = data_table)
+#'
+datatable_download_exp <- function(dt) {
+
+  datatable(
+    dt,
+    list(
+      scrollX = TRUE,
+      dom = "Blfrtip",
+      buttons = list(
+        "copy", "print",
+        list(extend = "collection", buttons = c("csv", "excel", "pdf"), text = "Download")
+      ),
+      rowCallback = JS(
+        "function(row, data) {",
+        "for (i = 1; i < data.length; i++) {",
+        "if (data[i]>=1000 | data[i]<1000) {",
+        "$('td:eq('+i+')', row).html(data[i].toExponential(2));}}}"
+      )
+    ),
+    extensions = "Buttons"
+  )
+}
+
 #' Pipeline for normalization, dimensionality reduction, and clustering of post-QC scRNA-seq data.
 #'
 #' @param seurat Post-QC Seurat object.
