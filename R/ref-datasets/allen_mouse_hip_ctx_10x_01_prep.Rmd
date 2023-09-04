@@ -18,8 +18,9 @@ output:
 knit: (function(inputFile, encoding) {
   rmarkdown::render(
     inputFile, encoding = encoding,
-    output_file = file.path("..", "..", "results", unlist(strsplit(getwd(), "/"))[6], "allen_mouse_hip_ctx_10x_01_prep.html")
-  )})
+    output_file = file.path(
+      "..", "..", "results", unlist(strsplit(getwd(), "/"))[6], "allen_mouse_hip_ctx_10x_01_prep.html"
+  ))})
 ---
 
 <style type="text/css">
@@ -61,7 +62,9 @@ The toggle at the start of the document controls the visibility of all chunks.
 # Load required packages, suppressing startup messages.
 # -----------------------------------------------------
 library(conflicted)
-packages <- c("Seurat", "Matrix", "parallelly", "DT", "data.table", "rhdf5")
+packages <- c(
+  "Seurat", "Matrix", "parallelly", "DT", "data.table", "rhdf5", "ggplot2", "ggplot2", "dplyr", "ggrepel", "viridis"
+)
 invisible(suppressPackageStartupMessages(lapply(packages, library, character.only = TRUE)))
 # -----------------------------------------------------
 
@@ -124,6 +127,21 @@ if (file.exists(rds)) {
 
   saveRDS(data, rds)
 }
+```
+
+# Visualisation
+
+```{r, fig.width = 20, fig.height = 14}
+add_df <- data.frame(Embeddings(data, "umap"))
+names(add_df) <- paste0("umap", seq(ncol(add_df)))
+data$umap1 <- add_df$umap1
+data$umap2 <- add_df$umap2
+
+red_dim_plot(data, x = "umap1", y = "umap2", color = "class_label", type = "cat") + ggtitle("class_label")
+red_dim_plot(data, x = "umap1", y = "umap2", color = "subclass_label", type = "cat") + ggtitle("subclass_label")
+red_dim_plot(data, x = "umap1", y = "umap2", color = "external_donor_name_label") + ggtitle("external_donor_name_label")
+red_dim_plot(data, x = "umap1", y = "umap2", color = "nFeature_SCT", type = "cont") + ggtitle("nFeature_SCT")
+red_dim_plot(data, x = "umap1", y = "umap2", color = "nCount_SCT", type = "cont") + ggtitle("nCount_SCT")
 ```
 
 # References
