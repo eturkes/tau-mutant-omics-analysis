@@ -225,6 +225,7 @@ ident2 <- "NLGF_MAPT_KI"
 
 seurat@active.ident <- factor(seurat$sample)
 markers <- FindMarkers(seurat, ident.1 = ident1, ident.2 = ident2, only.pos = FALSE, verbose = FALSE)
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(seurat, idents = c(ident1, ident2))
@@ -242,6 +243,7 @@ markers <- FindMarkers(
   seurat, ident.1 = paste(cluster_num, ident1, sep = "_"), ident.2 = paste(cluster_num, ident2, sep = "_"),
   only.pos = FALSE, verbose = FALSE
 )
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(seurat, idents = c(paste(cluster_num, ident1, sep = "_"), paste(cluster_num, ident2, sep = "_")))
@@ -261,6 +263,7 @@ markers <- FindMarkers(
   seurat, ident.1 = paste(cluster_num, ident1, sep = "_"), ident.2 = paste(cluster_num, ident2, sep = "_"),
   only.pos = FALSE, verbose = FALSE
 )
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(seurat, idents = c(paste(cluster_num, ident1, sep = "_"), paste(cluster_num, ident2, sep = "_")))
@@ -280,6 +283,7 @@ markers <- FindMarkers(
   seurat, ident.1 = paste(cluster_num, ident1, sep = "_"), ident.2 = paste(cluster_num, ident2, sep = "_"),
   only.pos = FALSE, verbose = FALSE
 )
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(seurat, idents = c(paste(cluster_num, ident1, sep = "_"), paste(cluster_num, ident2, sep = "_")))
@@ -299,6 +303,7 @@ markers <- FindMarkers(
   seurat, ident.1 = paste(cluster_num, ident1, sep = "_"), ident.2 = paste(cluster_num, ident2, sep = "_"),
   only.pos = FALSE, verbose = FALSE
 )
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(seurat, idents = c(paste(cluster_num, ident1, sep = "_"), paste(cluster_num, ident2, sep = "_")))
@@ -318,6 +323,7 @@ markers <- FindMarkers(
   seurat, ident.1 = paste(cluster_num, ident1, sep = "_"), ident.2 = paste(cluster_num, ident2, sep = "_"),
   only.pos = FALSE, verbose = FALSE
 )
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(seurat, idents = c(paste(cluster_num, ident1, sep = "_"), paste(cluster_num, ident2, sep = "_")))
@@ -336,6 +342,7 @@ ident2 <- "MAPT_KI"
 
 seurat@active.ident <- factor(seurat$sample)
 markers <- FindMarkers(seurat, ident.1 = ident1, ident.2 = ident2, only.pos = FALSE, verbose = FALSE)
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(seurat, idents = c(ident1, ident2))
@@ -353,6 +360,7 @@ markers <- FindMarkers(
   seurat, ident.1 = paste(cluster_num, ident1, sep = "_"), ident.2 = paste(cluster_num, ident2, sep = "_"),
   only.pos = FALSE, verbose = FALSE
 )
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(seurat, idents = c(paste(cluster_num, ident1, sep = "_"), paste(cluster_num, ident2, sep = "_")))
@@ -372,6 +380,7 @@ markers <- FindMarkers(
   seurat, ident.1 = paste(cluster_num, ident1, sep = "_"), ident.2 = paste(cluster_num, ident2, sep = "_"),
   only.pos = FALSE, verbose = FALSE
 )
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(seurat, idents = c(paste(cluster_num, ident1, sep = "_"), paste(cluster_num, ident2, sep = "_")))
@@ -391,6 +400,7 @@ markers <- FindMarkers(
   seurat, ident.1 = paste(cluster_num, ident1, sep = "_"), ident.2 = paste(cluster_num, ident2, sep = "_"),
   only.pos = FALSE, verbose = FALSE
 )
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(seurat, idents = c(paste(cluster_num, ident1, sep = "_"), paste(cluster_num, ident2, sep = "_")))
@@ -410,6 +420,7 @@ markers <- FindMarkers(
   seurat, ident.1 = paste(cluster_num, ident1, sep = "_"), ident.2 = paste(cluster_num, ident2, sep = "_"),
   only.pos = FALSE, verbose = FALSE
 )
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(seurat, idents = c(paste(cluster_num, ident1, sep = "_"), paste(cluster_num, ident2, sep = "_")))
@@ -429,6 +440,7 @@ markers <- FindMarkers(
   seurat, ident.1 = paste(cluster_num, ident1, sep = "_"), ident.2 = paste(cluster_num, ident2, sep = "_"),
   only.pos = FALSE, verbose = FALSE
 )
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(seurat, idents = c(paste(cluster_num, ident1, sep = "_"), paste(cluster_num, ident2, sep = "_")))
@@ -447,6 +459,7 @@ ident2 <- "MAPT_KI"
 
 seurat@active.ident <- factor(seurat$sample)
 markers <- FindMarkers(seurat, ident.1 = ident1, ident.2 = ident2, only.pos = FALSE, verbose = FALSE)
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(seurat, idents = c(ident1, ident2))
@@ -464,6 +477,7 @@ markers <- FindMarkers(
   seurat, ident.1 = paste(cluster_num, ident1, sep = "_"), ident.2 = paste(cluster_num, ident2, sep = "_"),
   only.pos = FALSE, verbose = FALSE
 )
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(seurat, idents = c(paste(cluster_num, ident1, sep = "_"), paste(cluster_num, ident2, sep = "_")))
@@ -483,6 +497,7 @@ markers <- FindMarkers(
   seurat, ident.1 = paste(cluster_num, ident1, sep = "_"), ident.2 = paste(cluster_num, ident2, sep = "_"),
   only.pos = FALSE, verbose = FALSE
 )
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(seurat, idents = c(paste(cluster_num, ident1, sep = "_"), paste(cluster_num, ident2, sep = "_")))
@@ -502,6 +517,7 @@ markers <- FindMarkers(
   seurat, ident.1 = paste(cluster_num, ident1, sep = "_"), ident.2 = paste(cluster_num, ident2, sep = "_"),
   only.pos = FALSE, verbose = FALSE
 )
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(seurat, idents = c(paste(cluster_num, ident1, sep = "_"), paste(cluster_num, ident2, sep = "_")))
@@ -521,6 +537,7 @@ markers <- FindMarkers(
   seurat, ident.1 = paste(cluster_num, ident1, sep = "_"), ident.2 = paste(cluster_num, ident2, sep = "_"),
   only.pos = FALSE, verbose = FALSE
 )
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(seurat, idents = c(paste(cluster_num, ident1, sep = "_"), paste(cluster_num, ident2, sep = "_")))
@@ -540,6 +557,7 @@ markers <- FindMarkers(
   seurat, ident.1 = paste(cluster_num, ident1, sep = "_"), ident.2 = paste(cluster_num, ident2, sep = "_"),
   only.pos = FALSE, verbose = FALSE
 )
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(seurat, idents = c(paste(cluster_num, ident1, sep = "_"), paste(cluster_num, ident2, sep = "_")))
@@ -560,6 +578,7 @@ ident2 <- "NLGF_MAPT_KI"
 
 seurat_introns@active.ident <- factor(seurat_introns$sample)
 markers <- FindMarkers(seurat_introns, ident.1 = ident1, ident.2 = ident2, only.pos = FALSE, verbose = FALSE)
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(seurat_introns, idents = c(ident1, ident2))
@@ -577,6 +596,7 @@ markers <- FindMarkers(
   seurat_introns, ident.1 = paste(cluster_num, ident1, sep = "_"), ident.2 = paste(cluster_num, ident2, sep = "_"),
   only.pos = FALSE, verbose = FALSE
 )
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(
@@ -596,6 +616,7 @@ markers <- FindMarkers(
   seurat_introns, ident.1 = paste(cluster_num, ident1, sep = "_"), ident.2 = paste(cluster_num, ident2, sep = "_"),
   only.pos = FALSE, verbose = FALSE
 )
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(
@@ -615,6 +636,7 @@ markers <- FindMarkers(
   seurat_introns, ident.1 = paste(cluster_num, ident1, sep = "_"), ident.2 = paste(cluster_num, ident2, sep = "_"),
   only.pos = FALSE, verbose = FALSE
 )
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(
@@ -634,6 +656,7 @@ markers <- FindMarkers(
   seurat_introns, ident.1 = paste(cluster_num, ident1, sep = "_"), ident.2 = paste(cluster_num, ident2, sep = "_"),
   only.pos = FALSE, verbose = FALSE
 )
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(
@@ -653,6 +676,7 @@ markers <- FindMarkers(
   seurat_introns, ident.1 = paste(cluster_num, ident1, sep = "_"), ident.2 = paste(cluster_num, ident2, sep = "_"),
   only.pos = FALSE, verbose = FALSE
 )
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(
@@ -671,6 +695,7 @@ ident2 <- "MAPT_KI"
 
 seurat_introns@active.ident <- factor(seurat_introns$sample)
 markers <- FindMarkers(seurat_introns, ident.1 = ident1, ident.2 = ident2, only.pos = FALSE, verbose = FALSE)
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(seurat_introns, idents = c(ident1, ident2))
@@ -688,6 +713,7 @@ markers <- FindMarkers(
   seurat_introns, ident.1 = paste(cluster_num, ident1, sep = "_"), ident.2 = paste(cluster_num, ident2, sep = "_"),
   only.pos = FALSE, verbose = FALSE
 )
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(
@@ -707,6 +733,7 @@ markers <- FindMarkers(
   seurat_introns, ident.1 = paste(cluster_num, ident1, sep = "_"), ident.2 = paste(cluster_num, ident2, sep = "_"),
   only.pos = FALSE, verbose = FALSE
 )
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(
@@ -726,6 +753,7 @@ markers <- FindMarkers(
   seurat_introns, ident.1 = paste(cluster_num, ident1, sep = "_"), ident.2 = paste(cluster_num, ident2, sep = "_"),
   only.pos = FALSE, verbose = FALSE
 )
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(
@@ -745,6 +773,7 @@ markers <- FindMarkers(
   seurat_introns, ident.1 = paste(cluster_num, ident1, sep = "_"), ident.2 = paste(cluster_num, ident2, sep = "_"),
   only.pos = FALSE, verbose = FALSE
 )
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(
@@ -764,6 +793,7 @@ markers <- FindMarkers(
   seurat_introns, ident.1 = paste(cluster_num, ident1, sep = "_"), ident.2 = paste(cluster_num, ident2, sep = "_"),
   only.pos = FALSE, verbose = FALSE
 )
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(
@@ -782,6 +812,7 @@ ident2 <- "MAPT_KI"
 
 seurat_introns@active.ident <- factor(seurat_introns$sample)
 markers <- FindMarkers(seurat_introns, ident.1 = ident1, ident.2 = ident2, only.pos = FALSE, verbose = FALSE)
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(seurat_introns, idents = c(ident1, ident2))
@@ -799,6 +830,7 @@ markers <- FindMarkers(
   seurat_introns, ident.1 = paste(cluster_num, ident1, sep = "_"), ident.2 = paste(cluster_num, ident2, sep = "_"),
   only.pos = FALSE, verbose = FALSE
 )
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(
@@ -818,6 +850,7 @@ markers <- FindMarkers(
   seurat_introns, ident.1 = paste(cluster_num, ident1, sep = "_"), ident.2 = paste(cluster_num, ident2, sep = "_"),
   only.pos = FALSE, verbose = FALSE
 )
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(
@@ -837,6 +870,7 @@ markers <- FindMarkers(
   seurat_introns, ident.1 = paste(cluster_num, ident1, sep = "_"), ident.2 = paste(cluster_num, ident2, sep = "_"),
   only.pos = FALSE, verbose = FALSE
 )
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(
@@ -856,6 +890,7 @@ markers <- FindMarkers(
   seurat_introns, ident.1 = paste(cluster_num, ident1, sep = "_"), ident.2 = paste(cluster_num, ident2, sep = "_"),
   only.pos = FALSE, verbose = FALSE
 )
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(
@@ -875,6 +910,7 @@ markers <- FindMarkers(
   seurat_introns, ident.1 = paste(cluster_num, ident1, sep = "_"), ident.2 = paste(cluster_num, ident2, sep = "_"),
   only.pos = FALSE, verbose = FALSE
 )
+markers <- markers[markers$p_val_adj < 0.05, ]
 datatable_download_exp(markers)
 
 seurat_sub <- subset(
