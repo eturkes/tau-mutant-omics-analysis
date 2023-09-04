@@ -1,0 +1,119 @@
+---
+title: "Combined Samples - 02 Cell-typing"
+author:
+  - name: "Emir Turkes"
+date: '`r strftime(Sys.time(), format = "%B %d, %Y")`'
+link-citations: true
+output:
+  html_document:
+    code_folding: hide
+    number_sections: true
+    theme: lumen
+    highlight: haddock
+    toc: true
+    toc_depth: 2
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+knit: (function(inputFile, encoding) {
+  rmarkdown::render(
+    inputFile, encoding = encoding,
+    output_file = file.path("..", "..", "results", unlist(strsplit(getwd(), "/"))[6], "comb_02_cell_typing.html")
+  )})
+---
+
+<style type="text/css">
+body {font-size: 16px;}
+h1.title {font-size: 35px;}
+h1 {font-size: 24px;}
+h2 {font-size: 22px;}
+.toc-content {padding-left: 0px; padding-right: 0px;}
+div.tocify {width: 100%;}
+.tocify-subheader .tocify-item {font-size: 0.95em; padding-left: 25px; text-indent: 0;}
+div.main-container {max-width: none; width: 100%;}
+</style>
+
+*This file is a part of [scRNAseq-IN-neurons](https://github.com/eturkes/scRNAseq-IN-neurons).*
+
+The table of contents in the top left is clickable and can be used to quickly navigate the document.
+To toggle the visibility of code, use the `CODE` toggles at the top right of chunks.
+The toggle at the start of the document controls the visibility of all chunks.
+
+```{r}
+#    This file is part of tau-mutant-omics-analysis.
+#    Copyright (C) 2023  Emir Turkes, Naoto Watamura, UK DRI at UCL
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#    Emir Turkes can be contacted at emir.turkes@eturkes.com
+
+# Load required packages, suppressing startup messages.
+# -----------------------------------------------------
+library(conflicted)
+conflicts_prefer(base::intersect, .quiet = TRUE)
+packages <- c("Seurat", "ggplot2", "dplyr", "ggrepel")
+invisible(suppressPackageStartupMessages(lapply(packages, FUN = library, character.only = TRUE)))
+# -----------------------------------------------------
+
+# Define global settings.
+# -----------------------
+knitr::opts_chunk$set(fig.width = 10, fig.height = 7, dpi = 300)
+# -----------------------
+
+# Define functions.
+# -----------------
+source(file.path("..", "utils.R"))
+# -----------------
+
+# Useful variables.
+# -----------------
+analysis_no <- 2
+data_name <- unlist(strsplit(getwd(), "/"))[6] # Name of dataset derived from path.
+
+cache_dir <- file.path("..", "..", "cache", data_name, paste0("0", analysis_no)) # Store intermediate data objects here.
+if (!dir.exists(cache_dir)) {
+  dir.create(cache_dir, recursive = TRUE)
+}
+```
+
+# Analysis
+
+```{r, fig.width = 20, fig.height = 14}
+rds <- file.path(cache_dir, "seurat.rds")
+if (file.exists(rds)) {
+  seurat <- readRDS(rds)
+} else {
+  seurat <- readRDS(file.path(cache_dir, "..", "01", "processed_merged_seurat.rds"))
+  ref <- readRDS(file.path(cache_dir, "..", "..", "ref-datasets", "01", "allen_mouse_hip_ctx_10x.rds"))
+
+  anchors <- FindTransferAnchors(
+    ref, seurat, normalization.method = "SCT", recompute.residuals = FALSE,
+    reference.reduction = "pca", dims = 1:30, verbose = FALSE
+  )
+  seurat <- MapQuery(anchors, seurat, ref, refdata = "subclass_label", reference.reduction = "umap", verbose = FALSE)
+
+  rm(ref)
+  saveRDS(seurat, rds)
+}
+
+red_dim_plot(seurat, x = "umap1", y = "umap2", color = "predicted.id", type = "cat")
+```
+
+# References
+
+This is the concluding section of the document, where we output the `sessionInfo`, and create a bibliography for works cited.
+
+```{r}
+sessionInfo()
+```
