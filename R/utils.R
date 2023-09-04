@@ -290,7 +290,7 @@ parallel_plan <- function(object, parallel_override = NULL) {
     # Get free memory.
     # ----------------
     gc()
-    mem <- as.numeric(unlist(strsplit(system("free -b", TRUE)[2], " "))[19])
+    mem <- as.numeric(unlist(strsplit(system("free -b", TRUE)[2], " "))[18])
     # ----------------
 
     # Distribute free memory (minus 10 GiB) across available cores.
