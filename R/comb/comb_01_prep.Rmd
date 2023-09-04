@@ -188,11 +188,11 @@ for (i in 1:length(metadata_to_plot)) {
 }
 
 if (protocol[4] == "umis") {
-  red_dim_plot(seurat, x = "umap1", y = "umap2", color = "nFeature_SCT", type = "cont") + ggtitle("nFeature_SCT")
-  red_dim_plot(seurat, x = "umap1", y = "umap2", color = "nCount_SCT", type = "cont") + ggtitle("nCount_SCT")
+  print(red_dim_plot(seurat, x = "umap1", y = "umap2", color = "nFeature_SCT", type = "cont") + ggtitle("nFeature_SCT"))
+  print(red_dim_plot(seurat, x = "umap1", y = "umap2", color = "nCount_SCT", type = "cont") + ggtitle("nCount_SCT"))
 } else if (protocol[4] == "reads") {
-  red_dim_plot(seurat, x = "umap1", y = "umap2", color = "nFeature_RNA", type = "cont") + ggtitle("nFeature_RNA")
-  red_dim_plot(seurat, x = "umap1", y = "umap2", color = "nCount_RNA", type = "cont") + ggtitle("nCount_RNA")
+  print(red_dim_plot(seurat, x = "umap1", y = "umap2", color = "nFeature_RNA", type = "cont") + ggtitle("nFeature_RNA"))
+  print(red_dim_plot(seurat, x = "umap1", y = "umap2", color = "nCount_RNA", type = "cont") + ggtitle("nCount_RNA"))
 }
 
 red_dim_plot(seurat, x = "umap1", y = "umap2", color = "subsets_mito_percent", type = "cont") +
