@@ -33,7 +33,7 @@ div.tocify {width: 100%;}
 div.main-container {max-width: none; width: 100%;}
 </style>
 
-*This file is a part of [scRNAseq-IN-neurons](https://github.com/eturkes/scRNAseq-IN-neurons).*
+*This file is a part of [tau-mutant-omics-analysis](https://github.com/eturkes/tau-mutant-omics-analysis).*
 
 The table of contents in the top left is clickable and can be used to quickly navigate the document.
 To toggle the visibility of code, use the `CODE` toggles at the top right of chunks.
