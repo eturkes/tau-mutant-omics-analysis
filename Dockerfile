@@ -30,6 +30,10 @@ RUN apt-get update \
         -e "install.packages('DT')" \
         -e "install.packages('Seurat')" \
         -e "install.packages('viridis')" \
+        -e "install.packages('factoextra')" \
+        -e "install.packages('pals')" \
+        -e "install.packages('tm')" \
+        -e "install.packages('qgraph')" \
         -e "install.packages('BiocManager')" \
         -e "install.packages('remotes')" \
         -e "BiocManager::install('SingleCellExperiment')" \
@@ -37,6 +41,11 @@ RUN apt-get update \
         -e "BiocManager::install('glmGamPoi')" \
         -e "BiocManager::install('biomaRt')" \
         -e "BiocManager::install('limma')" \
+        -e "BiocManager::install('GSEABase')" \
+        -e "BiocManager::install('GSVA')" \
+        -e "BiocManager::install('edgeR')" \
+        -e "BiocManager::install('ComplexHeatmap')" \
+        -e "BiocManager::install('GO.db')" \
         -e "remotes::install_github('chris-mcginnis-ucsf/DoubletFinder')" \
     && apt-get clean \
     && rm -Rf /var/lib/apt/lists/ \

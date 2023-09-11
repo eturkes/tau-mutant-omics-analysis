@@ -141,6 +141,7 @@ datatable_download_exp <- function(dt) {
 #' @param cc Logical, whether to perform cell-cycle scoring.
 #' @param res_divider, what to divide number of cells by to arrive at clustering resolution.
 #' @param conserve_memory, Logical, whether to use conserve.memory in sctransform.
+#' @param min_cells, Numerical, minimum number of cells to retain a gene in sctransform.
 #' @examples
 #' cluster_pipeline(
 #'   seurat = seurat, cache_dir = cache_dir, sub_name = "neuronal",
@@ -149,7 +150,7 @@ datatable_download_exp <- function(dt) {
 #' )
 cluster_pipeline <- function(
     seurat, cache_dir, sub_name, protocol, vars_to_regress,
-    parallel_override, cc = TRUE, res_divider = 3000, conserve_memory = FALSE
+    parallel_override, cc = TRUE, res_divider = 3000, conserve_memory = FALSE, min_cells = NULL
 ) {
 
   rds <- file.path(cache_dir, paste0(sub_name, "_seurat.rds"))
@@ -169,6 +170,12 @@ cluster_pipeline <- function(
           SCTransform(
             seurat, vars.to.regress = vars_to_regress, vst.flavor = "v2",
             conserve.memory = TRUE, verbose = FALSE
+          )
+        )
+      } else if (conserve_memory == FALSE & !is.null(min_cells)) {
+        seurat <- suppressWarnings(
+          SCTransform(
+            seurat, vars.to.regress = vars_to_regress, vst.flavor = "v2", min_cells = min_cells, verbose = FALSE
           )
         )
       } else if (conserve_memory == FALSE) {
@@ -318,7 +325,7 @@ parallel_plan <- function(object, parallel_override = NULL) {
     # Get free memory.
     # ----------------
     gc()
-    mem <- as.numeric(unlist(strsplit(system("free -b", TRUE)[2], " "))[18])
+    mem <- as.numeric(unlist(strsplit(system("free -b", TRUE)[2], " "))[16])
     # ----------------
 
     # Distribute free memory (minus 10 GiB) across available cores.
@@ -344,4 +351,272 @@ parallel_plan <- function(object, parallel_override = NULL) {
     plan("multisession")
     options(future.globals.maxSize = parallel_override)
   }
+}
+
+computeGeneSetsOverlapMax <- function(gSets, uniqGenes, min.sz=1, max.sz=Inf) {
+  ## gSetsMembershipMatrix should be a (genes x gene-sets) incidence matrix
+
+  gSetsMembershipMatrix <- incidence(gSets)
+  gSetsMembershipMatrix <- t(gSetsMembershipMatrix[, colnames(gSetsMembershipMatrix) %in% uniqGenes])
+
+  lenGsets <- colSums(gSetsMembershipMatrix)
+
+  szFilterMask <- lenGsets >= max(1, min.sz) & lenGsets <= max.sz
+  if (!any(szFilterMask))
+    stop("No gene set meets the minimum and maximum size filter\n")
+
+  gSetsMembershipMatrix <- gSetsMembershipMatrix[, szFilterMask]
+  lenGsets <- lenGsets[szFilterMask]
+
+  totalGsets <- ncol(gSetsMembershipMatrix)
+
+  M <- t(gSetsMembershipMatrix) %*% gSetsMembershipMatrix
+
+  M1 <- matrix(lenGsets, nrow=totalGsets, ncol=totalGsets,
+               dimnames=list(colnames(gSetsMembershipMatrix), colnames(gSetsMembershipMatrix)))
+  M2 <- t(M1)
+  M.max <- matrix(0, nrow=totalGsets, ncol=totalGsets)
+  M.max[M1 > M2] <- M1[M1 > M2]
+  M.max[M2 >= M1] <- M2[M2 >= M1]
+  overlapMatrix <- M / M.max
+
+  return (overlapMatrix)
+}
+
+word_cloud = function(x, width = NULL){
+  t.rW = c("cell", "process", "negative", "positive",
+           "activity", "protein", "involved",
+           "component", "level", "event", "organismal",
+           "cellular", "pathway", "mediated", "dependent",
+           "group", "target", "biocarta", "kegg",
+           "reactome", "system", "nervous", "cells",
+           "time", "structure", "whose", "progression",
+           "formation", "divided", "can", "specific",
+           "outcome", "two", "form", "one",
+           "size", "forms", "becomes", "become",
+           "generated", "frequency", "rate", "extent",
+           "will", "organism", "inner", "wall",
+           "walls", "mammals", "organized", "anatomical",
+           "concentration", "directed", "towards", "higher",
+           "gradient", "results", "change", "state",
+           "terms", "etc", "result", "stops",
+           "prevents", "reduces", "activates", "increases",
+           "activation", "within", "series", "molecular",
+           "modulates", "introducing", "thin", "thick",
+           "past", "located", "generation", "molecule",
+           "reactions", "pathways", "resulting", "compounds",
+           "population", "body", "regulation", "early",
+           "commonpartner", "region", "regulated", "means",
+           "agent", "structures", "involving", "family",
+           "decreases", "together", "set", "daughter",
+           "subsequent", "outer", "via", "molecules",
+           "comprising", "diameter", "occurring", "removes",
+           "another", "adjacent", "presence", "events",
+           "specialized", "features", "acquires", "association",
+           "type", "include", "consist", "linked",
+           "containing", "generate", "member", "widely",
+           "usually", "position", "often", "tissue",
+           "responsible", "diverse", "range", "leading",
+           "contributes", "upper", "part", "slightly",
+           "expansion", "internal", "steady", "external",
+           "middle", "outflow", "site", "orderly",
+           "switching", "also", "known", "effects",
+           "defined", "larger", "organisms", "along",
+           "powered", "action", "effects", "across",
+           "asymmetry", "host", "animal", "pertains",
+           "creation", "formed", "tissues", "found",
+           "certain", "localized", "distinct", "increase",
+           "appearance", "due", "following", "levels",
+           "consists", "filters", "end", "intial",
+           "either", "double", "introduced", "initiation",
+           "addition", "contain", "sorting", "wide",
+           "ability", "similar", "act", "primarily",
+           "passed", "separation", "received", "steps",
+           "initial", "production", "somatic", "shaping",
+           "organ", "portion", "systems", "components",
+           "key", "mature", "transition", "selection",
+           "promotor", "factor", "processing", "cleavage",
+           "response", "stimulus", "secretion", "produced",
+           "physiologic", "synthesized", "bind", "receptor",
+           "trigger", "signaling", "signal", "release",
+           "downstream", "communication", "using", "contains",
+           "secretion", "transport", "transporter", "movement",
+           "response", "signaling", "maintenance",
+           "force", "multiplication", "common", "flow",
+           "stream", "specialization", "charged", "multicellular",
+           "fluid", "proteins", "stem", "converted",
+           "transported", "arm", "superfamily", "air",
+           "small", "maintained", "parts", "groups",
+           "xray", "element", "beam", "strut",
+           "rod", "preb", "adaptation", "charges",
+           "required", "receive", "characterize", "function",
+           "central", "sprouting", "long", "carries",
+           "outgoing", "left", "longterm", "neuronal",
+           "relatively", "unspecialized", "multiple", "high",
+           "number", "tolerance", "induction", "compound",
+           "neuron", "work", "perform", "functions",
+           "electrical", "biological", "condition", "composed",
+           "gives", "neural", "begins", "ends",
+           "carry", "innermost", "densely", "packed",
+           "mostly", "border", "send", "parallel",
+           "brush", "provide", "supplies", "twothirds",
+           "principal", "main", "supply", "connecting",
+           "commonly", "observed", "visibly", "may",
+           "exist", "loosely", "associated", "clusters",
+           "combination", "attractive", "fully", "functional",
+           "strongly", "several", "enclosed", "individual",
+           "give", "rise", "attains", "length",
+           "joining", "class", "consisting", "occurs",
+           "closely", "related", "may", "many",
+           "positions", "classes", "including", "occurs",
+           "outside", "location", "connected", "various",
+           "decrease", "causes", "makes", "consequence",
+           "proceeds", "begins", "circumstances", "require",
+           "actual", "numbers", "difficult", "numerous",
+           "species", "acts", "upon", "lower",
+           "carried", "regular", "longitudinal", "array",
+           "assisting", "correct", "pressure", "typically",
+           "presentation", "expresses", "passes", "towards",
+           "existing", "arising", "present", "side",
+           "several", "brown", "polarity", "andor",
+           "marginal", "tract", "zone", "indicating",
+           "cord", "units", "organic", "chain",
+           "distributed", "greater", "without", "concomitant",
+           "substance", "dense", "core", "late",
+           "substances", "establishment", "initiated", "surface",
+           "combining", "involves", "solutes", "role",
+           "interaction", "coupled", "classical", "entry",
+           "clustering", "domain", "insertion", "disassembly",
+           "determination", "sliding", "ion", "potential",
+           "acid", "guidance", "assembly", "complex",
+           "import", "gland", "fusion", "sequestered",
+           "cytosol", "propagation", "channels", "membrane",
+           "chemical", "acids", "longchain", "metabolic",
+           "unsaturated", "sugar", "carbon", "atoms",
+           "base", "signals", "binding", "bonds",
+           "derived", "sequestering", "separated", "adaptive",
+           "commitment", "signals", "potentials", "extension",
+           "ending", "replication", "new", "storage",
+           "strands", "sequence", "extrusion", "arrangement",
+           "eukaryotic", "organelle", "bounded", "anchored",
+           "basally", "elongation", "channel", "smooth",
+           "pore", "ions", "systemic", "plasma",
+           "anion", "much", "organs", "endogenous",
+           "connective", "tuft", "surrounded", "capsule",
+           "vertebrate", "intracellular", "precursor", "extracellular",
+           "secreted", "cellcell", "proximal", "acute",
+           "hydrogen", "alpha", "produces", "transducers",
+           "activators", "convey", "cascade", "toward",
+           "nuclear", "translocation", "decline", "transduction",
+           "accomplished", "retraction", "noncanonical", "bonding",
+           "transforming", "right", "ventral", "phase",
+           "repulsive", "cues", "canal", "sacs",
+           "plant", "natural", "pesticide", "insects",
+           "derivative", "linkage", "saturated", "lengths",
+           "step", "cycle", "removed", "three",
+           "remain", "respectively", "reaction", "ring",
+           "transmission", "increased", "white", "achieved",
+           "decreased", "attachment", "anterior", "secretory",
+           "temporary", "negatively", "nucleus", "droplets",
+           "residues", "linkages", "bonding", "incorporation",
+           "context", "transfer", "multisubunit", "subunits",
+           "processes", "identical", "sister", "environment",
+           "density", "detection", "stimuli", "exposure",
+           "soluble", "solvents", "powers", "defense",
+           "immature", "break", "coat", "exogenous",
+           "origin", "tertiary", "cycles", "novo",
+           "always", "dorsal", "processes", "nuclear",
+           "transmission", "loss", "corpus", "removing",
+           "input", "acquire", "modulation", "generally",
+           "hemispheres", "covalently", "bonded", "bonding",
+           "complete", "apical", "protrusion", "subcellular",
+           "compartment", "striated", "examples", "driven",
+           "doublet", "tube", "planar", "closure",
+           "coordinated", "plane", "partly", "axis",
+           "activated", "removal", "includes", "identity",
+           "sheath", "stage", "occur", "chains", "cushion",
+           "glands", "focal", "stages", "evoked",
+           "foam", "confining", "lateral", "cavity",
+           "third", "interactions", "node", "mediates",
+           "surroundings", "cyclic", "intermediate", "mass",
+           "selfpropelled", "bound", "excluding", "point",
+           "modification", "particle", "reactive", "active",
+           "segregation", "substrate", "gamma", "execution",
+           "facial", "branches", "fibers", "metal",
+           "residue", "radial", "satellite", "restore",
+           "interacting", "selectively", "noncovalently", "biosynthetic",
+           "inheritance", "links", "light", "link",
+           "tight", "enables", "innate", "biosynthesis",
+           "tubule", "bulb", "cohesion", "replicated",
+           "lowdensity", "directly", "solute", "lens",
+           "human", "roof", "poles", "structural",
+           "gene", "specification", "allows", "direct",
+           "exchange", "smoothened", "secondary", "controlled",
+           "intrinsic", "relaxation", "strength", "animals",
+           "bodies", "information", "bond", "products",
+           "embedded", "direction", "characteristics", "rhythm",
+           "changes", "major", "requires", "residing",
+           "physiological", "capable", "mediator", "amounts",
+           "basement", "leftright", "pattern", "patterns",
+           "twelve", "general", "transmitting", "plays",
+           "main", "maintains", "providing", "pathwayrestricted",
+           "targeting", "creating", "acquisition", "free",
+           "linear", "branching", "interpreted", "contribute",
+           "unit", "helps", "repeating", "constituent",
+           "progresses", "thus", "surfaces", "produce",
+           "area", "develop", "covers", "consequent",
+           "conditions", "mixture", "affects", "families",
+           "normal", "favoring", "replacement", "around",
+           "rid", "play", "retains", "throughout",
+           "life", "highly", "ordered", "generates",
+           "combinations", "adapts", "contributing", "emerge",
+           "vessel", "preexisting", "travel", "lies",
+           "called", "example", "four", "space",
+           "first", "initiate", "characteristic", "average",
+           "predominantly", "alternating", "second", "opens",
+           "actions", "single", "forming", "directing",
+           "contained", "matter", "naturally", "possessing",
+           "center", "help", "exhibit", "preinitiation",
+           "machinery", "abortive", "repeatedly", "attached",
+           "receives", "separates", "liquid", "material",
+           "independent", "tail", "latent", "barrier",
+           "impulse", "distal", "substituted", "least",
+           "according", "neutral", "travels", "brain",
+           "ear", "partitioning", "choice", "source",
+           "III", "blos", "coloring", "insecticide",
+           "volumesensitive", "box", "pigment", "bundle",
+           "chctype", "outward", "divergent", "conserved",
+           "driving", "finger", "organization", "spontaneous",
+           "envelope", "depolarization", "minusend", "comprises",
+           "proteincoupled", "ruffle", "spindle", "cortex",
+           "thiolester", "rnan", "rcosr", "localization",
+           "dorsalventral", "segment", "granules", "sound",
+           "acceptor", "primary", "network", "mechanism",
+           "bubble", "vibration", "trimers", "domains",
+           "activating", "heavy", "different", "retention",
+           "apparatus", "pad", "tubular", "organizing",
+           "faces", "subunit", "lungs", "sshaped",
+           "binds", "nonhomologous", "steadystate", "hap",
+           "responsive", "latency", "trunk", "segments",
+           "iris")
+  txt = unlist(strsplit(x, " "))
+  txt = Corpus(VectorSource(txt))
+  txt = tm_map(txt, PlainTextDocument)
+  txt = tm_map(txt, removePunctuation)
+  txt = tm_map(txt, removeNumbers)
+  txt = tm_map(txt, content_transformer(tolower))
+  txt = tm_map(txt, removeWords, c(t.rW, stopwords("english")))
+  # corpus = txt
+  # txt = tm_map(txt, stemDocument)
+  # txt = tm_map(txt, stemCompletion, corpus)
+  tdm = TermDocumentMatrix(txt)
+  m = as.matrix(tdm)
+  word_freqs = sort(rowSums(m), decreasing=TRUE)
+  word_freqs = word_freqs[word_freqs>1]
+  if (is.null(width)) {
+    word_freqs = paste(names(word_freqs), collapse=" ")
+  } else {
+    word_freqs = paste(names(word_freqs)[1:width], collapse="\n")
+  }
+  gsub("[[:space:]]?NA[[:space:]]?", "", word_freqs)
 }

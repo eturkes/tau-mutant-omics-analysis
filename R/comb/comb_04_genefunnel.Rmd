@@ -1,0 +1,1818 @@
+---
+title: "Combined Samples - 04 GeneFunnel Analysis"
+author:
+  - name: "Emir Turkes"
+date: '`r strftime(Sys.time(), format = "%B %d, %Y")`'
+link-citations: true
+output:
+  html_document:
+    code_folding: hide
+    number_sections: true
+    theme: lumen
+    highlight: haddock
+    toc: true
+    toc_depth: 2
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+knit: (function(inputFile, encoding) {
+  rmarkdown::render(
+    inputFile, encoding = encoding,
+    output_file = file.path("..", "..", "results", unlist(strsplit(getwd(), "/"))[6], "comb_04_genefunnel.html")
+  )})
+---
+
+<style type="text/css">
+body {font-size: 16px;}
+h1.title {font-size: 35px;}
+h1 {font-size: 24px;}
+h2 {font-size: 22px;}
+.toc-content {padding-left: 0px; padding-right: 0px;}
+div.tocify {width: 100%;}
+.tocify-subheader .tocify-item {font-size: 0.95em; padding-left: 25px; text-indent: 0;}
+div.main-container {max-width: none; width: 100%;}
+</style>
+
+*This file is a part of [scRNAseq-IN-neurons](https://github.com/eturkes/scRNAseq-IN-neurons).*
+
+The table of contents in the top left is clickable and can be used to quickly navigate the document.
+To toggle the visibility of code, use the `CODE` toggles at the top right of chunks.
+The toggle at the start of the document controls the visibility of all chunks.
+
+```{r}
+#    This file is part of tau-mutant-omics-analysis.
+#    Copyright (C) 2023  Emir Turkes, Naoto Watamura, UK DRI at UCL
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#    Emir Turkes can be contacted at emir.turkes@eturkes.com
+
+# Load required packages, suppressing startup messages.
+# -----------------------------------------------------
+library(conflicted)
+conflicts_prefer(base::intersect, DT::JS, edgeR::cpm, AnnotationDbi::select, .quiet = TRUE)
+packages <- c(
+  "Seurat", "GSEABase", "GSVA", "biomaRt", "parallel", "ggplot2", "magrittr", "dplyr", "ggrepel", "scuttle", "edgeR",
+  "DT", "scales", "RColorBrewer", "factoextra", "ComplexHeatmap", "reshape2", "pals", "dendextend", "GO.db", "tm",
+  "igraph", "qgraph", "circlize", "parallelly"
+)
+invisible(suppressPackageStartupMessages(lapply(packages, FUN = library, character.only = TRUE)))
+# -----------------------------------------------------
+
+# Define global settings.
+# -----------------------
+knitr::opts_chunk$set(fig.width = 10, fig.height = 7, dpi = 300)
+# -----------------------
+
+# Define functions.
+# -----------------
+source(file.path("..", "utils.R"))
+
+`%notin%` <- Negate(`%in%`)
+# -----------------
+
+# Useful variables.
+# -----------------
+analysis_no <- 4
+data_name <- unlist(strsplit(getwd(), "/"))[6] # Name of dataset derived from path.
+
+data_dir <- file.path("..", "..", "data")
+results_dir <- file.path("..", "..", "results", data_name)
+cache_dir <- file.path("..", "..", "cache", data_name, paste0("0", analysis_no)) # Store intermediate data objects here.
+if (!dir.exists(cache_dir)) {
+  dir.create(cache_dir, recursive = TRUE)
+}
+
+protocol <- c("mouse", "droplet", "single-nuc", "umis") # See `cluster_pipeline` in `utils.R`.
+vars_to_regress <- NULL # See `cluster_pipeline` in `utils.R`.
+parallel_override <- NULL # See `parallel_plan` in `utils.R`.
+
+# Metadata to plot after dimensionality reduction and clustering.
+# Values in list can include "no_legend and/or "no_label" to exclude those.
+# -------------------------------------------------------------------------
+metadata_to_plot <- vector("list", length = 3)
+names(metadata_to_plot) <- c("seurat_clusters", "sample", "doublets")
+metadata_to_plot[[2]] <- "no_label"
+metadata_to_plot[[3]] <- "no_label"
+# -------------------------------------------------------------------------
+```
+
+# Prep
+
+```{r}
+# Load and filter gene sets.
+# --------------------------
+rds <- file.path(cache_dir, "filtered_GO_comb_gene_sets.rds")
+if (file.exists(rds)) {
+  gene_sets <- readRDS(rds)
+} else {
+
+  gene_sets <- getGmt(file.path(data_dir, "gene-sets", "gprofiler_mmusculus.ENSG", "mmusculus.GO.comb.ENSG.gmt"))
+  keep <- filterGeneSets(gene_sets, min.sz = 5, max.sz = 50)
+  gene_sets <- gene_sets[names(gene_sets) %in% names(keep)]
+
+  for (i in seq(length(gene_sets@.Data))) {
+    go_id <- gene_sets[[i]]@setName
+    suppressWarnings(gene_sets[[i]]@setName <- gene_sets[[i]]@shortDescription)
+    suppressWarnings(gene_sets[[i]]@shortDescription <- go_id)
+  }
+
+  if (any(duplicated(names(gene_sets))) == TRUE) {
+    remove <- which(duplicated(names(gene_sets)))
+    gene_sets <- gene_sets[-remove]
+  }
+
+  remove <- grep("positive regulation of", names(gene_sets))
+  if (length(remove) > 0) {
+    gene_sets <- gene_sets[-remove]
+  }
+  remove <- grep("negative regulation of", names(gene_sets))
+  if (length(remove) > 0) {
+    gene_sets <- gene_sets[-remove]
+  }
+  remove <- grep("regulation of", names(gene_sets))
+  if (length(remove) > 0) {
+    gene_sets <- gene_sets[-remove]
+  }
+  remove <- grep("downregulation of", names(gene_sets))
+  if (length(remove) > 0) {
+    gene_sets <- gene_sets[-remove]
+  }
+  remove <- grep("inhibition of", names(gene_sets))
+  if (length(remove) > 0) {
+    gene_sets <- gene_sets[-remove]
+  }
+  remove <- grep("termination of", names(gene_sets))
+  if (length(remove) > 0) {
+    gene_sets <- gene_sets[-remove]
+  }
+  remove <- grep("activation of", names(gene_sets))
+  if (length(remove) > 0) {
+    gene_sets <- gene_sets[-remove]
+  }
+  remove <- grep("maintenance of", names(gene_sets))
+  if (length(remove) > 0) {
+    gene_sets <- gene_sets[-remove]
+  }
+  remove <- grep("upregulation of", names(gene_sets))
+  if (length(remove) > 0) {
+    gene_sets <- gene_sets[-remove]
+  }
+
+  overlap <- computeGeneSetsOverlapMax(gene_sets, uniqGenes = unique(unlist(geneIds(gene_sets))))
+  tmp <- rowSums(overlap)
+  tmp <- tmp[order(tmp, decreasing = TRUE)]
+  gene_sets_sorted <- gene_sets[match(names(tmp), names(gene_sets))]
+
+  overlap <- computeGeneSetsOverlapMax(gene_sets_sorted, uniqGenes = unique(unlist(geneIds(gene_sets_sorted))))
+  overlap[upper.tri(overlap)] <- 0
+  diag(overlap) <- 0
+  keep <- apply(overlap, MARGIN = 1, FUN = max)
+  keep <- keep[keep < 0.5]
+  gene_sets <- gene_sets[names(gene_sets) %in% names(keep)]
+
+  saveRDS(gene_sets, rds)
+}
+# --------------------------
+
+# Create a Seurat object containing only clusters of interest with downsampling.
+# ------------------------------------------------------------------------------
+rds <- file.path(cache_dir, "seurat_cleaned.rds")
+rds2 <- file.path(cache_dir, "gene_anno.rds")
+if (file.exists(rds) & file.exists(rds2)) {
+  seurat <- readRDS(rds)
+  gene_anno <- readRDS(rds2)
+} else {
+
+  seurat <- readRDS(file.path(cache_dir, "..", "02", "seurat.rds"))
+
+  # Remove obsolete data.
+  # ---------------------
+  DefaultAssay(seurat) <- "RNA"
+  seurat[["SCT"]] <- NULL
+  # ---------------------
+
+  seurat <- subset(seurat, idents = "11")
+
+  sample1_seurat <- subset(seurat, subset = sample == "NLGF_MAPT_KI")
+  sample2_seurat <- subset(seurat, subset = sample == "MAPT_KI")
+
+  # Find the minimum number of cells from each of the samples.
+  # This will be used to downsample each sample.
+  # ----------------------------------------------------------
+  downsample <- min(ncol(sample1_seurat), ncol(sample2_seurat))
+  # ----------------------------------------------------------
+
+  set.seed(1)
+  sample1_seurat <- subset(sample1_seurat, cells = sample(Cells(sample1_seurat), size = downsample))
+  condition1_seurat <- sample1_seurat
+
+  set.seed(1)
+  sample2_seurat <- subset(sample2_seurat, cells = sample(Cells(sample2_seurat), size = downsample))
+  condition2_seurat <- sample2_seurat
+
+  seurat <- merge(condition1_seurat, condition2_seurat)
+  rm(sample1_seurat, sample2_seurat)
+
+  mart <- useEnsembl("ensembl", "mmusculus_gene_ensembl")
+  attributes <- c("external_gene_name", "ensembl_gene_id")
+  gene_anno <- getBM(attributes, filters = "ensembl_gene_id", values = unique(unlist(geneIds(gene_sets))), mart = mart)
+  add <- which(gene_anno$external_gene_name == "")
+  for (idx in add) {
+    gene_anno[idx, 1] <- gene_anno[idx, 2]
+  }
+
+  seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
+  add <- unique(gene_anno$external_gene_name[which(gene_anno$external_gene_name %notin% rownames(seurat))])
+  new_mat <- GetAssayData(seurat, "counts")
+  null_mat <- matrix(0, nrow = length(add), ncol = ncol(new_mat))
+  for (i in seq(nrow(null_mat))) {
+    set.seed(i)
+    null_mat[i, sample(ncol(null_mat), size = 1)] <- 1
+  }
+  rownames(null_mat) <- add
+  new_mat <- rbind(new_mat, null_mat)
+  seurat <- CreateSeuratObject(new_mat, meta.data = seurat[[]])
+
+  # For gene symbols with multiple ENSEMBL IDs, duplicate the gene symbol to have an identical row
+  # for each ENSEMBL ID.
+  # It's possible for this section to actually require a third round of renaming, but it is rare.
+  # ----------------------------------------------------------------------------------------------
+  dup <- gene_anno[duplicated(gene_anno$external_gene_name), ]
+  if (nrow(dup) > 0) {
+    for (i in seq(nrow(dup))) {
+      for (j in seq(nrow(gene_anno))) {
+        if (dup$ensembl_gene_id[i] == gene_anno$ensembl_gene_id[j]) {
+          gene_anno$external_gene_name[j] <- paste0(gene_anno$external_gene_name[j], "-alt")
+        }
+      }
+    }
+    if (any(duplicated(gene_anno$external_gene_name))) {
+      stop("Duplicates in gene_anno.")
+    }
+    seurat <- seurat[rownames(seurat) %in% gene_anno$external_gene_name, ]
+    new_mat <- GetAssayData(seurat, "counts")
+    for (i in seq(nrow(dup))) {
+      for (j in seq(nrow(seurat))) {
+        if (dup$external_gene_name[i] == rownames(seurat)[j]) {
+          new_row <- GetAssayData(seurat[j, ], "counts")
+          rownames(new_row) <- paste0(rownames(new_row), "-alt")
+          if (rownames(new_row) %in% rownames(new_mat)) {
+            rownames(new_row) <- paste0(rownames(new_row), "2")
+          }
+          new_mat <- rbind(new_mat, new_row)
+        }
+      }
+    }
+  } else {
+    seurat <- seurat[rownames(seurat) %in% gene_anno$external_gene_name, ]
+    new_mat <- GetAssayData(seurat, "counts")
+  }
+
+  gene_anno <- gene_anno[match(rownames(new_mat), gene_anno$external_gene_name), ]
+  rownames(new_mat) <- gene_anno$ensembl_gene_id
+
+  seurat <- CreateSeuratObject(new_mat, meta.data = seurat[[]])
+  rm(new_mat)
+
+  seurat$condition <- factor(paste("Microglia", seurat$sample, sep = "_"))
+
+  saveRDS(seurat, rds)
+  saveRDS(gene_anno, rds2)
+}
+# ------------------------------------------------------------------------------
+
+sub_name <- "sctransform"
+seurat <- cluster_pipeline(
+  seurat, cache_dir = cache_dir, sub_name = sub_name, protocol = protocol,
+  vars_to_regress = vars_to_regress, parallel_override = parallel_override, cc = FALSE, min_cells = 0
+)
+seurat
+
+# Create reduced dimension plots to identify potential confounders and latent factors.
+# ------------------------------------------------------------------------------------
+umap <- as.matrix(data.frame(seurat$umap1, seurat$umap2))
+colnames(umap) <- paste0("umap_", 1:2)
+seurat[["umap"]] <- CreateDimReducObject(umap, key = "umap_", assay = DefaultAssay(seurat))
+rm(umap)
+
+for (i in 1:length(metadata_to_plot)) {
+  if ("no_legend" %in% metadata_to_plot[[i]] && "no_label" %in% metadata_to_plot[[i]]) {
+    print(red_dim_plot(seurat, "umap1", "umap2", names(metadata_to_plot)[i]) +
+            NoLegend() + ggtitle(names(metadata_to_plot)[i]))
+  } else if ("no_legend" %in% metadata_to_plot[[i]]) {
+    print(red_dim_plot(seurat, "umap1", "umap2", names(metadata_to_plot)[i], "cat") +
+            NoLegend() + ggtitle(names(metadata_to_plot)[i]))
+  } else if ("no_label" %in% metadata_to_plot[[i]]) {
+    print(red_dim_plot(seurat, "umap1", "umap2", names(metadata_to_plot)[i]) +
+            ggtitle(names(metadata_to_plot)[i]))
+  } else {
+    print(red_dim_plot(seurat, "umap1", "umap2", names(metadata_to_plot)[i], "cat") +
+            ggtitle(names(metadata_to_plot)[i]))
+  }
+}
+
+hist(as.matrix(GetAssayData(seurat)), main = "SCTransform normalized log counts distribution")
+
+sce <- as.SingleCellExperiment(seurat)
+logcounts(sce) <- as.matrix(counts(sce))
+sce_filt <- as.SingleCellExperiment(seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ])
+logcounts(sce_filt) <- as.matrix(counts(sce_filt))
+
+hist(logcounts(sce_filt), main = "SCTransform normalized log counts distribution after filtering zero counts")
+
+# Create new Seurat object with gene symbols.
+# -------------------------------------------
+new_mat <- GetAssayData(seurat)
+rownames(new_mat) <- gene_anno$external_gene_name
+seurat_symbols <- CreateSeuratObject(new_mat, meta.data = seurat[[]])
+# -------------------------------------------
+
+# Run GSVA on pseudo-bulk counts.
+# -------------------------------
+rds <- file.path(cache_dir, "gsva_pseudobulk.rds")
+if (file.exists(rds)) {
+  gsva <- readRDS(rds)
+} else {
+  gsva <- gsva(
+    logcounts(sce), gene_sets, method = "ssgsea", parallel.sz = availableCores(), ssgsea.norm = FALSE, verbose = FALSE
+  )
+  colnames(gsva) <- sce$condition
+  saveRDS(gsva, rds)
+}
+# -------------------------------
+```
+
+# Analysis
+
+```{r}
+# Fit model on pseudo-bulk GSVA results.
+# --------------------------------------
+design <- model.matrix(~ 0 + sce$condition)
+colnames(design) <- levels(sce$condition)
+fit <- lmFit(gsva, design)
+contrast_mat <- makeContrasts(Microglia_NLGF_MAPT_KI-Microglia_MAPT_KI, levels = design)
+cont_fit <- eBayes(contrasts.fit(fit, contrast_mat), trend = TRUE)
+tests <- decideTests(cont_fit, p.value = 5e-2)
+tests_up <- tests[tests[ , 1] == 1, ]
+tests_down <- tests[tests[ , 1] == -1, ]
+results <- topTable(cont_fit, number = Inf)
+
+up <- results[rownames(results) %in% rownames(tests_up), ]
+down <- results[rownames(results) %in% rownames(tests_down), ]
+all <- rbind(up, down)
+if (length(all) > 0) {
+  all <- all[order(-all$B), ]
+}
+gsva_list_pseudobulk <- list(all, up, down)
+names(gsva_list_pseudobulk) <- c(
+  "All DE", paste0("Upregulated in ", levels(sce$condition)[1]),
+  paste0("Downregulated in ", levels(sce$condition)[2])
+)
+# --------------------------------------
+
+# Fit a strict model on pseudo-bulk GSVA results.
+# -----------------------------------------------
+tests <- decideTests(cont_fit, p.value = 5e-5)
+tests_up <- tests[tests[ , 1] == 1, ]
+tests_down <- tests[tests[ , 1] == -1, ]
+results <- topTable(cont_fit, number = Inf)
+
+up <- results[rownames(results) %in% rownames(tests_up), ]
+down <- results[rownames(results) %in% rownames(tests_down), ]
+all <- rbind(up, down)
+if (length(all) > 0) {
+  all <- all[order(-all$B), ]
+}
+gsva_list_pseudobulk_strict <- list(all, up, down)
+names(gsva_list_pseudobulk_strict) <- c(
+  "All DE", paste0("Upregulated in ", levels(sce$condition)[1]),
+  paste0("Downregulated in ", levels(sce$condition)[2])
+)
+# -----------------------------------------------
+
+# Fit a stricter model on pseudo-bulk GSVA results.
+# -------------------------------------------------
+tests <- decideTests(cont_fit, p.value = 5e-15)
+tests_up <- tests[tests[ , 1] == 1, ]
+tests_down <- tests[tests[ , 1] == -1, ]
+results <- topTable(cont_fit, number = Inf)
+
+up <- results[rownames(results) %in% rownames(tests_up), ]
+down <- results[rownames(results) %in% rownames(tests_down), ]
+all <- rbind(up, down)
+if (length(all) > 0) {
+  all <- all[order(-all$B), ]
+}
+gsva_list_pseudobulk_stricter <- list(all, up, down)
+names(gsva_list_pseudobulk_stricter) <- c(
+  "All DE", paste0("Upregulated in ", levels(sce$condition)[1]),
+  paste0("Downregulated in ", levels(sce$condition)[2])
+)
+# -------------------------------------------------
+
+# Fit the strictest model on pseudo-bulk GSVA results.
+# ----------------------------------------------------
+tests <- decideTests(cont_fit, p.value = 5e-25)
+tests_up <- tests[tests[ , 1] == 1, ]
+tests_down <- tests[tests[ , 1] == -1, ]
+results <- topTable(cont_fit, number = Inf)
+
+up <- results[rownames(results) %in% rownames(tests_up), ]
+down <- results[rownames(results) %in% rownames(tests_down), ]
+all <- rbind(up, down)
+if (length(all) > 0) {
+  all <- all[order(-all$B), ]
+}
+gsva_list_pseudobulk_strictest <- list(all, up, down)
+names(gsva_list_pseudobulk_strictest) <- c(
+  "All DE", paste0("Upregulated in ", levels(sce$condition)[1]),
+  paste0("Downregulated in ", levels(sce$condition)[2])
+)
+# ----------------------------------------------------
+```
+
+**Upregulated in Microglia NLGF MAPT KI GSE Initial**
+
+```{r}
+ncol <- ncol(gsva_list_pseudobulk[[2]])
+datatable_download_exp(gsva_list_pseudobulk[[2]][(ncol-3):ncol])
+```
+
+**Upregulated in Microglia NLGF MAPT KI GSE Strict**
+
+```{r}
+ncol <- ncol(gsva_list_pseudobulk_strict[[2]])
+datatable_download_exp(gsva_list_pseudobulk_strict[[2]][(ncol-3):ncol])
+```
+
+**Upregulated in Microglia NLGF MAPT KI GSE Stricter**
+
+```{r}
+ncol <- ncol(gsva_list_pseudobulk_stricter[[2]])
+datatable_download_exp(gsva_list_pseudobulk_stricter[[2]][(ncol-3):ncol])
+```
+
+**Upregulated in Microglia NLGF MAPT KI GSE Strictest**
+
+```{r}
+ncol <- ncol(gsva_list_pseudobulk_strictest[[2]])
+datatable_download_exp(gsva_list_pseudobulk_strictest[[2]][(ncol-3):ncol])
+```
+
+**Downregulated in Microglia NLGF MAPT KI GSE Initial**
+
+```{r}
+ncol <- ncol(gsva_list_pseudobulk[[3]])
+datatable_download_exp(gsva_list_pseudobulk[[3]][(ncol-3):ncol])
+```
+
+**Downregulated in Microglia NLGF MAPT KI GSE Strict**
+
+```{r}
+ncol <- ncol(gsva_list_pseudobulk_strict[[3]])
+datatable_download_exp(gsva_list_pseudobulk_strict[[3]][(ncol-3):ncol])
+```
+
+**Downregulated in Microglia NLGF MAPT KI GSE Stricter**
+
+```{r}
+ncol <- ncol(gsva_list_pseudobulk_stricter[[3]])
+datatable_download_exp(gsva_list_pseudobulk_stricter[[3]][(ncol-3):ncol])
+```
+
+**Downregulated in Microglia NLGF MAPT KI GSE Strictest**
+
+```{r}
+ncol <- ncol(gsva_list_pseudobulk_strictest[[3]])
+datatable_download_exp(gsva_list_pseudobulk_strictest[[3]][(ncol-3):ncol])
+```
+
+```{r}
+# Fit model on pseudo-bulk counts.
+# --------------------------------
+design <- model.matrix(~ 0 + sce_filt$condition)
+colnames(design) <- levels(sce_filt$condition)
+
+fit <- lmFit(logcounts(sce_filt), design)
+contrast_mat <- makeContrasts(Microglia_NLGF_MAPT_KI-Microglia_MAPT_KI, levels = design)
+cont_fit <- eBayes(contrasts.fit(fit, contrast_mat), trend = TRUE)
+tests <- decideTests(cont_fit, p.value = 5e-2)
+tests_up <- tests[tests[ , 1] == 1, ]
+tests_down <- tests[tests[ , 1] == -1, ]
+results <- topTable(cont_fit, number = Inf)
+
+up <- results[rownames(results) %in% rownames(tests_up), ]
+down <- results[rownames(results) %in% rownames(tests_down), ]
+all <- rbind(up, down)
+if (length(all) > 0) {
+  all <- all[order(-all$B), ]
+}
+markers_list_pseudobulk <- list(all, up, down)
+names(markers_list_pseudobulk) <- c(
+  "All DE", paste0("Upregulated in ", levels(sce_filt$condition)[1]),
+  paste0("Downregulated in ", levels(sce_filt$condition)[2])
+)
+# --------------------------------------
+
+# Fit a strict model on pseudo-bulk GSVA results.
+# -----------------------------------------------
+tests <- decideTests(cont_fit, p.value = 5e-5)
+tests_up <- tests[tests[ , 1] == 1, ]
+tests_down <- tests[tests[ , 1] == -1, ]
+results <- topTable(cont_fit, number = Inf)
+
+up <- results[rownames(results) %in% rownames(tests_up), ]
+down <- results[rownames(results) %in% rownames(tests_down), ]
+all <- rbind(up, down)
+if (length(all) > 0) {
+  all <- all[order(-all$B), ]
+}
+markers_list_pseudobulk_strict <- list(all, up, down)
+names(markers_list_pseudobulk_strict) <- c(
+  "All DE", paste0("Upregulated in ", levels(sce_filt$condition)[1]),
+  paste0("Downregulated in ", levels(sce_filt$condition)[2])
+)
+# -----------------------------------------------
+
+# Fit a stricter model on pseudo-bulk GSVA results.
+# -------------------------------------------------
+tests <- decideTests(cont_fit, p.value = 5e-15)
+tests_up <- tests[tests[ , 1] == 1, ]
+tests_down <- tests[tests[ , 1] == -1, ]
+results <- topTable(cont_fit, number = Inf)
+
+up <- results[rownames(results) %in% rownames(tests_up), ]
+down <- results[rownames(results) %in% rownames(tests_down), ]
+all <- rbind(up, down)
+if (length(all) > 0) {
+  all <- all[order(-all$B), ]
+}
+markers_list_pseudobulk_stricter <- list(all, up, down)
+names(markers_list_pseudobulk_stricter) <- c(
+  "All DE", paste0("Upregulated in ", levels(sce_filt$condition)[1]),
+  paste0("Downregulated in ", levels(sce_filt$condition)[2])
+)
+# -------------------------------------------------
+
+# Fit the strictest model on pseudo-bulk GSVA results.
+# ----------------------------------------------------
+tests <- decideTests(cont_fit, p.value = 5e-25)
+tests_up <- tests[tests[ , 1] == 1, ]
+tests_down <- tests[tests[ , 1] == -1, ]
+results <- topTable(cont_fit, number = Inf)
+
+up <- results[rownames(results) %in% rownames(tests_up), ]
+down <- results[rownames(results) %in% rownames(tests_down), ]
+all <- rbind(up, down)
+if (length(all) > 0) {
+  all <- all[order(-all$B), ]
+}
+markers_list_pseudobulk_strictest <- list(all, up, down)
+names(markers_list_pseudobulk_strictest) <- c(
+  "All DE", paste0("Upregulated in ", levels(sce_filt$condition)[1]),
+  paste0("Downregulated in ", levels(sce_filt$condition)[2])
+)
+# ----------------------------------------------------
+
+# Convert ENSEMBL IDs back to gene symbols.
+# -----------------------------------------
+genes <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(markers_list_pseudobulk[[2]]), ]
+genes <- genes[order(match(genes$ensembl_gene_id, rownames(markers_list_pseudobulk[[2]]))), ]
+up <- markers_list_pseudobulk[[2]]
+rownames(up) <- genes$external_gene_name
+
+genes <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(markers_list_pseudobulk[[3]]), ]
+genes <- genes[order(match(genes$ensembl_gene_id, rownames(markers_list_pseudobulk[[3]]))), ]
+down <- markers_list_pseudobulk[[3]]
+rownames(down) <- genes$external_gene_name
+
+all <- rbind(up, down)
+all <- all[order(-all$B), ]
+markers_list_symbols_pseudobulk <- list(all, up, down)
+
+genes <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(markers_list_pseudobulk_strict[[2]]), ]
+genes <- genes[order(match(genes$ensembl_gene_id, rownames(markers_list_pseudobulk_strict[[2]]))), ]
+up <- markers_list_pseudobulk_strict[[2]]
+rownames(up) <- genes$external_gene_name
+
+genes <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(markers_list_pseudobulk_strict[[3]]), ]
+genes <- genes[order(match(genes$ensembl_gene_id, rownames(markers_list_pseudobulk_strict[[3]]))), ]
+down <- markers_list_pseudobulk_strict[[3]]
+rownames(down) <- genes$external_gene_name
+
+all <- rbind(up, down)
+all <- all[order(-all$B), ]
+markers_list_symbols_pseudobulk_strict <- list(all, up, down)
+
+genes <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(markers_list_pseudobulk_stricter[[2]]), ]
+genes <- genes[
+  order(match(genes$ensembl_gene_id, rownames(markers_list_pseudobulk_stricter[[2]]))),
+]
+up <- markers_list_pseudobulk_stricter[[2]]
+rownames(up) <- genes$external_gene_name
+
+genes <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(markers_list_pseudobulk_stricter[[3]]), ]
+genes <- genes[
+  order(match(genes$ensembl_gene_id, rownames(markers_list_pseudobulk_stricter[[3]]))),
+]
+down <- markers_list_pseudobulk_stricter[[3]]
+rownames(down) <- genes$external_gene_name
+
+all <- rbind(up, down)
+all <- all[order(-all$B), ]
+markers_list_symbols_pseudobulk_stricter <- list(all, up, down)
+
+genes <- gene_anno[
+  gene_anno$ensembl_gene_id %in% rownames(markers_list_pseudobulk_strictest[[2]]),
+]
+genes <- genes[
+  order(match(genes$ensembl_gene_id, rownames(markers_list_pseudobulk_strictest[[2]]))),
+]
+up <- markers_list_pseudobulk_strictest[[2]]
+rownames(up) <- genes$external_gene_name
+
+genes <- gene_anno[
+  gene_anno$ensembl_gene_id %in% rownames(markers_list_pseudobulk_strictest[[3]]),
+]
+genes <- genes[
+  order(match(genes$ensembl_gene_id, rownames(markers_list_pseudobulk_strictest[[3]]))),
+]
+down <- markers_list_pseudobulk_strictest[[3]]
+rownames(down) <- genes$external_gene_name
+
+all <- rbind(up, down)
+all <- all[order(-all$B), ]
+markers_list_symbols_pseudobulk_strictest <- list(all, up, down)
+# -----------------------------------------
+```
+
+**Upregulated in Microglia NLGF MAPT KI DEG Initial**
+
+```{r}
+ncol <- ncol(markers_list_symbols_pseudobulk[[2]])
+datatable_download_exp(markers_list_symbols_pseudobulk[[2]][(ncol-3):ncol])
+```
+
+**Upregulated in Microglia NLGF MAPT KI DEG Strict**
+
+```{r}
+ncol <- ncol(markers_list_symbols_pseudobulk_strict[[2]])
+datatable_download_exp(markers_list_symbols_pseudobulk_strict[[2]][(ncol-3):ncol])
+```
+
+**Upregulated in Microglia NLGF MAPT KI DEG Stricter**
+
+```{r}
+ncol <- ncol(markers_list_symbols_pseudobulk_stricter[[2]])
+datatable_download_exp(markers_list_symbols_pseudobulk_stricter[[2]][(ncol-3):ncol])
+```
+
+**Upregulated in Microglia NLGF MAPT KI DEG Strictest**
+
+```{r}
+ncol <- ncol(markers_list_symbols_pseudobulk_strictest[[2]])
+datatable_download_exp(markers_list_symbols_pseudobulk_strictest[[2]][(ncol-3):ncol])
+```
+
+**Downregulated in Microglia NLGF MAPT KI DEG Initial**
+
+```{r}
+ncol <- ncol(markers_list_symbols_pseudobulk[[3]])
+datatable_download_exp(markers_list_symbols_pseudobulk[[3]][(ncol-3):ncol])
+```
+
+**Downregulated in Microglia NLGF MAPT KI DEG Strict**
+
+```{r}
+ncol <- ncol(markers_list_symbols_pseudobulk_strict[[3]])
+datatable_download_exp(markers_list_symbols_pseudobulk_strict[[3]][(ncol-3):ncol])
+```
+
+**Downregulated in Microglia NLGF MAPT KI DEG Stricter**
+
+```{r}
+ncol <- ncol(markers_list_symbols_pseudobulk_stricter[[3]])
+datatable_download_exp(markers_list_symbols_pseudobulk_stricter[[3]][(ncol-3):ncol])
+```
+
+**Downregulated in Microglia NLGF MAPT KI DEG Strictest**
+
+```{r}
+ncol <- ncol(markers_list_symbols_pseudobulk_strictest[[3]])
+datatable_download_exp(markers_list_symbols_pseudobulk_strictest[[3]][(ncol-3):ncol])
+```
+
+# Gene Set Heatmap
+
+```{r, fig.width = 12, fig.height = 9}
+anno_color <- hue_pal()(length(unique(sce$condition)))
+color <- colorRampPalette(rev(brewer.pal(9, "RdBu")))(100) # For main gene set heatmap.
+
+gsva_list_pseudobulk_all <- list(
+  c(
+    rownames(gsva_list_pseudobulk[[1]]), rownames(gsva_list_pseudobulk_strict[[1]]),
+    rownames(gsva_list_pseudobulk_stricter[[1]]), rownames(gsva_list_pseudobulk_strictest[[1]])
+  ),
+  c(
+    rownames(gsva_list_pseudobulk[[2]]), rownames(gsva_list_pseudobulk_strict[[2]]),
+    rownames(gsva_list_pseudobulk_stricter[[2]]), rownames(gsva_list_pseudobulk_strictest[[2]])
+  ),
+  c(
+    rownames(gsva_list_pseudobulk[[3]]), rownames(gsva_list_pseudobulk_strict[[3]]),
+    rownames(gsva_list_pseudobulk_stricter[[3]]), rownames(gsva_list_pseudobulk_strictest[[3]])
+  )
+)
+
+markers_list_pseudobulk_all <- list(
+  c(
+    rownames(markers_list_pseudobulk[[1]]),
+    rownames(markers_list_pseudobulk_strict[[1]]),
+    rownames(markers_list_pseudobulk_stricter[[1]]),
+    rownames(markers_list_pseudobulk_strictest[[1]])
+  ),
+  c(
+    rownames(markers_list_pseudobulk[[2]]),
+    rownames(markers_list_pseudobulk_strict[[2]]),
+    rownames(markers_list_pseudobulk_stricter[[2]]),
+    rownames(markers_list_pseudobulk_strictest[[2]])
+  ),
+  c(
+    rownames(markers_list_pseudobulk[[3]]),
+    rownames(markers_list_pseudobulk_strict[[3]]),
+    rownames(markers_list_pseudobulk_stricter[[3]]),
+    rownames(markers_list_pseudobulk_strictest[[3]])
+  )
+)
+markers_list_symbols_pseudobulk_all <- list(
+  c(
+    rownames(markers_list_symbols_pseudobulk[[1]]),
+    rownames(markers_list_symbols_pseudobulk_strict[[1]]),
+    rownames(markers_list_symbols_pseudobulk_stricter[[1]]),
+    rownames(markers_list_symbols_pseudobulk_strictest[[1]])
+  ),
+  c(
+    rownames(markers_list_symbols_pseudobulk[[2]]),
+    rownames(markers_list_symbols_pseudobulk_strict[[2]]),
+    rownames(markers_list_symbols_pseudobulk_stricter[[2]]),
+    rownames(markers_list_symbols_pseudobulk_strictest[[2]])
+  ),
+  c(
+    rownames(markers_list_symbols_pseudobulk[[3]]),
+    rownames(markers_list_symbols_pseudobulk_strict[[3]]),
+    rownames(markers_list_symbols_pseudobulk_stricter[[3]]),
+    rownames(markers_list_symbols_pseudobulk_strictest[[3]])
+  )
+)
+
+mat <- gsva
+mat <- mat[rownames(mat) %in% gsva_list_pseudobulk_all[[1]], ]
+mat_up <- mat[rownames(mat) %in% gsva_list_pseudobulk_all[[2]], ]
+mat_down <- mat[rownames(mat) %in% gsva_list_pseudobulk_all[[3]], ]
+gene_sets_sub_up <- gene_sets[names(gene_sets) %in% rownames(mat_up)]
+up_vector <- vector()
+for (j in seq(length(gene_sets_sub_up@.Data))) {
+  if (
+    length(which(gene_sets_sub_up[[j]]@geneIds %in% markers_list_pseudobulk_all[[2]])) >=
+      round(length(gene_sets_sub_up[[j]]@geneIds) / 6)
+    ) {
+    up_vector <- append(up_vector, names(gene_sets_sub_up)[j])
+  }
+}
+gene_sets_sub_down <- gene_sets[names(gene_sets) %in% rownames(mat_down)]
+down_vector <- c()
+for (j in seq(length(gene_sets_sub_down@.Data))) {
+  if (
+    length(which(gene_sets_sub_down[[j]]@geneIds %in% markers_list_pseudobulk_all[[3]])) >=
+      round(length(gene_sets_sub_down[[j]]@geneIds) / 6)
+  ) {
+    down_vector <- append(down_vector, names(gene_sets_sub_down)[j])
+  }
+}
+all_vector <- append(up_vector, down_vector)
+mat <- mat[rownames(mat) %in% all_vector, ]
+gene_sets_sub <- gene_sets[names(gene_sets) %in% rownames(mat)]
+gene_sets_sub_ids <- gene_sets_sub
+for (j in seq(length(gene_sets_sub_ids@.Data))) {
+  suppressWarnings(gene_sets_sub_ids[[j]]@setName <- gene_sets_sub_ids[[j]]@shortDescription)
+}
+
+discard <- computeGeneSetsOverlapMax(
+  gene_sets_sub_ids, unique(unlist(geneIds(gene_sets_sub_ids)))
+)
+discard[!upper.tri(discard)] <- 0
+discard <- colnames(discard)[colSums(discard) == 0]
+discard <- which(names(gene_sets_sub_ids) %in% discard)
+mat <- mat[-discard, ]
+gene_sets_sub <- gene_sets_sub[-discard, ]
+gene_sets_sub_ids <- gene_sets_sub_ids[-discard, ]
+
+gene_set_overlap <- computeGeneSetsOverlapMax(
+  gene_sets_sub_ids, unique(unlist(geneIds(gene_sets_sub_ids)))
+)
+clustering <- hclust(get_dist(gene_set_overlap, "spearman"), "ward.D2")
+
+anno <- HeatmapAnnotation(
+  cell_type = anno_block(
+    gp = gpar(fill = "lightgray", col = "lightgray"),
+    labels = c(levels(sce$condition)[[1]], levels(sce$condition)[[2]]),
+    labels_gp = gpar(col = "black", fontsize = 12)
+  )
+)
+
+modules_up <- rownames(mat)[rownames(mat) %in% gsva_list_pseudobulk_all[[2]]]
+modules_down <- rownames(mat)[rownames(mat) %in% gsva_list_pseudobulk_all[[3]]]
+
+module_gene_sets_sub <- gene_sets[names(gene_sets) %in% modules_up]
+frequent_genes_tmp <- as.data.frame(table(unlist(geneIds(module_gene_sets_sub))))
+frequent_genes_tmp <- frequent_genes_tmp[
+  frequent_genes_tmp$Var1 %in% gene_anno$ensembl_gene_id,
+]
+rownames(frequent_genes_tmp) <- NULL
+frequent_genes_up <- frequent_genes_tmp
+
+module_gene_sets_sub <- gene_sets[names(gene_sets) %in% modules_down]
+frequent_genes_tmp <- as.data.frame(table(unlist(geneIds(module_gene_sets_sub))))
+frequent_genes_tmp <- frequent_genes_tmp[
+  frequent_genes_tmp$Var1 %in% gene_anno$ensembl_gene_id,
+]
+rownames(frequent_genes_tmp) <- NULL
+frequent_genes_down <- frequent_genes_tmp
+frequent_genes <- rbind(frequent_genes_up, frequent_genes_down)
+
+node_data <- melt(geneIds(gene_sets_sub))
+node_data <- node_data[node_data$value %in% frequent_genes$Var1, ]
+names(node_data)[1] <- "ensembl_gene_id"
+names(node_data)[2] <- "gene_set"
+node_data$direction <- ifelse(
+  node_data$gene_set %in% gsva_list_pseudobulk_all[[2]], "up", "down"
+)
+
+unique_direction <- as.data.frame.matrix(table(node_data[ , c(1, 3)]), )
+unique_direction$down <- unique_direction$down * -1
+module_membership_norm <- unique_direction
+module_membership_norm <- module_membership_norm[
+  abs(rowSums(module_membership_norm)) >= 2,
+]
+
+hub_gene_all_GO <- table(unlist(geneIds(gene_sets)))
+hub_gene_all_GO <- hub_gene_all_GO[
+  names(hub_gene_all_GO) %in% rownames(module_membership_norm)
+]
+
+# module_membership_thresh <- median(
+#   (abs(rowSums(module_membership_norm)) / hub_gene_all_GO) *
+#     abs(rowSums(module_membership_norm))
+# )
+# module_membership_thresh <- summary(
+#   as.numeric(
+#     (abs(rowSums(module_membership_norm)) / hub_gene_all_GO) *
+#       abs(rowSums(module_membership_norm))
+#   )
+# )[2][[1]]
+module_membership_thresh <- summary(
+  as.numeric(
+    (abs(rowSums(module_membership_norm)) / hub_gene_all_GO) *
+      abs(rowSums(module_membership_norm))
+  )
+)[5][[1]]
+# module_membership_thresh <- mean(
+#   (abs(rowSums(module_membership_norm)) / hub_gene_all_GO) *
+#     abs(rowSums(module_membership_norm))
+# )
+
+modules_with_hubs <- vector("list", 26)
+modules_with_hubs[[1]] <- 0
+hub_gene_list <- list(gene_anno)
+for (l in 2:26) {
+  set.seed(1)
+  heatmap <- Heatmap(
+    mat, cluster_rows = clustering, cluster_columns = FALSE, show_column_names = FALSE,
+    show_row_names = FALSE, show_heatmap_legend = FALSE, row_split = l,
+  )
+  modules <- suppressWarnings(row_order(heatmap))
+  hub_gene_list <- vector("list", length(modules))
+  for (m in seq_along(modules)) {
+    module_sets <- rownames(mat)[modules[[m]]]
+    modules_up <- module_sets[module_sets %in% gsva_list_pseudobulk_all[[2]]]
+    modules_down <- module_sets[module_sets %in% gsva_list_pseudobulk_all[[3]]]
+    module_hub_genes <- vector()
+    
+    if (length(modules_up) == 0) {
+    } else {
+      module_gene_sets_sub <- gene_sets[names(gene_sets) %in% modules_up]
+      frequent_genes <- as.data.frame(table(unlist(geneIds(module_gene_sets_sub))))
+      hub_gene_all_GO_sub <- hub_gene_all_GO[
+        names(hub_gene_all_GO) %in% frequent_genes$Var1
+      ]
+      frequent_genes <- frequent_genes[frequent_genes$Var1 %in% names(hub_gene_all_GO), ]
+      frequent_genes$Freq <-
+        (frequent_genes$Freq / hub_gene_all_GO_sub) * frequent_genes$Freq
+      frequent_genes <- frequent_genes[
+        frequent_genes$Freq >= module_membership_thresh,
+      ]
+      module_hub_genes_tmp <- gene_anno[
+        gene_anno$ensembl_gene_id %in% frequent_genes$Var1,
+      ]
+      module_hub_genes_tmp <- module_hub_genes_tmp[
+        module_hub_genes_tmp$ensembl_gene_id %in% markers_list_pseudobulk_all[[2]],
+      ]
+      module_hub_genes <- module_hub_genes_tmp$ensembl_gene_id
+    }
+    
+    if (length(modules_down) == 0) {
+    } else {
+      module_gene_sets_sub <- gene_sets[names(gene_sets) %in% modules_down]
+      frequent_genes <- as.data.frame(table(unlist(geneIds(module_gene_sets_sub))))
+      hub_gene_all_GO_sub <- hub_gene_all_GO[
+        names(hub_gene_all_GO) %in% frequent_genes$Var1
+      ]
+      frequent_genes <- frequent_genes[frequent_genes$Var1 %in% names(hub_gene_all_GO), ]
+      frequent_genes$Freq <-
+        (frequent_genes$Freq / hub_gene_all_GO_sub) * frequent_genes$Freq
+      frequent_genes <- frequent_genes[
+        frequent_genes$Freq >= module_membership_thresh,
+      ]
+      module_hub_genes_tmp <- gene_anno[
+        gene_anno$ensembl_gene_id %in% frequent_genes$Var1,
+      ]
+      module_hub_genes_tmp <- module_hub_genes_tmp[
+        module_hub_genes_tmp$ensembl_gene_id %in% markers_list_pseudobulk_all[[3]],
+      ]
+      module_hub_genes <- append(module_hub_genes, module_hub_genes_tmp$ensembl_gene_id)
+    }
+    
+    hub_gene_list[[m]] <- module_hub_genes
+  }
+  modules_with_hubs[[l]] <- length(which(lengths(hub_gene_list) != 0)) / l
+}
+optimal_k <- 27 - which.max(rev(modules_with_hubs))
+module_colors <- cols25(optimal_k)
+clustering <- color_branches(clustering, optimal_k, col = module_colors)
+set.seed(1)
+heatmap <- Heatmap(
+  mat, cluster_rows = clustering, cluster_columns = FALSE, show_column_names = FALSE,
+  show_row_names = FALSE, show_heatmap_legend = FALSE, row_split = optimal_k
+)
+
+modules <- suppressWarnings(row_order(heatmap))
+module_names <- modules
+go_anno <- select(GO.db, names(gene_sets_sub_ids), c("GOID", "TERM", "DEFINITION"), "GOID")
+for (l in seq_along(module_names)) {
+  module_names[[l]] <- paste0(rownames(mat)[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
+}
+# for (l in seq_along(module_names)) {
+#   module_names[[l]] <- paste0(rownames(mat)[module_names[[l]]])
+# }
+top_words_tmp <- data.frame(
+  gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
+)
+top_words_all <- suppressWarnings(as.character(tapply(top_words_tmp$gene_sets, top_words_tmp$module, word_cloud)))
+top_words <- suppressWarnings(
+  as.character(tapply(top_words_tmp$gene_sets, top_words_tmp$module, word_cloud, width = 3))
+)
+row_anno <-  HeatmapAnnotation(
+  top_words = anno_block(
+    gp = gpar(col = module_colors), labels = seq(optimal_k), labels_rot = 0, labels_gp = gpar(fontsize = 20)
+  ),
+  which = "row"
+)
+
+row_colors <- rownames(mat)
+row_colors <- data.frame(
+  row_colors = row_colors,
+  DE_strict = row_colors %in% rownames(gsva_list_pseudobulk_strict[[1]]),
+  DE_stricter = row_colors %in% rownames(gsva_list_pseudobulk_stricter[[1]]),
+  DE_strictest = row_colors %in% rownames(gsva_list_pseudobulk_strictest[[1]])
+) %>%
+  mutate(
+    type = case_when(
+      DE_strictest == TRUE ~ "firebrick",
+      DE_stricter == TRUE ~ "darkorange",
+      DE_strict == TRUE ~ "darkgoldenrod",
+      TRUE ~ "black"
+    )
+  )
+row_colors <- row_colors$type
+
+rownames(mat)[
+  rownames(mat) =="oxidoreductase activity, acting on paired donors, with incorporation or reduction of molecular oxygen, reduced pteridine as one donor, and incorporation of one atom of oxygen"
+] <- "oxidoreductase activity, acting on paired donors"
+
+set.seed(1)
+draw(
+  Heatmap(
+    t(
+      apply(
+        mat, 1,
+        function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1)
+      )
+    ),
+    color,
+    cluster_rows = clustering,
+    cluster_columns = FALSE,
+    row_names_max_width = max_text_width(rownames(mat), gpar(fontsize = 12)),
+    show_column_names = FALSE,
+    column_split = sce$condition,
+    top_annotation = anno,
+    rect_gp = gpar(col = "lightgray", lwd = 0.1),
+    column_title = " ",
+    row_split = optimal_k,
+    row_title = top_words,
+    row_title_rot = 0,
+    row_title_gp = gpar(fontsize = 12),
+    row_names_gp = gpar(fontsize = 7, col = unlist(row_colors)),
+    left_annotation = row_anno,
+    row_gap = unit(2, "mm"),
+    column_gap = unit(2, "mm"),
+    heatmap_legend_param = list(
+      title = "scaled ssGSEA score", direction = "horizontal", legend_width = unit(7.5, "cm")
+    )
+  ),
+  heatmap_legend_side = "top",
+  annotation_legend_side = "top"
+)
+```
+
+# Hub Gene Network
+
+```{r}
+hub_gene_data <- vector()
+for (l in seq_along(modules)) {
+  module_sets <- rownames(mat)[modules[[l]]]
+  modules_up <- module_sets[module_sets %in% gsva_list_pseudobulk_all[[2]]]
+  modules_down <- module_sets[module_sets %in% gsva_list_pseudobulk_all[[3]]]
+  frequent_genes <- vector()
+  frequent_genes_up <- vector()
+  frequent_genes_down <- vector()
+  
+  if (length(modules_up) == 0) {
+  } else {
+    module_gene_sets_sub <- gene_sets[names(gene_sets) %in% modules_up]
+    frequent_genes_tmp <- as.data.frame(table(unlist(geneIds(module_gene_sets_sub))))
+    frequent_genes_tmp <- frequent_genes_tmp[
+      frequent_genes_tmp$Var1 %in% gene_anno$ensembl_gene_id,
+    ]
+    rownames(frequent_genes_tmp) <- NULL
+    if (any(frequent_genes_tmp$Var1 %in% markers_list_pseudobulk_all[[1]])) {
+      discard <- which(
+        frequent_genes_tmp$Var1 %in% markers_list_pseudobulk_all[[1]] &
+          frequent_genes_tmp$Var1 %in% markers_list_pseudobulk_all[[3]]
+      )
+      if (length(discard) > 0) {
+        frequent_genes_tmp <- frequent_genes_tmp[-discard, ]
+      }
+    }
+    frequent_genes_up <- frequent_genes_tmp
+  }
+  
+  if (length(modules_down) == 0) {
+  } else {
+    module_gene_sets_sub <- gene_sets[names(gene_sets) %in% modules_down]
+    frequent_genes_tmp <- as.data.frame(table(unlist(geneIds(module_gene_sets_sub))))
+    frequent_genes_tmp <- frequent_genes_tmp[
+      frequent_genes_tmp$Var1 %in% gene_anno$ensembl_gene_id,
+    ]
+    rownames(frequent_genes_tmp) <- NULL
+    if (any(frequent_genes_tmp$Var1 %in% markers_list_pseudobulk_all[[1]])) {
+      discard <- which(
+        frequent_genes_tmp$Var1 %in% markers_list_pseudobulk_all[[1]] &
+          frequent_genes_tmp$Var1 %in% markers_list_pseudobulk_all[[2]]
+      )
+      if (length(discard) > 0) {
+        frequent_genes_tmp <- frequent_genes_tmp[-discard, ]
+      }
+    }
+    frequent_genes_down <- frequent_genes_tmp
+  }
+  
+  frequent_genes <- rbind(frequent_genes_up, frequent_genes_down)
+  if (dim(frequent_genes)[1] != 0) {
+    module_gene_sets_sub <- gene_sets[names(gene_sets) %in% module_sets]
+    node_data <- melt(geneIds(module_gene_sets_sub))
+    node_data <- node_data[node_data$value %in% frequent_genes$Var1, ]
+    names(node_data)[1] <- "ensembl_gene_id"
+    names(node_data)[2] <- "gene_set"
+    gene_anno_sub <- gene_anno[
+      gene_anno$ensembl_gene_id %in% node_data$ensembl_gene_id, -3
+    ]
+    node_data <- node_data[node_data$ensembl_gene_id %in% gene_anno_sub$ensembl_gene_id, ]
+    node_data <- left_join(node_data, gene_anno_sub, by = "ensembl_gene_id")
+    node_data$direction <- ifelse(
+      node_data$gene_set %in% gsva_list_pseudobulk_all[[2]], "up", "down"
+    )
+    node_data$DE <- ifelse(
+      node_data$ensembl_gene_id %in% markers_list_pseudobulk_all[[1]], "yes", "no"
+    )
+    node_data$module <- l
+    hub_gene_data <- rbind(hub_gene_data, node_data)
+  }
+}
+
+unique_direction <- as.data.frame.matrix(table(hub_gene_data[ , c(3, 4)]), )
+unique_direction$down <- unique_direction$down * -1
+discard <- which(rowSums(unique_direction) == 0)
+if (length(discard) > 0) {
+  unique_direction <- unique_direction[-discard, ]
+}
+module_membership_norm <- unique_direction
+unique_direction <- ifelse(rowSums(unique_direction) > 0, "up", "down")
+hub_gene_data <- hub_gene_data[
+  hub_gene_data$external_gene_name %in% names(unique_direction),
+]
+
+rownames(hub_gene_data) <- NULL
+discard <- vector()
+for (i_gene in seq_along(hub_gene_data$external_gene_name)) {
+  sub_gene <- hub_gene_data$external_gene_name[i_gene]
+  sub_unique_direction <- unique_direction[which(names(unique_direction) == sub_gene)]
+  if (hub_gene_data$direction[i_gene] != sub_unique_direction[[1]]) {
+    discard <- append(discard, i_gene)
+  }
+}
+if (length(discard) > 0) {
+hub_gene_data <- hub_gene_data[-discard, ]
+}
+
+frequent_genes_tmp <- as.data.frame(table(hub_gene_data$external_gene_name))
+frequent_genes <- frequent_genes_tmp
+hub_gene_data <- hub_gene_data[
+  hub_gene_data$external_gene_name %in% frequent_genes$Var1,
+]
+
+hub_gene_data_up <- hub_gene_data[which(hub_gene_data$direction == "up"), ]
+hub_gene_data_down <- hub_gene_data[which(hub_gene_data$direction == "down"), ]
+
+hub_mat <- as.data.frame.matrix(table(hub_gene_data_up[ , c(3, 2)]), )
+hub_mat <- hub_mat == 1
+co_mat <- hub_mat %*% t(hub_mat)
+diag(co_mat) <- 0
+graph_up <- graph_from_adjacency_matrix(co_mat, "upper", TRUE)
+
+edges_up <- get.edgelist(graph_up, FALSE)
+set.seed(1)
+layout_up <- qgraph.layout.fruchtermanreingold(
+  edges_up, vcount = vcount(graph_up), E(graph_up)$weight,
+  area = vcount(graph_up), repulse.rad = vcount(graph_up)
+)
+
+hub_gene_all_GO <- table(unlist(geneIds(gene_sets)))
+hub_gene_all_GO <- hub_gene_all_GO[
+  names(hub_gene_all_GO) %in% unique(hub_gene_data_up$ensembl_gene_id)
+]
+sub_gene_anno <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(hub_gene_all_GO), ]
+rownames(sub_gene_anno) <- NULL
+sub_gene_anno <- sub_gene_anno[
+  match(rownames(hub_gene_all_GO), sub_gene_anno$ensembl_gene_id),
+]
+rownames(hub_gene_all_GO) <- sub_gene_anno$external_gene_name
+hub_gene_all_GO_up <- hub_gene_all_GO[order(names(hub_gene_all_GO))]
+
+module_membership_up <- as.data.frame.matrix(table(hub_gene_data_up[ , c(3, 6)]), )
+module_membership_binary_up <- module_membership_up
+module_membership_binary_up[module_membership_binary_up > 0] <- 1
+module_membership_list_up <- lapply(
+  split(module_membership_up, row.names(module_membership_up)), unlist
+)
+module_network_colors_up <- module_colors[unique(hub_gene_data_up$module)]
+V(graph_up)$pie.color = list(module_network_colors_up)
+
+module_membership_norm_up <- module_membership_norm[
+  rownames(module_membership_norm) %in% rownames(module_membership_up),
+]
+
+V(graph_up)$vertex.pie = list(module_network_colors_up)
+V(graph_up)$vertex.shape <- "pie"
+V(graph_up)$vertex.color <- module_membership_list_up
+V(graph_up)$vertex.label.family = "sans"
+
+DE_up <- vector()
+for (l in seq(length(V(graph_up)))) {
+  if (V(graph_up)[l]$name %in% rownames(markers_list_symbols_pseudobulk[[2]])) {
+    DE_up <- append(DE_up, "yes")
+  } else {
+    DE_up <- append(DE_up, "no")
+  }
+}
+
+DE_opp_up <- vector()
+for (l in seq(length(V(graph_up)))) {
+  if (V(graph_up)[l]$name %in% markers_list_symbols_pseudobulk_all[[3]]) {
+    DE_opp_up <- append(DE_opp_up, "yes")
+  } else {
+    DE_opp_up <- append(DE_opp_up, "no")
+  }
+}
+
+DE_strict_up <- vector()
+for (l in seq(length(V(graph_up)))) {
+  if (V(graph_up)[l]$name %in% rownames(markers_list_symbols_pseudobulk_strict[[2]])) {
+    DE_strict_up <- append(DE_strict_up, "yes")
+  } else {
+    DE_strict_up <- append(DE_strict_up, "no")
+  }
+}
+
+DE_strictest_up <- vector()
+for (l in seq(length(V(graph_up)))) {
+  if (V(graph_up)[l]$name %in% rownames(markers_list_symbols_pseudobulk_strictest[[2]])) {
+    DE_strictest_up <- append(DE_strictest_up, "yes")
+  } else {
+    DE_strictest_up <- append(DE_strictest_up, "no")
+  }
+}
+
+direction_up <- vector()
+for (l in seq(length(E(graph_up)))) {
+  hub_gene_sub_up <- hub_gene_data_up[
+    hub_gene_data_up$external_gene_name %in% head_of(graph_up, l)[[1]]$name,
+    ]
+  direction_up <- append(direction_up, unique(hub_gene_sub_up$direction))
+}
+E(graph_up)$edge.color <- ifelse(direction_up == "up", "firebrick1", "dodgerblue")
+
+hub_mat <- as.data.frame.matrix(table(hub_gene_data_down[ , c(3, 2)]), )
+hub_mat <- hub_mat == 1
+co_mat <- hub_mat %*% t(hub_mat)
+diag(co_mat) <- 0
+graph_down <- graph_from_adjacency_matrix(co_mat, "upper", TRUE)
+
+edges_down <- get.edgelist(graph_down, FALSE)
+set.seed(1)
+layout_down <- qgraph.layout.fruchtermanreingold(
+  edges_down, vcount = vcount(graph_down), E(graph_down)$weight,
+  area = vcount(graph_down), repulse.rad = vcount(graph_down)
+)
+
+hub_gene_all_GO <- table(unlist(geneIds(gene_sets)))
+hub_gene_all_GO <- hub_gene_all_GO[
+  names(hub_gene_all_GO) %in% unique(hub_gene_data_down$ensembl_gene_id)
+]
+sub_gene_anno <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(hub_gene_all_GO), ]
+rownames(sub_gene_anno) <- NULL
+sub_gene_anno <- sub_gene_anno[
+  match(rownames(hub_gene_all_GO), sub_gene_anno$ensembl_gene_id),
+]
+rownames(hub_gene_all_GO) <- sub_gene_anno$external_gene_name
+hub_gene_all_GO_down <- hub_gene_all_GO[order(names(hub_gene_all_GO))]
+
+module_membership_down <- as.data.frame.matrix(table(hub_gene_data_down[ , c(3, 6)]), )
+module_membership_binary_down <- module_membership_down
+module_membership_binary_down[module_membership_binary_down > 0] <- 1
+module_membership_list_down <- lapply(
+  split(module_membership_down, row.names(module_membership_down)), unlist
+)
+module_network_colors_down <- module_colors[unique(hub_gene_data_down$module)]
+V(graph_down)$pie.color = list(module_network_colors_down)
+
+module_membership_norm_down <- module_membership_norm[
+  rownames(module_membership_norm) %in% rownames(module_membership_down),
+]
+
+V(graph_down)$pie.color = list(module_network_colors_down)
+V(graph_down)$vertex.shape <- "pie"
+V(graph_down)$vertex.color <- module_membership_list_down
+V(graph_down)$vertex.label.family = "sans"
+
+DE_down <- vector()
+for (l in seq(length(V(graph_down)))) {
+  if (V(graph_down)[l]$name %in% rownames(markers_list_symbols_pseudobulk[[3]])) {
+    DE_down <- append(DE_down, "yes")
+  } else {
+    DE_down <- append(DE_down, "no")
+  }
+}
+
+DE_opp_down <- vector()
+for (l in seq(length(V(graph_down)))) {
+  if (V(graph_down)[l]$name %in% markers_list_symbols_pseudobulk_all[[2]]) {
+    DE_opp_down <- append(DE_opp_down, "yes")
+  } else {
+    DE_opp_down <- append(DE_opp_down, "no")
+  }
+}
+
+DE_strict_down <- vector()
+for (l in seq(length(V(graph_down)))) {
+  if (V(graph_down)[l]$name %in% rownames(markers_list_symbols_pseudobulk_strict[[3]])) {
+    DE_strict_down <- append(DE_strict_down, "yes")
+  } else {
+    DE_strict_down <- append(DE_strict_down, "no")
+  }
+}
+
+DE_strictest_down <- vector()
+for (l in seq(length(V(graph_down)))) {
+  if (
+    V(graph_down)[l]$name %in% rownames(markers_list_symbols_pseudobulk_strictest[[3]])
+  ) {
+    DE_strictest_down <- append(DE_strictest_down, "yes")
+  } else {
+    DE_strictest_down <- append(DE_strictest_down, "no")
+  }
+}
+
+direction_down <- vector()
+for (l in seq(length(E(graph_down)))) {
+  hub_gene_sub_down <- hub_gene_data_down[
+    hub_gene_data_down$external_gene_name %in% head_of(graph_down, l)[[1]]$name,
+    ]
+  direction_down <- append(direction_down, unique(hub_gene_sub_down$direction))
+}
+E(graph_down)$edge.color <- ifelse(direction_down == "up", "firebrick1", "dodgerblue")
+
+hub_mat <- as.data.frame.matrix(table(hub_gene_data[ , c(3, 2)]), )
+hub_mat <- hub_mat == 1
+co_mat <- hub_mat %*% t(hub_mat)
+diag(co_mat) <- 0
+graph <- graph_from_adjacency_matrix(co_mat, "upper", TRUE)
+
+edges <- get.edgelist(graph, FALSE)
+set.seed(1)
+layout <- qgraph.layout.fruchtermanreingold(
+  edges, vcount = vcount(graph), E(graph)$weight,
+  area = vcount(graph), repulse.rad = vcount(graph)
+)
+
+hub_gene_all_GO <- table(unlist(geneIds(gene_sets)))
+hub_gene_all_GO <- hub_gene_all_GO[
+  names(hub_gene_all_GO) %in% unique(hub_gene_data$ensembl_gene_id)
+]
+sub_gene_anno <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(hub_gene_all_GO), ]
+rownames(sub_gene_anno) <- NULL
+sub_gene_anno <- sub_gene_anno[
+  match(rownames(hub_gene_all_GO), sub_gene_anno$ensembl_gene_id),
+]
+rownames(hub_gene_all_GO) <- sub_gene_anno$external_gene_name
+hub_gene_all_GO <- hub_gene_all_GO[order(names(hub_gene_all_GO))]
+
+module_membership <- as.data.frame.matrix(table(hub_gene_data[ , c(3, 6)]), )
+module_membership_binary <- module_membership
+module_membership_binary[module_membership_binary > 0] <- 1
+module_membership_list <- lapply(
+  split(module_membership, row.names(module_membership)), unlist
+)
+module_network_colors <- module_colors
+module_membership_norm <- module_membership_norm[
+  rownames(module_membership_norm) %in% rownames(module_membership),
+]
+
+V(graph)$pie.color = list(module_network_colors)
+V(graph)$vertex.shape <- "pie"
+V(graph)$vertex.color <- module_membership_list
+V(graph)$vertex.label.family = "sans"
+
+module_max_genes <- apply(module_membership_norm, 2, function (x) which(x == max(x)))
+module_max_genes <- rownames(module_membership_norm)[unlist(module_max_genes)]
+module_max <- vector()
+for (l in seq(length(V(graph)))) {
+  if (V(graph)[l]$name %in% module_max_genes) {
+    module_max <- append(module_max, "yes")
+  } else {
+    module_max <- append(module_max, "no")
+  }
+}
+
+unique_markers <- markers_list_symbols_pseudobulk_all[[2]][
+  markers_list_symbols_pseudobulk_all[[2]] %notin%
+    hub_gene_data_down$external_gene_name
+]
+unique_markers <- append(
+  unique_markers,
+  markers_list_symbols_pseudobulk_all[[3]][
+    markers_list_symbols_pseudobulk_all[[3]] %notin%
+      hub_gene_data_up$external_gene_name
+  ]
+)
+DE <- vector()
+for (l in seq(length(V(graph)))) {
+  if (V(graph)[l]$name %in% unique_markers) {
+    DE <- append(DE, "yes")
+  } else {
+    DE <- append(DE, "no")
+  }
+}
+
+direction <- vector()
+for (l in seq(length(E(graph)))) {
+  hub_gene_sub <- hub_gene_data[
+    hub_gene_data$external_gene_name %in% head_of(graph, l)[[1]]$name,
+  ]
+  direction <- append(direction, unique(hub_gene_sub$direction))
+}
+E(graph)$edge.color <- ifelse(direction == "up", "firebrick1", "dodgerblue")
+
+DE_alt <- c(
+  rownames(markers_list_symbols_pseudobulk[[1]]),
+  rownames(markers_list_symbols_pseudobulk_strict[[1]]),
+  rownames(markers_list_symbols_pseudobulk_strictest[[1]])
+)
+
+all_DE_match <- as.data.frame(table(V(graph)$name[match(DE_alt, V(graph)$name)]), stringsAsFactors = FALSE)
+all_DE_match_tmp <- data.frame(Var1 = V(graph)$name[V(graph)$name %notin% DE_alt], Freq = 0)
+all_DE_match <- rbind(all_DE_match, all_DE_match_tmp)
+all_DE_match <- all_DE_match[order(all_DE_match$Var1), ]
+
+module_membership_thresh <- median(
+  (abs(rowSums(module_membership_norm)) / hub_gene_all_GO) * abs(rowSums(module_membership_norm))
+)
+membership <- (abs(rowSums(module_membership_norm)) / hub_gene_all_GO) * abs(rowSums(module_membership_norm))
+
+vertex_frame_color <- data.frame(DE = DE) %>%
+  mutate(
+    type = case_when(
+      DE == "yes" ~ "white",
+      TRUE ~ "darkgray"
+    )
+  )
+vertex_frame_color <- vertex_frame_color$type
+
+vertex_label_color <- data.frame(DE = DE) %>%
+  mutate(
+    type = case_when(
+      DE == "yes" ~ "white",
+      TRUE ~ "darkgray"
+    )
+  )
+vertex_label_color <- vertex_label_color$type
+
+vertex_label_font <- data.frame(DE = DE) %>%
+  mutate(
+    type = case_when(
+      TRUE ~ 2
+    )
+  )
+vertex_label_font <- vertex_label_font$type
+
+vertex_label <- data.frame(DE = DE) %>%
+  mutate(
+    type = case_when(
+      TRUE ~ V(graph)$name
+    )
+  )
+vertex_label <- vertex_label$type
+vertex_label[vertex_label == "NA"] <- NA
+
+vertex_label_cex <- data.frame(DE = DE) %>%
+  mutate(
+    type = case_when(
+      DE == "yes" ~ 3,
+      TRUE ~ 2
+    )
+  )
+vertex_label_cex <- vertex_label_cex$type
+
+png(file.path(results_dir, "comb_04_genefunnel_network.png"), 150, 100, "in", res = 72)
+par(bg = "black", mar = c(5.1, 4.1, 4.1, 450.1), xpd = TRUE)
+plot(
+    graph,
+    rescale = FALSE,
+    xlim = c(-1, 1),
+    ylim = c(-1, 1),
+    layout = norm_coords(layout),
+    vertex.size = (
+      (abs(rowSums(module_membership_norm)) / hub_gene_all_GO) * abs(rowSums(module_membership_norm))
+    ) * 10,
+    vertex.label.color = vertex_label_color,
+    edge.width = (E(graph)$weight * 1.25) ^ 2.25,
+    vertex.shape = "pie",
+    vertex.pie = module_membership_list,
+    edge.color = ifelse(direction == "up", "firebrick1", "dodgerblue"),
+    vertex.label.family = "sans",
+    vertex.label.font = vertex_label_font,
+    vertex.label.cex = ifelse(DE == "yes", ((all_DE_match$Freq) * 3), 3),
+    vertex.frame.color = vertex_frame_color,
+    vertex.label = vertex_label
+)
+legend(
+    "right",
+    legend = paste0(
+      "Module ", unique(hub_gene_data$module), ": ", gsub("\n", " ", top_words[unique(hub_gene_data$module)])
+    ),
+    pch = 20,
+    col = module_network_colors,
+    pt.cex = 15,
+    cex = 10,
+    bty = "n",
+    text.col = "white",
+    inset = c(-0.6, 0)
+)
+dev.off()
+```
+
+# Misc Metadata
+
+Here some useful metadata can be found for further exploration of the data.
+
+```{r}
+datatable_download(data.frame(Module_Word_Cloud = top_words_all))
+datatable_download(data.frame(GO_ID = go_anno$GOID, Gene_Set = go_anno$TERM, Definition = go_anno$DEFINITION))
+datatable_download(
+  data.frame(
+    ENSEMBL_Gene_ID = hub_gene_data$ensembl_gene_id, Gene_Name = hub_gene_data$external_gene_name,
+    Gene_Set = hub_gene_data$gene_set, Direction = hub_gene_data$direction,
+    DE = hub_gene_data$DE, Module = hub_gene_data$module
+  )
+)
+data <- as.data.frame(hub_gene_all_GO, row.names = NULL)
+datatable_download(data_frame(Gene_Name = data$Var1, Frequency_Among_Gene_Sets = data$Freq))
+```
+
+# Heatmaps for Each Gene Set
+
+```{r}
+anno <- HeatmapAnnotation(
+  cell_type = anno_block(
+    gp = gpar(fill = "lightgray", col = "lightgray"),
+    labels = c(levels(sce$condition)[[1]], levels(sce$condition)[[2]]),
+    labels_gp = gpar(col = "black", fontsize = 20)
+  )
+)
+
+color2 <- colorRamp2(
+  c(0, max(GetAssayData(seurat_symbols)) / 2, max(GetAssayData(seurat_symbols))), c("#0077BB", "#FFFFFF", "#CC3311")
+)
+```
+
+```{r, fig.height = 5, fig.width = 20}
+set <- 2 # Up or downregulation?
+if (length(gsva_list_pseudobulk_all[[set]]) > 0) {
+  exp_mat <- mat
+  exp_mat <- exp_mat[rownames(exp_mat) %in% gsva_list_pseudobulk_all[[set]], ]
+  exp_mat <- exp_mat[rownames(exp_mat) %in% rownames(mat), ]
+  sort_mat <- mat[unlist(suppressWarnings(row_order(heatmap))), ]
+  sort_mat <- sort_mat[rownames(sort_mat) %in% rownames(exp_mat), ]
+  exp_mat <- exp_mat[match(rownames(sort_mat), rownames(exp_mat)), ]
+  for (i in 1:nrow(exp_mat)) {
+    genes <- which(
+      gene_sets[[rownames(exp_mat)[i]]]@geneIds %in% markers_list_pseudobulk_all[[set]]
+    )
+    genes <- gene_sets[[rownames(exp_mat)[i]]]@geneIds[genes]
+    genes <- gene_anno[gene_anno$ensembl_gene_id %in% genes, ]
+    genes <- genes$external_gene_name
+    title <- paste0(
+      gene_sets[[rownames(exp_mat)[i]]]@shortDescription, ": ",
+      gene_sets[[rownames(exp_mat)[i]]]@setName
+    )
+    print(title)
+
+    if (length(genes) > 0) {
+      print(
+        paste0(
+          gene_sets[[rownames(exp_mat)[i]]]@shortDescription, " DE genes: ",
+          paste(genes, collapse = ", ")
+        )
+      )
+      strict_genes <- genes[genes %in% rownames(markers_list_symbols_pseudobulk_strict[[1]])]
+      print(
+        paste0(
+          gene_sets[[rownames(exp_mat)[i]]]@shortDescription, " DE genes in strict model: ",
+          paste(strict_genes, collapse = ", ")
+        )
+      )
+      stricter_genes <- genes[genes %in% rownames(markers_list_symbols_pseudobulk_stricter[[1]])]
+      print(
+        paste0(
+          gene_sets[[rownames(exp_mat)[i]]]@shortDescription, " DE genes in stricter model: ",
+          paste(stricter_genes, collapse = ", ")
+        )
+      )
+      strictest_genes <- genes[genes %in% rownames(markers_list_symbols_pseudobulk_strictest[[1]])]
+      print(
+        paste0(
+          gene_sets[[rownames(exp_mat)[i]]]@shortDescription, " DE genes in strictest model: ",
+          paste(strictest_genes, collapse = ", ")
+        )
+      )
+      row_colors <- rownames(as.matrix(GetAssayData(seurat_symbols)[genes, , drop = FALSE]))
+      row_colors <- data.frame(
+        row_colors = row_colors,
+        DE_strict = row_colors %in% rownames(markers_list_symbols_pseudobulk_strict[[1]]),
+        DE_stricter = row_colors %in% rownames(markers_list_symbols_pseudobulk_stricter[[1]]),
+        DE_strictest = row_colors %in% rownames(markers_list_symbols_pseudobulk_strictest[[1]])
+      ) %>%
+        mutate(
+          type = case_when(
+            DE_strictest == TRUE ~ "firebrick",
+            DE_stricter == TRUE ~ "darkorange",
+            DE_strict == TRUE ~ "darkgoldenrod",
+            TRUE ~ "black"
+          )
+        )
+      row_colors <- row_colors$type
+      draw(
+        Heatmap(
+          t(
+            apply(
+              as.matrix(GetAssayData(seurat_symbols)[genes, , drop = FALSE]), 1,
+              function (x) (x)
+            )
+          ),
+          color2,
+          cluster_columns = FALSE,
+          cluster_rows = FALSE,
+          show_column_names = FALSE,
+          column_split = seurat_symbols$condition,
+          top_annotation = anno,
+          column_title = title,
+          column_title_gp = gpar(fontsize = 20),
+          row_names_gp = gpar(fontsize = 18, col = unlist(row_colors)),
+          column_gap = unit(2, "mm"),
+          heatmap_legend_param = list(
+            title = "Normalised log1p counts", direction = "horizontal", legend_width = unit(7.5, "cm")
+          )
+        ),
+        heatmap_legend_side = "top",
+        annotation_legend_side = "top"
+      )
+    }
+
+    genes <- gene_sets[[rownames(exp_mat)[i]]]@geneIds
+    genes <- gene_anno[gene_anno$ensembl_gene_id %in% genes, ]
+    genes <- genes$external_gene_name
+    if (length(genes) > 0) {
+      print(
+        paste0(
+          gene_sets[[rownames(exp_mat)[i]]]@shortDescription, " all genes: ",
+          paste(genes, collapse = ", ")
+        )
+      )
+      draw(
+        Heatmap(
+          t(
+            apply(
+              as.matrix(GetAssayData(seurat_symbols)[genes, , drop = FALSE]), 1,
+              function (x) (x)
+            )
+          ),
+          color2,
+          cluster_columns = FALSE,
+          cluster_rows = FALSE,
+          show_column_names = FALSE,
+          column_split = seurat_symbols$condition,
+          top_annotation = anno,
+          column_title = title,
+          column_title_gp = gpar(fontsize = 20),
+          column_gap = unit(2, "mm"),
+          heatmap_legend_param = list(
+            title = "Normalised log1p counts", direction = "horizontal", legend_width = unit(7.5, "cm")
+          )
+        ),
+        heatmap_legend_side = "top",
+        annotation_legend_side = "top"
+      )
+    }
+  }
+}
+```
+
+```{r, fig.height = 5, fig.width = 20}
+set <- 3 # Up or downregulation?
+if (length(gsva_list_pseudobulk_all[[set]]) > 0) {
+  exp_mat <- mat
+  exp_mat <- exp_mat[rownames(exp_mat) %in% gsva_list_pseudobulk_all[[set]], ]
+  exp_mat <- exp_mat[rownames(exp_mat) %in% rownames(mat), ]
+  sort_mat <- mat[unlist(suppressWarnings(row_order(heatmap))), ]
+  sort_mat <- sort_mat[rownames(sort_mat) %in% rownames(exp_mat), ]
+  exp_mat <- exp_mat[match(rownames(sort_mat), rownames(exp_mat)), ]
+  for (i in 1:nrow(exp_mat)) {
+    genes <- which(
+      gene_sets[[rownames(exp_mat)[i]]]@geneIds %in% markers_list_pseudobulk_all[[set]]
+    )
+    genes <- gene_sets[[rownames(exp_mat)[i]]]@geneIds[genes]
+    genes <- gene_anno[gene_anno$ensembl_gene_id %in% genes, ]
+    genes <- genes$external_gene_name
+    title <- paste0(
+      gene_sets[[rownames(exp_mat)[i]]]@shortDescription, ": ",
+      gene_sets[[rownames(exp_mat)[i]]]@setName
+    )
+    print(title)
+
+    if (length(genes) > 0) {
+      print(
+        paste0(
+          gene_sets[[rownames(exp_mat)[i]]]@shortDescription, " DE genes: ",
+          paste(genes, collapse = ", ")
+        )
+      )
+      strict_genes <- genes[genes %in% rownames(markers_list_symbols_pseudobulk_strict[[1]])]
+      print(
+        paste0(
+          gene_sets[[rownames(exp_mat)[i]]]@shortDescription, " DE genes in strict model: ",
+          paste(strict_genes, collapse = ", ")
+        )
+      )
+      stricter_genes <- genes[genes %in% rownames(markers_list_symbols_pseudobulk_stricter[[1]])]
+      print(
+        paste0(
+          gene_sets[[rownames(exp_mat)[i]]]@shortDescription, " DE genes in stricter model: ",
+          paste(stricter_genes, collapse = ", ")
+        )
+      )
+      strictest_genes <- genes[genes %in% rownames(markers_list_symbols_pseudobulk_strictest[[1]])]
+      print(
+        paste0(
+          gene_sets[[rownames(exp_mat)[i]]]@shortDescription, " DE genes in strictest model: ",
+          paste(strictest_genes, collapse = ", ")
+        )
+      )
+      row_colors <- rownames(as.matrix(GetAssayData(seurat_symbols)[genes, , drop = FALSE]))
+      row_colors <- data.frame(
+        row_colors = row_colors,
+        DE_strict = row_colors %in% rownames(markers_list_symbols_pseudobulk_strict[[1]]),
+        DE_stricter = row_colors %in% rownames(markers_list_symbols_pseudobulk_stricter[[1]]),
+        DE_strictest = row_colors %in% rownames(markers_list_symbols_pseudobulk_strictest[[1]])
+      ) %>%
+        mutate(
+          type = case_when(
+            DE_strictest == TRUE ~ "firebrick",
+            DE_stricter == TRUE ~ "darkorange",
+            DE_strict == TRUE ~ "darkgoldenrod",
+            TRUE ~ "black"
+          )
+        )
+      row_colors <- row_colors$type
+      draw(
+        Heatmap(
+          t(
+            apply(
+              as.matrix(GetAssayData(seurat_symbols)[genes, , drop = FALSE]), 1,
+              function (x) (x)
+            )
+          ),
+          color2,
+          cluster_columns = FALSE,
+          cluster_rows = FALSE,
+          show_column_names = FALSE,
+          column_split = seurat_symbols$condition,
+          top_annotation = anno,
+          column_title = title,
+          column_title_gp = gpar(fontsize = 20),
+          row_names_gp = gpar(fontsize = 18, col = unlist(row_colors)),
+          column_gap = unit(2, "mm"),
+          heatmap_legend_param = list(
+            title = "Normalised log1p counts", direction = "horizontal", legend_width = unit(7.5, "cm")
+          )
+        ),
+        heatmap_legend_side = "top",
+        annotation_legend_side = "top"
+      )
+    }
+
+    genes <- gene_sets[[rownames(exp_mat)[i]]]@geneIds
+    genes <- gene_anno[gene_anno$ensembl_gene_id %in% genes, ]
+    genes <- genes$external_gene_name
+    if (length(genes) > 0) {
+      print(
+        paste0(
+          gene_sets[[rownames(exp_mat)[i]]]@shortDescription, " all genes: ",
+          paste(genes, collapse = ", ")
+        )
+      )
+      draw(
+        Heatmap(
+          t(
+            apply(
+              as.matrix(GetAssayData(seurat_symbols)[genes, , drop = FALSE]), 1,
+              function (x) (x)
+            )
+          ),
+          color2,
+          cluster_columns = FALSE,
+          cluster_rows = FALSE,
+          show_column_names = FALSE,
+          column_split = seurat_symbols$condition,
+          top_annotation = anno,
+          column_title = title,
+          column_title_gp = gpar(fontsize = 20),
+          column_gap = unit(2, "mm"),
+          heatmap_legend_param = list(
+            title = "Normalised log1p counts", direction = "horizontal", legend_width = unit(7.5, "cm")
+          )
+        ),
+        heatmap_legend_side = "top",
+        annotation_legend_side = "top"
+      )
+    }
+  }
+}
+```
+
+# References
+
+This is the concluding section of the document. Here we output the `sessionInfo` and create a bibliography for works cited.
+
+```{r}
+sessionInfo()
+```
