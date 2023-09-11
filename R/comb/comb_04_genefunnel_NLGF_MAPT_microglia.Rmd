@@ -1,5 +1,5 @@
 ---
-title: "Combined Samples - 04 GeneFunnel Analysis"
+title: "Combined Samples - 04 GeneFunnel NLGF MAPT KI vs. MAPT KI Microglia"
 author:
   - name: "Emir Turkes"
 date: '`r strftime(Sys.time(), format = "%B %d, %Y")`'
@@ -18,8 +18,9 @@ output:
 knit: (function(inputFile, encoding) {
   rmarkdown::render(
     inputFile, encoding = encoding,
-    output_file = file.path("..", "..", "results", unlist(strsplit(getwd(), "/"))[6], "comb_04_genefunnel.html")
-  )})
+    output_file = file.path(
+      "..", "..", "results", unlist(strsplit(getwd(), "/"))[6], "comb_04_genefunnel_NLGF_MAPT_microglia.html"
+  ))})
 ---
 
 <style type="text/css">
@@ -85,11 +86,12 @@ source(file.path("..", "utils.R"))
 # Useful variables.
 # -----------------
 analysis_no <- 4
+analysis_name <- "NLGF_MAPT_microglia"
 data_name <- unlist(strsplit(getwd(), "/"))[6] # Name of dataset derived from path.
 
 data_dir <- file.path("..", "..", "data")
 results_dir <- file.path("..", "..", "results", data_name)
-cache_dir <- file.path("..", "..", "cache", data_name, paste0("0", analysis_no)) # Store intermediate data objects here.
+cache_dir <- file.path("..", "..", "cache", data_name, paste0("0", analysis_no), analysis_name)
 if (!dir.exists(cache_dir)) {
   dir.create(cache_dir, recursive = TRUE)
 }
@@ -195,7 +197,7 @@ if (file.exists(rds) & file.exists(rds2)) {
   gene_anno <- readRDS(rds2)
 } else {
 
-  seurat <- readRDS(file.path(cache_dir, "..", "02", "seurat.rds"))
+  seurat <- readRDS(file.path(cache_dir, "..", "..", "02", "seurat.rds"))
 
   # Remove obsolete data.
   # ---------------------
@@ -1473,7 +1475,7 @@ vertex_label_cex <- data.frame(DE = DE) %>%
   )
 vertex_label_cex <- vertex_label_cex$type
 
-png(file.path(results_dir, "comb_04_genefunnel_network.png"), 150, 100, "in", res = 72)
+png(file.path(results_dir, paste0("comb_04_genefunnel_network_", analysis_name, ".png")), 150, 100, "in", res = 72)
 par(bg = "black", mar = c(5.1, 4.1, 4.1, 450.1), xpd = TRUE)
 plot(
     graph,
