@@ -139,7 +139,7 @@ datatable_download_exp <- function(dt) {
 #' @param vars_to_regress Vector of nuisance variables for sctransform to regress out.
 #' @param parallel_override See function \code{"parallel_plan"}.
 #' @param cc Logical, whether to perform cell-cycle scoring.
-#' @param res_divider, what to divide number of cells by to arrive at clustering resolution.
+#' @param res_divider, What to divide number of cells by to arrive at clustering resolution.
 #' @param conserve_memory, Logical, whether to use conserve.memory in sctransform.
 #' @param min_cells, Numerical, minimum number of cells to retain a gene in sctransform.
 #' @examples
