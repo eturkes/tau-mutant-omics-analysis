@@ -93,6 +93,7 @@ if (!dir.exists(cache_dir)) {
 protocol <- c("mouse", "droplet", "single-nuc", "umis") # See `cluster_pipeline` in `utils.R`.
 vars_to_regress <- NULL # See `cluster_pipeline` in `utils.R`.
 parallel_override <- 0 # See `parallel_plan` in `utils.R`.
+# -----------------
 
 # Metadata to plot after dimensionality reduction and clustering.
 # Values in list can include "no_legend and/or "no_label" to exclude those.
