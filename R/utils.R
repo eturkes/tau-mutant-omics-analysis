@@ -128,6 +128,26 @@ datatable_download_exp <- function(dt) {
   )
 }
 
+#' Convert human to mouse gene names.
+#' Adapted from:
+#' https://rjbioinformatics.com/2016/10/14/converting-mouse-to-human-gene-names-with-biomart-package/
+#'
+#' @param genes A vector of human genes.
+#' @examples
+#' human_to_mouse_genes(genes = gene_list)
+#'
+human_to_mouse_genes <- function(genes) {
+
+  human <- useMart("ensembl", "hsapiens_gene_ensembl")
+  mouse <- useMart("ensembl", "mmusculus_gene_ensembl")
+
+  new_genes <- getLDS(
+    attributes = "ensembl_gene_id", filters = "ensembl_gene_id", values = genes,
+    mart = human, attributesL = "external_gene_name", martL = mouse
+  )
+  new_genes <- unique(new_genes[ , 2])
+}
+
 #' Pipeline for normalization, dimensionality reduction, and clustering of post-QC scRNA-seq data.
 #'
 #' @param seurat Post-QC Seurat object.
@@ -325,7 +345,7 @@ parallel_plan <- function(object, parallel_override = NULL) {
     # Get free memory.
     # ----------------
     gc()
-    mem <- as.numeric(unlist(strsplit(system("free -b", TRUE)[2], " "))[16])
+    mem <- as.numeric(unlist(strsplit(system("free -b", TRUE)[2], " "))[15])
     # ----------------
 
     # Distribute free memory (minus 10 GiB) across available cores.
@@ -598,21 +618,24 @@ word_cloud = function(x, width = NULL){
            "faces", "subunit", "lungs", "sshaped",
            "binds", "nonhomologous", "steadystate", "hap",
            "responsive", "latency", "trunk", "segments",
-           "iris")
+           "iris", "adaptor", "innervates", "touch",
+           "basal", "egg", "contents", "vitamin",
+           "anions", "thalamus", "titin", "regulator",
+           "posture", "controlling", "voluntarily", "alignment")
   txt = unlist(strsplit(x, " "))
   txt = Corpus(VectorSource(txt))
   txt = tm_map(txt, PlainTextDocument)
   txt = tm_map(txt, removePunctuation)
   txt = tm_map(txt, removeNumbers)
   txt = tm_map(txt, content_transformer(tolower))
-  txt = tm_map(txt, removeWords, c(t.rW, stopwords("english")))
+  txt = tm_map(txt, removeWords, c(t.rW, stopwords("english"), stopwords("SMART")))
   # corpus = txt
   # txt = tm_map(txt, stemDocument)
   # txt = tm_map(txt, stemCompletion, corpus)
   tdm = TermDocumentMatrix(txt)
   m = as.matrix(tdm)
   word_freqs = sort(rowSums(m), decreasing=TRUE)
-  word_freqs = word_freqs[word_freqs>1]
+  # word_freqs = word_freqs[word_freqs>1]
   if (is.null(width)) {
     word_freqs = paste(names(word_freqs), collapse=" ")
   } else {
