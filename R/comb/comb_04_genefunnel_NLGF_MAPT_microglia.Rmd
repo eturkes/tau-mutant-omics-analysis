@@ -343,13 +343,9 @@ seurat_symbols <- CreateSeuratObject(new_mat, meta.data = seurat[[]])
 
 # Run GSVA on pseudo-bulk counts.
 # -------------------------------
-rds <- file.path(cache_dir, "gsva_orig.rds")
-rds2 <- file.path(cache_dir, "gsva_filt.rds")
-rds3 <- file.path(cache_dir, "gsva.rds")
+rds <- file.path(cache_dir, "gsva.rds")
 if (file.exists(rds)) {
-  gsva_orig <- readRDS(rds)
-  gsva_filt <- readRDS(rds2)
-  gsva <- readRDS(rds3)
+  gsva <- readRDS(rds)
 } else {
   gsva_orig <- gsva(
     as.matrix(logcounts(sce)), gene_sets, method = "ssgsea",
@@ -360,15 +356,17 @@ if (file.exists(rds)) {
     min.sz = 5, ssgsea.norm = FALSE, verbose = FALSE
   )
   gsva <- gsva_orig[rownames(gsva_orig) %in% rownames(gsva_filt), ]
+
+  overlap <- lapply(geneIds(gene_sets), function(x, y) na.omit(fastmatch::fmatch(x, y)), rownames(sce_filt))
+  prop <- lengths(overlap) / lengths(geneIds(gene_sets))
+  keep <- which(prop >= 0.25)
+  gsva <- gsva[rownames(gsva) %in% names(keep), ]
+
   colnames(gsva) <- sce$Sample.ID.Custom
-  saveRDS(gsva_orig, rds)
-  saveRDS(gsva_filt, rds2)
-  saveRDS(gsva, rds3)
+  saveRDS(gsva, rds)
 }
 # -------------------------------
 
-hist(gsva_orig, main = "gsva_orig distribution")
-hist(gsva_filt, main = "gsva_filt distribution")
 hist(gsva, main = "gsva distribution")
 ```
 
