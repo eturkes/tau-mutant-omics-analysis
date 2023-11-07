@@ -266,7 +266,7 @@ if (file.exists(rds) & file.exists(rds2)) {
   set.seed(1)
   col <- sample(seq(ncol(null_mat)), size = length(add), replace = TRUE)
   for (i in seq_along(add)) {
-    null_mat[add[i], col[i]] <- 1
+    null_mat[i, col[i]] <- 1
   }
   new_mat <- rbind(new_mat, null_mat)
   seurat <- CreateSeuratObject(new_mat, meta.data = seurat[[]])
