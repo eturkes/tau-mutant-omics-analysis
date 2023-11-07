@@ -1337,7 +1337,9 @@ vertex_label_cex <- data.frame(DE = DE) %>%
   )
 vertex_label_cex <- vertex_label_cex$type
 
-png(file.path(results_dir, paste0("comb_04_genefunnel_network_", analysis_name, ".png")), width = 5280, height = 4320, res = 300)
+png(file.path(
+  results_dir, paste0("comb_04_genefunnel_network_", analysis_name, ".png")), width = 5280, height = 4320, res = 300
+)
 par(bg = "black", mar = c(0, 0, 0, 18), xpd = TRUE)
 plot(
     graph,
