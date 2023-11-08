@@ -887,11 +887,10 @@ hub_gene_all_GO <- hub_gene_all_GO[
   names(hub_gene_all_GO) %in% rownames(module_membership_norm)
 ]
 
-# module_membership_thresh <- median(
-#   (abs(rowSums(module_membership_norm)) / hub_gene_all_GO) *
-#     abs(rowSums(module_membership_norm))
-# )
-module_membership_thresh <- median(abs(rowSums(module_membership_norm)))
+module_membership_thresh <- median(
+  (abs(rowSums(module_membership_norm)) / hub_gene_all_GO) *
+    abs(rowSums(module_membership_norm))
+)
 # module_membership_thresh <- summary(
 #   as.numeric(
 #     (abs(rowSums(module_membership_norm)) / hub_gene_all_GO) *
@@ -1294,8 +1293,7 @@ all_DE_match_tmp <- data.frame(Var1 = V(graph)$name[V(graph)$name %notin% DE_alt
 all_DE_match <- rbind(all_DE_match, all_DE_match_tmp)
 all_DE_match <- all_DE_match[order(all_DE_match$Var1), ]
 
-# membership <- (abs(rowSums(module_membership_norm)) / hub_gene_all_GO) * abs(rowSums(module_membership_norm))
-membership <- abs(rowSums(module_membership_norm))
+membership <- (abs(rowSums(module_membership_norm)) / hub_gene_all_GO) * abs(rowSums(module_membership_norm))
 
 vertex_frame_color <- data.frame(DE = DE) %>%
   mutate(
@@ -1351,7 +1349,7 @@ plot(
     xlim = c(-1, 1),
     ylim = c(-1, 1),
     layout = norm_coords(layout),
-    vertex.size = (membership + 1) ^ 1.5,
+    vertex.size = (membership + 1) ^ 2,
     vertex.label.color = vertex_label_color,
     edge.width = (E(graph)$weight * 0.7) ^ 3,
     vertex.shape = "pie",
