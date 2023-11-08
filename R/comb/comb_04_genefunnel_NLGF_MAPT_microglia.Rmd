@@ -366,6 +366,7 @@ overlap <- lapply(geneIds(gene_sets), function(x, y) na.omit(fastmatch::fmatch(x
 prop <- lengths(overlap) / lengths(geneIds(gene_sets))
 keep <- which(prop >= 0.25)
 gsva <- gsva[rownames(gsva) %in% names(keep), ]
+gene_sets <- gene_sets[keep]
 
 hist(gsva, main = "gsva distribution")
 ```
