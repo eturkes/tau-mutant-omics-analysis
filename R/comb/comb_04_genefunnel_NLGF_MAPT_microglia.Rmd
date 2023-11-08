@@ -347,25 +347,25 @@ rds <- file.path(cache_dir, "gsva.rds")
 if (file.exists(rds)) {
   gsva <- readRDS(rds)
 } else {
-  gsva_orig <- gsva(
+  gsva <- gsva(
     as.matrix(logcounts(sce)), gene_sets, method = "ssgsea",
     parallel.sz = availableCores(), ssgsea.norm = FALSE, verbose = FALSE
   )
-  gsva_filt <- gsva(
-    as.matrix(logcounts(sce_filt)), gene_sets, method = "ssgsea", parallel.sz = availableCores(),
-    min.sz = 5, ssgsea.norm = FALSE, verbose = FALSE
-  )
-  gsva <- gsva_orig[rownames(gsva_orig) %in% rownames(gsva_filt), ]
-
-  overlap <- lapply(geneIds(gene_sets), function(x, y) na.omit(fastmatch::fmatch(x, y)), rownames(sce_filt))
-  prop <- lengths(overlap) / lengths(geneIds(gene_sets))
-  keep <- which(prop >= 0.25)
-  gsva <- gsva[rownames(gsva) %in% names(keep), ]
+  # gsva_filt <- gsva(
+  #   as.matrix(logcounts(sce_filt)), gene_sets, method = "ssgsea", parallel.sz = availableCores(),
+  #   min.sz = 5, ssgsea.norm = FALSE, verbose = FALSE
+  # )
+  # gsva <- gsva_orig[rownames(gsva_orig) %in% rownames(gsva_filt), ]
 
   colnames(gsva) <- sce$Sample.ID.Custom
   saveRDS(gsva, rds)
 }
 # -------------------------------
+
+overlap <- lapply(geneIds(gene_sets), function(x, y) na.omit(fastmatch::fmatch(x, y)), rownames(sce_filt))
+prop <- lengths(overlap) / lengths(geneIds(gene_sets))
+keep <- which(prop >= 0.25)
+gsva <- gsva[rownames(gsva) %in% names(keep), ]
 
 hist(gsva, main = "gsva distribution")
 ```
@@ -731,7 +731,7 @@ datatable_download_exp(markers_list_symbols_pseudobulk_strictest[[3]][(ncol-3):n
 
 # Gene Set Heatmap
 
-```{r, fig.width = 10, fig.height = 5}
+```{r, fig.width = 10, fig.height = 7}
 anno_color <- hue_pal()(length(unique(sce$condition)))
 color <- colorRampPalette(rev(brewer.pal(9, "RdBu")))(100) # For main gene set heatmap.
 
@@ -800,7 +800,7 @@ up_vector <- vector()
 for (j in seq(length(gene_sets_sub_up@.Data))) {
   if (
     length(which(gene_sets_sub_up[[j]]@geneIds %in% markers_list_pseudobulk_all[[2]])) >=
-      ceiling(length(gene_sets_sub_up[[j]]@geneIds) / 10)
+      ceiling(length(gene_sets_sub_up[[j]]@geneIds) / 9)
     ) {
     up_vector <- append(up_vector, names(gene_sets_sub_up)[j])
   }
@@ -810,7 +810,7 @@ down_vector <- c()
 for (j in seq(length(gene_sets_sub_down@.Data))) {
   if (
     length(which(gene_sets_sub_down[[j]]@geneIds %in% markers_list_pseudobulk_all[[3]])) >=
-      ceiling(length(gene_sets_sub_down[[j]]@geneIds) / 10)
+      ceiling(length(gene_sets_sub_down[[j]]@geneIds) / 9)
   ) {
     down_vector <- append(down_vector, names(gene_sets_sub_down)[j])
   }
@@ -841,7 +841,8 @@ anno <- HeatmapAnnotation(
   cell_type = anno_block(
     gp = gpar(fill = "lightgray", col = "lightgray"),
     labels = c(unique(sce$condition)[[1]], unique(sce$condition)[[2]]),
-    labels_gp = gpar(col = "black", fontsize = 8)
+    labels_gp = gpar(col = "black", fontsize = 8),
+    height = unit(6, "mm")
   )
 )
 
@@ -1291,7 +1292,7 @@ all_DE_match_tmp <- data.frame(Var1 = V(graph)$name[V(graph)$name %notin% DE_alt
 all_DE_match <- rbind(all_DE_match, all_DE_match_tmp)
 all_DE_match <- all_DE_match[order(all_DE_match$Var1), ]
 
-membership <- (abs(rowSums(module_membership_norm)) / hub_gene_all_GO) * hub_gene_all_GO
+membership <- (abs(rowSums(module_membership_norm)) / hub_gene_all_GO) * abs(rowSums(module_membership_norm))
 
 vertex_frame_color <- data.frame(DE = DE) %>%
   mutate(
@@ -1347,15 +1348,15 @@ plot(
     xlim = c(-1, 1),
     ylim = c(-1, 1),
     layout = norm_coords(layout),
-    vertex.size = (membership + 0.75) ^ 2,
+    vertex.size = (membership + 1) ^ 2,
     vertex.label.color = vertex_label_color,
-    edge.width = (E(graph)$weight * 0.75) ^ 3,
+    edge.width = (E(graph)$weight * 0.7) ^ 3,
     vertex.shape = "pie",
     vertex.pie = module_membership_list,
     edge.color = ifelse(direction == "up", "firebrick1", "dodgerblue"),
     vertex.label.family = "sans",
     vertex.label.font = vertex_label_font,
-    vertex.label.cex = ifelse(DE == "yes", ((all_DE_match$Freq) * 1), 1),
+    vertex.label.cex = ifelse(DE == "yes", ((all_DE_match$Freq) * 0.75), 0.75),
     vertex.frame.color = vertex_frame_color,
     vertex.label = vertex_label
 )
@@ -1367,11 +1368,11 @@ legend(
     pch = 20,
     col = module_network_colors,
     pt.cex = 4,
-    cex = 2,
+    cex = 1.5,
     bty = "n",
     text.col = "white",
     y.intersp = 2,
-    inset = c(-0.25, 0)
+    inset = c(-0.175, 0)
 )
 dev.off()
 ```

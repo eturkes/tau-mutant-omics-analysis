@@ -621,7 +621,8 @@ word_cloud = function(x, width = NULL){
            "iris", "adaptor", "innervates", "touch",
            "basal", "egg", "contents", "vitamin",
            "anions", "thalamus", "titin", "regulator",
-           "posture", "controlling", "voluntarily", "alignment")
+           "posture", "controlling", "voluntarily", "alignment",
+           "placode", "half", "monoatomic")
   txt = unlist(strsplit(x, " "))
   txt = Corpus(VectorSource(txt))
   txt = tm_map(txt, PlainTextDocument)
