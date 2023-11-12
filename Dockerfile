@@ -16,7 +16,7 @@
 #
 #    Emir Turkes can be contacted at emir.turkes@eturkes.com
 
-FROM rocker/rstudio:4.3.1
+FROM rocker/rstudio:4.3.2
 
 LABEL org.opencontainers.image.authors="Emir Turkes emir.turkes@eturkes.com"
 
@@ -24,6 +24,9 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         zlib1g-dev \
         libglpk-dev \
+        libudunits2-0 \
+        libproj22 \
+        libgdal30 \
     && Rscript -e "install.packages('rmarkdown')" \
         -e "install.packages('markdown')" \
         -e "install.packages('conflicted')" \
@@ -34,6 +37,7 @@ RUN apt-get update \
         -e "install.packages('pals')" \
         -e "install.packages('tm')" \
         -e "install.packages('qgraph')" \
+        -e "install.packages('fastmatch')" \
         -e "install.packages('BiocManager')" \
         -e "install.packages('remotes')" \
         -e "BiocManager::install('SingleCellExperiment')" \
@@ -47,6 +51,7 @@ RUN apt-get update \
         -e "BiocManager::install('ComplexHeatmap')" \
         -e "BiocManager::install('GO.db')" \
         -e "remotes::install_github('chris-mcginnis-ucsf/DoubletFinder')" \
+        -e "remotes::install_github('jmw86069/multienrichjam', dependencies = TRUE)" \
     && apt-get clean \
     && rm -Rf /var/lib/apt/lists/ \
         /tmp/downloaded_packages/ \

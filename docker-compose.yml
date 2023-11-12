@@ -20,7 +20,7 @@ version: "3"
 
 services:
   rstudio:
-    image: eturkes/tau-mutant-omics-analysis:R4.3.1v2
+    image: eturkes/tau-mutant-omics-analysis:R4.3.2v1
     volumes:
       - ".:/home/rstudio/tau-mutant-omics-analysis:rw"
     ports:

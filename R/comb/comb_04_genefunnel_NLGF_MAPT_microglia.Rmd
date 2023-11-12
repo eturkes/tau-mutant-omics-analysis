@@ -66,7 +66,7 @@ conflicts_prefer(base::intersect, DT::JS, edgeR::cpm, AnnotationDbi::select, .qu
 packages <- c(
   "Seurat", "GSEABase", "GSVA", "biomaRt", "parallel", "ggplot2", "magrittr", "dplyr", "ggrepel", "scuttle", "edgeR",
   "DT", "scales", "RColorBrewer", "factoextra", "ComplexHeatmap", "reshape2", "pals", "dendextend", "GO.db", "tm",
-  "igraph", "qgraph", "circlize", "parallelly"
+  "igraph", "qgraph", "circlize", "parallelly", "multienrichjam"
 )
 invisible(suppressPackageStartupMessages(lapply(packages, FUN = library, character.only = TRUE)))
 # -----------------------------------------------------
@@ -1343,7 +1343,7 @@ png(file.path(
   results_dir, paste0("comb_04_genefunnel_network_", analysis_name, ".png")), width = 5280, height = 4320, res = 300
 )
 par(bg = "black", mar = c(0, 0, 0, 18), xpd = TRUE)
-plot(
+jam_igraph(
     graph,
     rescale = FALSE,
     xlim = c(-1, 1),
@@ -1357,9 +1357,11 @@ plot(
     edge.color = ifelse(direction == "up", "firebrick1", "dodgerblue"),
     vertex.label.family = "sans",
     vertex.label.font = vertex_label_font,
-    vertex.label.cex = ifelse(DE == "yes", ((all_DE_match$Freq) * 0.75), 0.75),
+    vertex.label.cex = ifelse(DE == "yes", ((all_DE_match$Freq) * 0.75), 0.5),
     vertex.frame.color = vertex_frame_color,
-    vertex.label = vertex_label
+    vertex.label = vertex_label,
+    use_shadowText = TRUE,
+    pie_to_jampie = FALSE
 )
 legend(
     "right",
