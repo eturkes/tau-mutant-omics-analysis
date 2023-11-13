@@ -62,7 +62,7 @@ The toggle at the start of the document controls the visibility of all chunks.
 # Load required packages, suppressing startup messages.
 # -----------------------------------------------------
 library(conflicted)
-conflicts_prefer(base::intersect, DT::JS, edgeR::cpm, AnnotationDbi::select, .quiet = TRUE)
+conflicts_prefer(base::intersect, DT::JS, edgeR::cpm, AnnotationDbi::select, matrixStats::rowMedians, .quiet = TRUE)
 packages <- c(
   "Seurat", "GSEABase", "GSVA", "biomaRt", "parallel", "ggplot2", "magrittr", "dplyr", "ggrepel", "scuttle", "edgeR",
   "DT", "scales", "RColorBrewer", "factoextra", "ComplexHeatmap", "reshape2", "pals", "dendextend", "GO.db", "tm",
@@ -320,7 +320,7 @@ hist(as.matrix(GetAssayData(seurat)), main = "SCTransform normalized log counts 
 # hist(logcounts(sce_filt), main = "SCTransform normalized log counts distribution after filtering zero counts")
 
 sce <- as.SingleCellExperiment(seurat)
-keep <- filterByExpr(counts(sce), group = sce$condition, min.total.count = 1, min.count = 1, min.prop = 0.01)
+keep <- filterByExpr(counts(sce), group = sce$condition, min.total.count = 1, min.count = 1, min.prop = 0.05)
 sce_filt <- sce[keep, ]
 
 dge <- DGEList(counts(sce))
@@ -362,11 +362,26 @@ if (file.exists(rds)) {
 }
 # -------------------------------
 
+# gsva1 <- gsva[ , which(sce$condition == unique(sce$condition)[1])]
+# gsva2 <- gsva[ , which(sce$condition == unique(sce$condition)[2])]
+# gsva1 <- gsva1[rowMedians(gsva1) >= quantile(gsva)[2], ]
+# gsva2 <- gsva2[rowMedians(gsva2) >= quantile(gsva)[2], ]
+# gsva <- gsva[rownames(gsva) %in% c(rownames(gsva1), rownames(gsva2)), ]
+# gene_sets <- gene_sets[which(names(gene_sets) %in% rownames(gsva))]
+
+# keep <- (range(gsva)[1] + range(gsva)[2]) / 2.4
+# gsva1 <- gsva[ , which(sce$condition == unique(sce$condition)[1])]
+# gsva2 <- gsva[ , which(sce$condition == unique(sce$condition)[2])]
+# gsva1 <- gsva1[rowMedians(gsva1) >= keep, ]
+# gsva2 <- gsva2[rowMedians(gsva2) >= keep, ]
+# gsva <- gsva[rownames(gsva) %in% c(rownames(gsva1), rownames(gsva2)), ]
+# gene_sets <- gene_sets[which(names(gene_sets) %in% rownames(gsva))]
+
 overlap <- lapply(geneIds(gene_sets), function(x, y) na.omit(fastmatch::fmatch(x, y)), rownames(sce_filt))
 prop <- lengths(overlap) / lengths(geneIds(gene_sets))
 keep <- which(prop >= 0.25)
 gsva <- gsva[rownames(gsva) %in% names(keep), ]
-gene_sets <- gene_sets[keep]
+# gene_sets <- gene_sets[keep]
 
 hist(gsva, main = "GSVA distribution")
 ```
@@ -801,7 +816,7 @@ up_vector <- vector()
 for (j in seq(length(gene_sets_sub_up@.Data))) {
   if (
     length(which(gene_sets_sub_up[[j]]@geneIds %in% markers_list_pseudobulk_all[[2]])) >=
-      ceiling(length(gene_sets_sub_up[[j]]@geneIds) / 9)
+      ceiling(length(gene_sets_sub_up[[j]]@geneIds) / length(gene_sets_sub_up[[j]]@geneIds))
     ) {
     up_vector <- append(up_vector, names(gene_sets_sub_up)[j])
   }
@@ -811,7 +826,7 @@ down_vector <- c()
 for (j in seq(length(gene_sets_sub_down@.Data))) {
   if (
     length(which(gene_sets_sub_down[[j]]@geneIds %in% markers_list_pseudobulk_all[[3]])) >=
-      ceiling(length(gene_sets_sub_down[[j]]@geneIds) / 9)
+      ceiling(length(gene_sets_sub_down[[j]]@geneIds) / length(gene_sets_sub_down[[j]]@geneIds))
   ) {
     down_vector <- append(down_vector, names(gene_sets_sub_down)[j])
   }
@@ -897,12 +912,12 @@ module_membership_thresh <- median(
 #       abs(rowSums(module_membership_norm))
 #   )
 # )[2][[1]]
-# module_membership_thresh <- summary(
-#   as.numeric(
-#     (abs(rowSums(module_membership_norm)) / hub_gene_all_GO) *
-#       abs(rowSums(module_membership_norm))
-#   )
-# )[5][[1]]
+module_membership_thresh <- summary(
+  as.numeric(
+    (abs(rowSums(module_membership_norm)) / hub_gene_all_GO) *
+      abs(rowSums(module_membership_norm))
+  )
+)[5][[1]]
 # module_membership_thresh <- mean(
 #   (abs(rowSums(module_membership_norm)) / hub_gene_all_GO) *
 #     abs(rowSums(module_membership_norm))
@@ -1351,7 +1366,7 @@ jam_igraph(
     layout = norm_coords(layout),
     vertex.size = (membership + 1) ^ 2,
     vertex.label.color = vertex_label_color,
-    edge.width = (E(graph)$weight * 0.7) ^ 3,
+    edge.width = (E(graph)$weight * 0.6) ^ 3,
     vertex.shape = "pie",
     vertex.pie = module_membership_list,
     edge.color = ifelse(direction == "up", "firebrick1", "dodgerblue"),
@@ -1375,7 +1390,7 @@ legend(
     bty = "n",
     text.col = "white",
     y.intersp = 2,
-    inset = c(-0.175, 0)
+    inset = c(-0.15, 0)
 )
 dev.off()
 ```
