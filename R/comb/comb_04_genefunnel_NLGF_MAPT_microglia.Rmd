@@ -368,7 +368,7 @@ keep <- which(prop >= 0.25)
 gsva <- gsva[rownames(gsva) %in% names(keep), ]
 gene_sets <- gene_sets[keep]
 
-hist(gsva, main = "gsva distribution")
+hist(gsva, main = "GSVA distribution")
 ```
 
 # Analysis
