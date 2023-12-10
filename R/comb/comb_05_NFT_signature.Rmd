@@ -1,0 +1,370 @@
+---
+title: "Combined Samples - 05 NFT Signature"
+author:
+  - name: "Emir Turkes"
+date: '`r strftime(Sys.time(), format = "%B %d, %Y")`'
+link-citations: true
+output:
+  html_document:
+    code_folding: hide
+    number_sections: true
+    theme: lumen
+    highlight: haddock
+    toc: true
+    toc_depth: 2
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+knit: (function(inputFile, encoding) {
+  rmarkdown::render(
+    inputFile, encoding = encoding,
+    output_file = file.path(
+      "..", "..", "results", unlist(strsplit(getwd(), "/"))[6], "comb_05_NFT_signature.html"
+  ))})
+---
+
+<style type="text/css">
+body {font-size: 16px;}
+h1.title {font-size: 35px;}
+h1 {font-size: 24px;}
+h2 {font-size: 22px;}
+.toc-content {padding-left: 0px; padding-right: 0px;}
+div.tocify {width: 100%;}
+.tocify-subheader .tocify-item {font-size: 0.95em; padding-left: 25px; text-indent: 0;}
+div.main-container {max-width: none; width: 100%;}
+</style>
+
+*This file is a part of [tau-mutant-omics-analysis](https://github.com/eturkes/tau-mutant-omics-analysis).*
+
+The table of contents in the top left is clickable and can be used to quickly navigate the document.
+To toggle the visibility of code, use the `CODE` toggles at the top right of chunks.
+The toggle at the start of the document controls the visibility of all chunks.
+
+```{r}
+#    This file is part of tau-mutant-omics-analysis.
+#    Copyright (C) 2023  Emir Turkes, Naoto Watamura, UK DRI at UCL
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#    Emir Turkes can be contacted at emir.turkes@eturkes.com
+
+# Load required packages, suppressing startup messages.
+# -----------------------------------------------------
+library(conflicted)
+conflicts_prefer(base::intersect, .quiet = TRUE)
+packages <- c("Seurat", "biomaRt", "ggplot2", "dplyr", "ggrepel", "parallelly")
+invisible(suppressPackageStartupMessages(lapply(packages, FUN = library, character.only = TRUE)))
+# -----------------------------------------------------
+
+# Define global settings.
+# -----------------------
+knitr::opts_chunk$set(fig.width = 10, fig.height = 7, dpi = 300)
+# -----------------------
+
+# Define functions.
+# -----------------
+source(file.path("..", "utils.R"))
+# -----------------
+
+# Useful variables.
+# -----------------
+analysis_no <- 5
+data_name <- unlist(strsplit(getwd(), "/"))[6] # Name of dataset derived from path.
+
+data_dir <- file.path("..", "..", "data")
+cache_dir <- file.path("..", "..", "cache", data_name, paste0("0", analysis_no)) # Store intermediate data objects here.
+if (!dir.exists(cache_dir)) {
+  dir.create(cache_dir, recursive = TRUE)
+}
+# -----------------
+```
+
+# All
+
+```{r}
+rds <- file.path(cache_dir, "NFT_sig_seurat.rds")
+if (file.exists(rds)) {
+  NFT_sig_seurat <- readRDS(rds)
+} else {
+
+  NFT_sig_seurat <- readRDS(file.path(cache_dir, "..", "02", "seurat.rds"))
+
+  hub_genes <- read.csv(
+    file.path(data_dir, "gene-sets", "otero-garcia-2022-ssRNAseq", "hub-gene-data-mouse-ortho.csv"), header = FALSE
+  )$V1
+
+  DefaultAssay(NFT_sig_seurat) <- "RNA"
+  NFT_sig_seurat[["SCT"]] <- NULL
+
+  gc()
+  mem <- as.numeric(unlist(strsplit(system("free -b", TRUE)[2], " "))[15])
+  mem <- mem - 10 * 1024 ^ 3
+  mem <- mem / availableCores()
+  options(future.globals.maxSize = mem)
+  plan("multisession")
+
+  NFT_sig_seurat <- SCTransform(
+    NFT_sig_seurat, residual.features = rownames(NFT_sig_seurat)[rownames(NFT_sig_seurat) %in% hub_genes],
+    vst.flavor = "v2", verbose = FALSE
+  )
+
+  NFT_sig_seurat <- RunPCA(NFT_sig_seurat, npcs = 30, verbose = FALSE)
+  add_df <- data.frame(Embeddings(NFT_sig_seurat)[ , 1:2])
+  names(add_df) <- paste0("NFT_pca", seq(ncol(add_df)))
+  NFT_sig_seurat$NFT_pca1 <- add_df$NFT_pca1
+  NFT_sig_seurat$NFT_pca2 <- add_df$NFT_pca2
+
+  NFT_sig_seurat <- RunUMAP(NFT_sig_seurat, dims = 1:30, reduction = "pca", verbose = FALSE)
+  add_df <- data.frame(Embeddings(NFT_sig_seurat, "umap"))
+  names(add_df) <- paste0("NFT_umap", seq(ncol(add_df)))
+  NFT_sig_seurat$NFT_umap1 <- add_df$NFT_umap1
+  NFT_sig_seurat$NFT_umap2 <- add_df$NFT_umap2
+
+  set.seed(1)
+  kmeans <- kmeans(data.frame(Embeddings(NFT_sig_seurat)[ , c(1, 2)]), centers = 2)
+  NFT_sig_seurat$NFT_sig <- factor(kmeans$cluster)
+
+  saveRDS(NFT_sig_seurat, rds)
+}
+
+print(NFT_sig_seurat[["pca"]], dims = c(1, 2), nfeatures = Inf)
+NFT_sig_seurat$NFT_sig <- ifelse(NFT_sig_seurat$NFT_sig == 1, "Pos", "Neg")
+
+red_dim_plot(NFT_sig_seurat, x = "umap1", y = "umap2", color = "NFT_sig")
+red_dim_plot(NFT_sig_seurat, x = "NFT_umap1", y = "NFT_umap2", color = "NFT_sig")
+red_dim_plot(NFT_sig_seurat, x = "NFT_umap1", y = "NFT_umap2", color = "sample")
+red_dim_plot(NFT_sig_seurat, x = "NFT_pca1", y = "NFT_pca2", color = "NFT_sig")
+red_dim_plot(NFT_sig_seurat, x = "NFT_pca1", y = "NFT_pca2", color = "sample")
+
+table <- prop.table(table(NFT_sig_seurat$NFT_sig, NFT_sig_seurat$sample), margin = 2)
+table
+
+table <- as.data.frame(table)
+colnames(table) <- c("NFT Signature", "Sample", "Proportion")
+table_sub <- table[table$`NFT Signature` == "Pos", ]
+table$Sample <- factor(table$Sample, levels = table_sub$Sample[order(table_sub$Proportion, decreasing = TRUE)])
+ggplot(table, aes(x = Sample, y = Proportion, fill = `NFT Signature`)) + geom_col() + ggtitle("All Cells")
+```
+
+# ENT EX Neurons
+
+```{r}
+rds <- file.path(cache_dir, "NFT_sig_seurat_ENT.rds")
+if (file.exists(rds)) {
+  NFT_sig_seurat <- readRDS(rds)
+} else {
+
+  NFT_sig_seurat <- readRDS(file.path(cache_dir, "..", "02", "seurat.rds"))
+  NFT_sig_seurat <- subset(NFT_sig_seurat, idents = "10")
+
+  hub_genes <- read.csv(
+    file.path(data_dir, "gene-sets", "otero-garcia-2022-ssRNAseq", "hub-gene-data-mouse-ortho.csv"), header = FALSE
+  )$V1
+
+  DefaultAssay(NFT_sig_seurat) <- "RNA"
+  NFT_sig_seurat[["SCT"]] <- NULL
+
+  gc()
+  mem <- as.numeric(unlist(strsplit(system("free -b", TRUE)[2], " "))[15])
+  mem <- mem - 10 * 1024 ^ 3
+  mem <- mem / availableCores()
+  options(future.globals.maxSize = mem)
+  plan("multisession")
+
+  NFT_sig_seurat <- SCTransform(
+    NFT_sig_seurat, residual.features = rownames(NFT_sig_seurat)[rownames(NFT_sig_seurat) %in% hub_genes],
+    vst.flavor = "v2", verbose = FALSE
+  )
+
+  NFT_sig_seurat <- RunPCA(NFT_sig_seurat, npcs = 30, verbose = FALSE)
+  add_df <- data.frame(Embeddings(NFT_sig_seurat)[ , 1:2])
+  names(add_df) <- paste0("NFT_pca", seq(ncol(add_df)))
+  NFT_sig_seurat$NFT_pca1 <- add_df$NFT_pca1
+  NFT_sig_seurat$NFT_pca2 <- add_df$NFT_pca2
+
+  NFT_sig_seurat <- RunUMAP(NFT_sig_seurat, dims = 1:30, reduction = "pca", verbose = FALSE)
+  add_df <- data.frame(Embeddings(NFT_sig_seurat, "umap"))
+  names(add_df) <- paste0("NFT_umap", seq(ncol(add_df)))
+  NFT_sig_seurat$NFT_umap1 <- add_df$NFT_umap1
+  NFT_sig_seurat$NFT_umap2 <- add_df$NFT_umap2
+
+  set.seed(1)
+  kmeans <- kmeans(data.frame(Embeddings(NFT_sig_seurat)[ , c(1, 2)]), centers = 2)
+  NFT_sig_seurat$NFT_sig <- factor(kmeans$cluster)
+
+  saveRDS(NFT_sig_seurat, rds)
+}
+
+print(NFT_sig_seurat[["pca"]], dims = c(1, 2), nfeatures = Inf)
+NFT_sig_seurat$NFT_sig <- ifelse(NFT_sig_seurat$NFT_sig == 1, "Pos", "Neg")
+
+red_dim_plot(NFT_sig_seurat, x = "umap1", y = "umap2", color = "NFT_sig")
+red_dim_plot(NFT_sig_seurat, x = "NFT_umap1", y = "NFT_umap2", color = "NFT_sig")
+red_dim_plot(NFT_sig_seurat, x = "NFT_umap1", y = "NFT_umap2", color = "sample")
+red_dim_plot(NFT_sig_seurat, x = "NFT_pca1", y = "NFT_pca2", color = "NFT_sig")
+red_dim_plot(NFT_sig_seurat, x = "NFT_pca1", y = "NFT_pca2", color = "sample")
+
+table <- prop.table(table(NFT_sig_seurat$NFT_sig, NFT_sig_seurat$sample), margin = 2)
+table
+
+table <- as.data.frame(table)
+colnames(table) <- c("NFT Signature", "Sample", "Proportion")
+table_sub <- table[table$`NFT Signature` == "Pos", ]
+table$Sample <- factor(table$Sample, levels = table_sub$Sample[order(table_sub$Proportion, decreasing = TRUE)])
+ggplot(table, aes(x = Sample, y = Proportion, fill = `NFT Signature`)) + geom_col() + ggtitle("ENT EX Neurons")
+```
+
+# CA3 EX Neurons
+
+```{r}
+rds <- file.path(cache_dir, "NFT_sig_seurat_CA3.rds")
+if (file.exists(rds)) {
+  NFT_sig_seurat <- readRDS(rds)
+} else {
+
+  NFT_sig_seurat <- readRDS(file.path(cache_dir, "..", "02", "seurat.rds"))
+  NFT_sig_seurat <- subset(NFT_sig_seurat, idents = "13")
+
+  hub_genes <- read.csv(
+    file.path(data_dir, "gene-sets", "otero-garcia-2022-ssRNAseq", "hub-gene-data-mouse-ortho.csv"), header = FALSE
+  )$V1
+
+  DefaultAssay(NFT_sig_seurat) <- "RNA"
+  NFT_sig_seurat[["SCT"]] <- NULL
+
+  gc()
+  mem <- as.numeric(unlist(strsplit(system("free -b", TRUE)[2], " "))[15])
+  mem <- mem - 10 * 1024 ^ 3
+  mem <- mem / availableCores()
+  options(future.globals.maxSize = mem)
+  plan("multisession")
+
+  NFT_sig_seurat <- SCTransform(
+    NFT_sig_seurat, residual.features = rownames(NFT_sig_seurat)[rownames(NFT_sig_seurat) %in% hub_genes],
+    vst.flavor = "v2", verbose = FALSE
+  )
+
+  NFT_sig_seurat <- RunPCA(NFT_sig_seurat, npcs = 30, verbose = FALSE)
+  add_df <- data.frame(Embeddings(NFT_sig_seurat)[ , 1:2])
+  names(add_df) <- paste0("NFT_pca", seq(ncol(add_df)))
+  NFT_sig_seurat$NFT_pca1 <- add_df$NFT_pca1
+  NFT_sig_seurat$NFT_pca2 <- add_df$NFT_pca2
+
+  NFT_sig_seurat <- RunUMAP(NFT_sig_seurat, dims = 1:30, reduction = "pca", verbose = FALSE)
+  add_df <- data.frame(Embeddings(NFT_sig_seurat, "umap"))
+  names(add_df) <- paste0("NFT_umap", seq(ncol(add_df)))
+  NFT_sig_seurat$NFT_umap1 <- add_df$NFT_umap1
+  NFT_sig_seurat$NFT_umap2 <- add_df$NFT_umap2
+
+  set.seed(1)
+  kmeans <- kmeans(data.frame(Embeddings(NFT_sig_seurat)[ , c(1, 2)]), centers = 2)
+  NFT_sig_seurat$NFT_sig <- factor(kmeans$cluster)
+
+  saveRDS(NFT_sig_seurat, rds)
+}
+
+print(NFT_sig_seurat[["pca"]], dims = c(1, 2), nfeatures = Inf)
+NFT_sig_seurat$NFT_sig <- ifelse(NFT_sig_seurat$NFT_sig == 1, "Pos", "Neg")
+
+red_dim_plot(NFT_sig_seurat, x = "umap1", y = "umap2", color = "NFT_sig")
+red_dim_plot(NFT_sig_seurat, x = "NFT_umap1", y = "NFT_umap2", color = "NFT_sig")
+red_dim_plot(NFT_sig_seurat, x = "NFT_umap1", y = "NFT_umap2", color = "sample")
+red_dim_plot(NFT_sig_seurat, x = "NFT_pca1", y = "NFT_pca2", color = "NFT_sig")
+red_dim_plot(NFT_sig_seurat, x = "NFT_pca1", y = "NFT_pca2", color = "sample")
+
+table <- prop.table(table(NFT_sig_seurat$NFT_sig, NFT_sig_seurat$sample), margin = 2)
+table
+
+table <- as.data.frame(table)
+colnames(table) <- c("NFT Signature", "Sample", "Proportion")
+table_sub <- table[table$`NFT Signature` == "Pos", ]
+table$Sample <- factor(table$Sample, levels = table_sub$Sample[order(table_sub$Proportion, decreasing = TRUE)])
+ggplot(table, aes(x = Sample, y = Proportion, fill = `NFT Signature`)) + geom_col() + ggtitle("CA3 EX Neurons")
+```
+
+# CA1 EX Neurons
+
+```{r}
+rds <- file.path(cache_dir, "NFT_sig_seurat_CA1.rds")
+if (file.exists(rds)) {
+  NFT_sig_seurat <- readRDS(rds)
+} else {
+
+  NFT_sig_seurat <- readRDS(file.path(cache_dir, "..", "02", "seurat.rds"))
+  NFT_sig_seurat <- subset(NFT_sig_seurat, idents = "5")
+
+  hub_genes <- read.csv(
+    file.path(data_dir, "gene-sets", "otero-garcia-2022-ssRNAseq", "hub-gene-data-mouse-ortho.csv"), header = FALSE
+  )$V1
+
+  DefaultAssay(NFT_sig_seurat) <- "RNA"
+  NFT_sig_seurat[["SCT"]] <- NULL
+
+  gc()
+  mem <- as.numeric(unlist(strsplit(system("free -b", TRUE)[2], " "))[15])
+  mem <- mem - 10 * 1024 ^ 3
+  mem <- mem / availableCores()
+  options(future.globals.maxSize = mem)
+  plan("multisession")
+
+  NFT_sig_seurat <- SCTransform(
+    NFT_sig_seurat, residual.features = rownames(NFT_sig_seurat)[rownames(NFT_sig_seurat) %in% hub_genes],
+    vst.flavor = "v2", verbose = FALSE
+  )
+
+  NFT_sig_seurat <- RunPCA(NFT_sig_seurat, npcs = 30, verbose = FALSE)
+  add_df <- data.frame(Embeddings(NFT_sig_seurat)[ , 1:2])
+  names(add_df) <- paste0("NFT_pca", seq(ncol(add_df)))
+  NFT_sig_seurat$NFT_pca1 <- add_df$NFT_pca1
+  NFT_sig_seurat$NFT_pca2 <- add_df$NFT_pca2
+
+  NFT_sig_seurat <- RunUMAP(NFT_sig_seurat, dims = 1:30, reduction = "pca", verbose = FALSE)
+  add_df <- data.frame(Embeddings(NFT_sig_seurat, "umap"))
+  names(add_df) <- paste0("NFT_umap", seq(ncol(add_df)))
+  NFT_sig_seurat$NFT_umap1 <- add_df$NFT_umap1
+  NFT_sig_seurat$NFT_umap2 <- add_df$NFT_umap2
+
+  set.seed(1)
+  kmeans <- kmeans(data.frame(Embeddings(NFT_sig_seurat)[ , c(1, 2)]), centers = 2)
+  NFT_sig_seurat$NFT_sig <- factor(kmeans$cluster)
+
+  saveRDS(NFT_sig_seurat, rds)
+}
+
+print(NFT_sig_seurat[["pca"]], dims = c(1, 2), nfeatures = Inf)
+NFT_sig_seurat$NFT_sig <- ifelse(NFT_sig_seurat$NFT_sig == 2, "Pos", "Neg")
+
+red_dim_plot(NFT_sig_seurat, x = "umap1", y = "umap2", color = "NFT_sig")
+red_dim_plot(NFT_sig_seurat, x = "NFT_umap1", y = "NFT_umap2", color = "NFT_sig")
+red_dim_plot(NFT_sig_seurat, x = "NFT_umap1", y = "NFT_umap2", color = "sample")
+red_dim_plot(NFT_sig_seurat, x = "NFT_pca1", y = "NFT_pca2", color = "NFT_sig")
+red_dim_plot(NFT_sig_seurat, x = "NFT_pca1", y = "NFT_pca2", color = "sample")
+
+table <- prop.table(table(NFT_sig_seurat$NFT_sig, NFT_sig_seurat$sample), margin = 2)
+table
+
+table <- as.data.frame(table)
+colnames(table) <- c("NFT Signature", "Sample", "Proportion")
+table_sub <- table[table$`NFT Signature` == "Pos", ]
+table$Sample <- factor(table$Sample, levels = table_sub$Sample[order(table_sub$Proportion, decreasing = TRUE)])
+ggplot(table, aes(x = Sample, y = Proportion, fill = `NFT Signature`)) + geom_col() + ggtitle("CA1 EX Neurons")
+```
+
+# References
+
+This is the concluding section of the document. Here we output the `sessionInfo` and create a bibliography for works cited.
+
+```{r}
+sessionInfo()
+```
