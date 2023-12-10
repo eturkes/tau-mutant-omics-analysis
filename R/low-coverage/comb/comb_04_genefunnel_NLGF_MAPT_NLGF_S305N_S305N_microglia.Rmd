@@ -470,8 +470,8 @@ datatable_download_exp(gsva_list_pseudobulk_stricter[[2]][(ncol-3):ncol])
 **Upregulated in Microglia NLGF MAPT KI GSE Strictest**
 
 ```{r}
-ncol <- ncol(gsva_list_pseudobulk_strictest[[2]])
-datatable_download_exp(gsva_list_pseudobulk_strictest[[2]][(ncol-3):ncol])
+# ncol <- ncol(gsva_list_pseudobulk_strictest[[2]])
+# datatable_download_exp(gsva_list_pseudobulk_strictest[[2]][(ncol-3):ncol])
 ```
 
 **Downregulated in Microglia NLGF MAPT KI GSE Initial**
@@ -498,8 +498,8 @@ datatable_download_exp(gsva_list_pseudobulk_stricter[[3]][(ncol-3):ncol])
 **Downregulated in Microglia NLGF MAPT KI GSE Strictest**
 
 ```{r}
-ncol <- ncol(gsva_list_pseudobulk_strictest[[3]])
-datatable_download_exp(gsva_list_pseudobulk_strictest[[3]][(ncol-3):ncol])
+# ncol <- ncol(gsva_list_pseudobulk_strictest[[3]])
+# datatable_download_exp(gsva_list_pseudobulk_strictest[[3]][(ncol-3):ncol])
 ```
 
 ```{r}
@@ -681,8 +681,8 @@ datatable_download_exp(markers_list_symbols_pseudobulk_stricter[[2]][(ncol-3):nc
 **Upregulated in Microglia NLGF MAPT KI DEG Strictest**
 
 ```{r}
-ncol <- ncol(markers_list_symbols_pseudobulk_strictest[[2]])
-datatable_download_exp(markers_list_symbols_pseudobulk_strictest[[2]][(ncol-3):ncol])
+# ncol <- ncol(markers_list_symbols_pseudobulk_strictest[[2]])
+# datatable_download_exp(markers_list_symbols_pseudobulk_strictest[[2]][(ncol-3):ncol])
 ```
 
 **Downregulated in Microglia NLGF MAPT KI DEG Initial**
@@ -709,8 +709,8 @@ datatable_download_exp(markers_list_symbols_pseudobulk_stricter[[3]][(ncol-3):nc
 **Downregulated in Microglia NLGF MAPT KI DEG Strictest**
 
 ```{r}
-ncol <- ncol(markers_list_symbols_pseudobulk_strictest[[3]])
-datatable_download_exp(markers_list_symbols_pseudobulk_strictest[[3]][(ncol-3):ncol])
+# ncol <- ncol(markers_list_symbols_pseudobulk_strictest[[3]])
+# datatable_download_exp(markers_list_symbols_pseudobulk_strictest[[3]][(ncol-3):ncol])
 ```
 
 # Gene Set Heatmap
