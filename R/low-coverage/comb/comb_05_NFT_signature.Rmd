@@ -19,8 +19,9 @@ knit: (function(inputFile, encoding) {
   rmarkdown::render(
     inputFile, encoding = encoding,
     output_file = file.path(
-      "..", "..", "results", unlist(strsplit(getwd(), "/"))[6], "comb_05_NFT_signature.html"
-  ))})
+      "..", "..", "..", "results",
+      unlist(strsplit(getwd(), "/"))[6], unlist(strsplit(getwd(), "/"))[7], "comb_05_NFT_signature.html"
+  )}))
 ---
 
 <style type="text/css">
@@ -74,16 +75,16 @@ knitr::opts_chunk$set(fig.width = 10, fig.height = 7, dpi = 300)
 
 # Define functions.
 # -----------------
-source(file.path("..", "utils.R"))
+source(file.path("..", "..", "utils.R"))
 # -----------------
 
 # Useful variables.
 # -----------------
 analysis_no <- 5
-data_name <- unlist(strsplit(getwd(), "/"))[6] # Name of dataset derived from path.
+data_name <- unlist(strsplit(getwd(), "/"))[7] # Name of dataset derived from path.
 
-data_dir <- file.path("..", "..", "data")
-cache_dir <- file.path("..", "..", "cache", data_name, paste0("0", analysis_no)) # Store intermediate data objects here.
+data_dir <- file.path("..", "..", "..", "data")
+cache_dir <- file.path("..", "..", "..", "cache", "low-coverage", data_name, paste0("0", analysis_no))
 if (!dir.exists(cache_dir)) {
   dir.create(cache_dir, recursive = TRUE)
 }

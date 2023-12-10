@@ -1,5 +1,5 @@
 ---
-title: "NLGF S305N+3 - 01 Prep"
+title: "MAPT KI - 01 Prep - No Introns"
 author:
   - name: "Emir Turkes"
 date: '`r strftime(Sys.time(), format = "%B %d, %Y")`'
@@ -18,8 +18,10 @@ output:
 knit: (function(inputFile, encoding) {
   rmarkdown::render(
     inputFile, encoding = encoding,
-    output_file = file.path("..", "..", "results", unlist(strsplit(getwd(), "/"))[6], "NLGF_S305N+3_01_prep.html")
-  )})
+    output_file = file.path(
+      "..", "..", "..", "results",
+      unlist(strsplit(getwd(), "/"))[6], unlist(strsplit(getwd(), "/"))[7], "MAPT_KI_01_prep_no_introns.html"
+  )}))
 ---
 
 <style type="text/css">
@@ -76,19 +78,19 @@ knitr::opts_chunk$set(fig.width = 10, fig.height = 7, dpi = 300)
 
 # Define functions.
 # -----------------
-source(file.path("..", "utils.R"))
+source(file.path("..", "..", "utils.R"))
 # -----------------
 
 # Useful variables.
 # -----------------
 analysis_no <- 1
-data_name <- unlist(strsplit(getwd(), "/"))[6] # Name of dataset derived from path.
+data_name <- unlist(strsplit(getwd(), "/"))[7] # Name of dataset derived from path.
 
 data_dir <- file.path(
-  "..", "..", "data", "low-coverage",
-  "03-Cellranger_mapping", "Cellranger_output_with_introns", "NaotoS6_NLGF_S305N+3_with_introns", "outs"
+  "..", "..", "..", "data", "tau-mutant-omics-analysis",
+  "low-coverage", "03-Cellranger_mapping", "Cellranger_output_without_introns", "NaotoS1_MAPT_KI_no_introns", "outs"
 )
-cache_dir <- file.path("..", "..", "cache", data_name, paste0("0", analysis_no)) # Store intermediate data objects here.
+cache_dir <- file.path("..", "..", "..", "cache", "low-coverage", data_name, paste0("0", analysis_no, "-no-introns"))
 if (!dir.exists(cache_dir)) {
   dir.create(cache_dir, recursive = TRUE)
 }
@@ -267,39 +269,6 @@ if (length(mito) != 0) {
   red_dim_plot(seurat, x = "umap1", y = "umap2", color = "subsets_mito_percent", type = "cont") +
     ggtitle("subsets_mito_percent")
 }
-```
-
-# Doublet Detection
-
-DoubletFinder is used to detect doublets.
-
-```{r}
-rds <- file.path(cache_dir, "seurat_doubletfinder.rds")
-rds2 <- file.path(cache_dir, "bcmvn.rds")
-if (file.exists(rds)) {
-  seurat <- readRDS(rds)
-  bcmvn <- readRDS(rds2)
-} else {
-  sweep <- summarizeSweep(paramSweep_v3(seurat, PCs = 1:30, sct = TRUE, num.cores = availableCores()))
-  poi <- round(0.12 * nrow(seurat@meta.data))
-  bcmvn <- find.pK(sweep)
-
-  seurat <- doubletFinder_v3(seurat, PCs = 1:30, pK = 0.12, nExp = poi, sct = TRUE)
-  seurat$doublets <- seurat@meta.data[[grep("DF", colnames(seurat@meta.data))]]
-
-  saveRDS(seurat, file = rds)
-  saveRDS(bcmvn, file = rds2)
-}
-
-pK <- as.numeric(as.character(bcmvn$pK))
-pK_choose = pK[which(bcmvn$BCmetric %in% max(bcmvn$BCmetric))]
-par(mar = c(5, 4, 4, 8) + 1, cex.main = 1.2, font.main = 2)
-plot(x = pK, y = bcmvn$BCmetric, pch = 16, type = "b", col = "blue", lty = 1)
-abline(v = pK_choose, lwd = 2, col = "red", lty = 2)
-title("BCmvn Distribution")
-text(pK_choose, max(bcmvn$BCmetric), as.character(pK_choose), pos = 4, col = "red")
-
-red_dim_plot(seurat, x = "umap1", y = "umap2", color = "doublets")
 ```
 
 # References
