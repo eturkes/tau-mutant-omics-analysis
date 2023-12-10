@@ -22,8 +22,8 @@ knit: (function(inputFile, encoding) {
       "..", "..",
       "..", "results",
       unlist(strsplit(getwd(), "/"))[6], unlist(strsplit(getwd(), "/"))[7],
-      "comb_04_genefunnel_NLGF_MAPT_NLGF_S305N_S305N_microglia.html"
-  )}))
+      "comb_04_genefunnel_NLGF_MAPT_NLGF_S305N_S305N_microglia.html")
+  )})
 ---
 
 <style type="text/css">
@@ -93,8 +93,8 @@ analysis_name <- "NLGF_MAPT_NLGF_S305N_S305N_microglia"
 data_name <- unlist(strsplit(getwd(), "/"))[7] # Name of dataset derived from path.
 
 data_dir <- file.path("..", "..", "..", "data")
-results_dir <- file.path("..", "..", "results", "low-coverage", data_name)
-cache_dir <- file.path("..", "..", "..", "cache", "low-coverage", data_name, paste0("0", analysis_no))
+results_dir <- file.path("..", "..", "..", "results", "low-coverage", data_name)
+cache_dir <- file.path("..", "..", "..", "cache", "low-coverage", data_name, paste0("0", analysis_no), analysis_name)
 if (!dir.exists(cache_dir)) {
   dir.create(cache_dir, recursive = TRUE)
 }
