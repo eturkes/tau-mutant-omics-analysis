@@ -95,20 +95,6 @@ cache_dir <- file.path("..", "..", "cache", data_name, paste0("0", analysis_no),
 if (!dir.exists(cache_dir)) {
   dir.create(cache_dir, recursive = TRUE)
 }
-
-protocol <- c("mouse", "droplet", "single-nuc", "umis") # See `cluster_pipeline` in `utils.R`.
-vars_to_regress <- NULL # See `cluster_pipeline` in `utils.R`.
-parallel_override <- NULL # See `parallel_plan` in `utils.R`.
-# -----------------
-
-# Metadata to plot after dimensionality reduction and clustering.
-# Values in list can include "no_legend and/or "no_label" to exclude those.
-# -------------------------------------------------------------------------
-metadata_to_plot <- vector("list", length = 3)
-names(metadata_to_plot) <- c("seurat_clusters", "sample", "doublets")
-metadata_to_plot[[2]] <- "no_label"
-metadata_to_plot[[3]] <- "no_label"
-# -------------------------------------------------------------------------
 ```
 
 # Prep
@@ -199,12 +185,8 @@ if (file.exists(rds) & file.exists(rds2)) {
 } else {
 
   seurat <- readRDS(file.path(cache_dir, "..", "..", "02", "seurat.rds"))
-
-  # Remove obsolete data.
-  # ---------------------
-  DefaultAssay(seurat) <- "RNA"
-  seurat[["SCT"]] <- NULL
-  # ---------------------
+  seurat <- CreateSeuratObject(GetAssayData(seurat, assay = "RNA", layer = "counts"), meta.data = seurat[[]])
+  seurat@active.ident <- seurat$seurat_clusters
 
   seurat <- subset(seurat, idents = "11")
 
@@ -225,7 +207,8 @@ if (file.exists(rds) & file.exists(rds2)) {
   sample2_seurat <- subset(sample2_seurat, cells = sample(Cells(sample2_seurat), size = downsample))
   condition2_seurat <- sample2_seurat
 
-  seurat <- merge(condition1_seurat, condition2_seurat)
+  seurat <- merge(condition1_seurat, condition2_seurat, merge.dr = TRUE)
+  seurat <- JoinLayers(seurat)
   rm(sample1_seurat, sample2_seurat)
 
   mart <- useEnsembl("ensembl", "mmusculus_gene_ensembl")
@@ -250,16 +233,16 @@ if (file.exists(rds) & file.exists(rds2)) {
     }
   }
 
-  seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, slot = "counts")) > 0) > 0, ]
+  seurat <- seurat[rowSums(as.matrix(GetAssayData(seurat, layer = "counts")) > 0) > 0, ]
   gene_anno_sub <- gene_anno[gene_anno$external_gene_name %in% rownames(seurat), ]
   seurat <- seurat[rownames(seurat) %in% gene_anno_sub$external_gene_name, ]
   gene_anno_sub <- gene_anno_sub[match(rownames(seurat), gene_anno_sub$external_gene_name), ]
-  new_mat <- GetAssayData(seurat, "counts")
+  new_mat <- GetAssayData(seurat, layer = "counts")
   rownames(new_mat) <- gene_anno_sub$ensembl_gene_id
   seurat <- CreateSeuratObject(new_mat, meta.data = seurat[[]])
 
   add <- unique(gene_anno$ensembl_gene_id[which(gene_anno$ensembl_gene_id %notin% rownames(seurat))])
-  new_mat <- GetAssayData(seurat, "counts")
+  new_mat <- GetAssayData(seurat, layer = "counts")
   null_mat <- matrix(0, nrow = length(add), ncol = ncol(new_mat))
   rownames(null_mat) <- add
   colnames(null_mat) <- colnames(seurat)
@@ -276,40 +259,17 @@ if (file.exists(rds) & file.exists(rds2)) {
   seurat$condition <- paste("Microglia", seurat$sample, sep = "_")
   seurat$condition <- factor(seurat$condition, levels = unique(seurat$condition))
 
+  tmp <- SCTransform(
+    GetAssayData(seurat, assay = "RNA", layer = "counts"), seurat[[]], vst.flavor = "v2", min_cells = 0, verbose = FALSE
+  )
+  seurat[["SCT"]] <- CreateAssay5Object(tmp$umi_corrected, log1p(tmp$umi_corrected))
+  DefaultAssay(seurat) <- "SCT"
+  rm(tmp)
+
   saveRDS(seurat, rds)
   saveRDS(gene_anno, rds2)
 }
 # ------------------------------------------------------------------------------
-
-sub_name <- "sctransform"
-seurat <- cluster_pipeline(
-  seurat, cache_dir = cache_dir, sub_name = sub_name, protocol = protocol,
-  vars_to_regress = vars_to_regress, parallel_override = parallel_override, cc = FALSE, min_cells = 0
-)
-seurat
-
-# Create reduced dimension plots to identify potential confounders and latent factors.
-# ------------------------------------------------------------------------------------
-umap <- as.matrix(data.frame(seurat$umap1, seurat$umap2))
-colnames(umap) <- paste0("umap_", 1:2)
-seurat[["umap"]] <- CreateDimReducObject(umap, key = "umap_", assay = DefaultAssay(seurat))
-rm(umap)
-
-for (i in 1:length(metadata_to_plot)) {
-  if ("no_legend" %in% metadata_to_plot[[i]] && "no_label" %in% metadata_to_plot[[i]]) {
-    print(red_dim_plot(seurat, "umap1", "umap2", names(metadata_to_plot)[i]) +
-            NoLegend() + ggtitle(names(metadata_to_plot)[i]))
-  } else if ("no_legend" %in% metadata_to_plot[[i]]) {
-    print(red_dim_plot(seurat, "umap1", "umap2", names(metadata_to_plot)[i], "cat") +
-            NoLegend() + ggtitle(names(metadata_to_plot)[i]))
-  } else if ("no_label" %in% metadata_to_plot[[i]]) {
-    print(red_dim_plot(seurat, "umap1", "umap2", names(metadata_to_plot)[i]) +
-            ggtitle(names(metadata_to_plot)[i]))
-  } else {
-    print(red_dim_plot(seurat, "umap1", "umap2", names(metadata_to_plot)[i], "cat") +
-            ggtitle(names(metadata_to_plot)[i]))
-  }
-}
 
 hist(as.matrix(GetAssayData(seurat)), main = "SCTransform normalized log counts distribution")
 
@@ -320,7 +280,7 @@ hist(as.matrix(GetAssayData(seurat)), main = "SCTransform normalized log counts 
 # 
 # hist(logcounts(sce_filt), main = "SCTransform normalized log counts distribution after filtering zero counts")
 
-sce <- as.SingleCellExperiment(seurat)
+sce <- as.SingleCellExperiment(seurat, assay = "SCT")
 keep <- filterByExpr(counts(sce), group = sce$condition, min.total.count = 1, min.count = 1, min.prop = 0.05)
 sce_filt <- sce[keep, ]
 
