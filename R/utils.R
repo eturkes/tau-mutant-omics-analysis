@@ -173,7 +173,7 @@ cluster_pipeline <- function(
     parallel_override, cc = TRUE, res_divider = 3000, conserve_memory = FALSE, min_cells = NULL
 ) {
 
-  rds <- file.path(cache_dir, paste0(sub_name, "_seurat.rds"))
+  rds <- file.path(cache_dir, paste0("seurat_", sub_name, ".rds"))
   if (file.exists(rds)) {
     seurat <- readRDS(rds)
     return(seurat)
