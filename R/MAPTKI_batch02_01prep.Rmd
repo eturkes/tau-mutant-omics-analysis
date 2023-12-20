@@ -159,7 +159,6 @@ Mitochondrial reads themselves are also removed in a snRNAseq experiment.
 ```{r}
 seurat[["percent_mt"]] <- PercentageFeatureSet(seurat, pattern = "^mt-")
 seurat[["percent_ribo"]] <- PercentageFeatureSet(seurat, pattern = "^Rp[sl][[:digit:]]")
-VlnPlot(seurat, features = c("nFeature_RNA", "nCount_RNA", "percent_mt", "percent_ribo"), ncol = 4)
 
 mito <- grep("^MT-", rownames(seurat), ignore.case = TRUE)
 if (length(mito) != 0) {
@@ -172,9 +171,46 @@ if (length(mito) != 0) {
   }
 }
 
-seurat <- subset(seurat, subset = nFeature_RNA >= 200 & nFeature_RNA < 4000 & percent_mt < 5 & percent_ribo < 10)
 VlnPlot(seurat, features = c("nFeature_RNA", "nCount_RNA", "percent_mt", "percent_ribo"), ncol = 4)
+
+seurat@meta.data %>%
+  ggplot(aes(x = nFeature_RNA)) +
+  geom_density(alpha = 0.2) +
+  scale_x_log10() +
+  theme_classic() +
+  ylab("Cell Density") +
+  geom_vline(xintercept = 300)
+
+seurat@meta.data %>%
+  ggplot(aes(x = nCount_RNA)) +
+  geom_density(alpha = 0.2) +
+  scale_x_log10() +
+  theme_classic() +
+  ylab("Cell Density") +
+  geom_vline(xintercept = 400)
+
+seurat <- subset(
+  seurat,
+  subset = nFeature_RNA >= 300 & nCount_RNA >= 400 & nFeature_RNA < 4000 & nCount_RNA < 10000 &
+    percent_mt < 5 & percent_ribo < 10
+)
 seurat
+
+VlnPlot(seurat, features = c("nFeature_RNA", "nCount_RNA", "percent_mt", "percent_ribo"), ncol = 4)
+
+seurat@meta.data %>%
+  ggplot(aes(x = nFeature_RNA)) +
+  geom_density(alpha = 0.2) +
+  scale_x_log10() +
+  theme_classic() +
+  ylab("Cell Density")
+
+seurat@meta.data %>%
+  ggplot(aes(x = nCount_RNA)) +
+  geom_density(alpha = 0.2) +
+  scale_x_log10() +
+  theme_classic() +
+  ylab("Cell Density")
 ```
 
 We remove doublets in a droplet-based experiments.
@@ -194,8 +230,27 @@ if (protocol[2] == "droplet") {
   }
 
   seurat <- seurat[ , doublets == "singlet"]
-  print(VlnPlot(seurat, features = c("nFeature_RNA", "nCount_RNA", "percent_mt", "percent_ribo"), ncol = 4))
   seurat
+
+  print(VlnPlot(seurat, features = c("nFeature_RNA", "nCount_RNA", "percent_mt", "percent_ribo"), ncol = 4))
+
+  print(
+    seurat@meta.data %>%
+      ggplot(aes(x = nFeature_RNA)) +
+      geom_density(alpha = 0.2) +
+      scale_x_log10() +
+      theme_classic() +
+      ylab("Cell Density")
+  )
+
+  print(
+    seurat@meta.data %>%
+      ggplot(aes(x = nCount_RNA)) +
+      geom_density(alpha = 0.2) +
+      scale_x_log10() +
+      theme_classic() +
+      ylab("Cell Density")
+  )
 }
 ```
 
@@ -207,57 +262,7 @@ We run a pipeline that applies normalization and scaling, dimensionality reducti
 sub_name <- "prep"
 seurat <- cluster_pipeline(
   seurat, cache_dir = cache_dir, sub_name = sub_name, protocol = protocol,
-  vars_to_regress = vars_to_regress, parallel_override = parallel_override, cc = FALSE, res_divider = 100000
-)
-seurat
-
-for (i in seq_along(metadata_to_plot)) {
-  if ("no_legend" %in% metadata_to_plot[[i]] && "no_label" %in% metadata_to_plot[[i]]) {
-    print(
-      red_dim_plot(seurat, x = "umap1", y = "umap2", color = names(metadata_to_plot)[i]) +
-        NoLegend() +
-        ggtitle(names(metadata_to_plot)[i])
-    )
-  } else if ("no_legend" %in% metadata_to_plot[[i]]) {
-    print(
-      red_dim_plot(seurat, x = "umap1", y = "umap2", color = names(metadata_to_plot)[i], type = "cat") +
-        NoLegend() +
-        ggtitle(names(metadata_to_plot)[i])
-    )
-  } else if ("no_label" %in% metadata_to_plot[[i]]) {
-    print(
-      red_dim_plot(seurat, x = "umap1", y = "umap2", color = names(metadata_to_plot)[i]) +
-        ggtitle(names(metadata_to_plot)[i])
-    )
-  } else {
-    print(
-      red_dim_plot(seurat, x = "umap1", y = "umap2", color = names(metadata_to_plot)[i], type = "cat") +
-        ggtitle(names(metadata_to_plot)[i])
-    )
-  }
-}
-
-if (protocol[4] == "umis") {
-  print(red_dim_plot(seurat, x = "umap1", y = "umap2", color = "nFeature_SCT", type = "cont") + ggtitle("nFeature_SCT"))
-  print(red_dim_plot(seurat, x = "umap1", y = "umap2", color = "nCount_SCT", type = "cont") + ggtitle("nCount_SCT"))
-} else if (protocol[4] == "reads") {
-  print(red_dim_plot(seurat, x = "umap1", y = "umap2", color = "nFeature_RNA", type = "cont") + ggtitle("nFeature_RNA"))
-  print(red_dim_plot(seurat, x = "umap1", y = "umap2", color = "nCount_RNA", type = "cont") + ggtitle("nCount_RNA"))
-}
-
-red_dim_plot(seurat, x = "umap1", y = "umap2", color = "percent_mt", type = "cont") + ggtitle("percent_mt")
-red_dim_plot(seurat, x = "umap1", y = "umap2", color = "percent_ribo", type = "cont") + ggtitle("percent_ribo")
-
-DefaultAssay(seurat) <- "RNA"
-seurat[["SCT"]] <- NULL
-seurat@meta.data[grep("SCT", colnames(seurat@meta.data))] <- NULL
-remove <- which(seurat$seurat_clusters == 0)
-seurat <- seurat[ , -remove]
-
-sub_name <- "prep_lowqual_removed"
-seurat <- cluster_pipeline(
-  seurat, cache_dir = cache_dir, sub_name = sub_name, protocol = protocol,
-  vars_to_regress = vars_to_regress, parallel_override = parallel_override, cc = FALSE, res_divider = 100000
+  vars_to_regress = vars_to_regress, parallel_override = parallel_override, cc = FALSE, res_divider = 50000
 )
 seurat
 
@@ -339,14 +344,25 @@ max <- colnames(table)[apply(table, MARGIN = 1, FUN = which.max)]
 max
 
 seurat <- RenameIdents(
-  object = seurat, "0" = "Cortical Glutamatergic", "1" = "Oligodendrocyte", "2" = "Astrocyte",
-  "3" = "Dentate Gyrus Glutamatergic", "4" = "Hippocampal Glutamatergic", "5" = "Microglia", "6" = "GABAergic",
-  "7" = "Endothelial", "8" = "Unknown"
+  object = seurat, "0" = "Cortical Glutamatergic 01", "1" = "Dentate Gyrus Glutamatergic", "2" = "Astrocyte",
+  "3" = "Oligodendrocyte", "4" = "Hippocampal Glutamatergic 01", "5" = "GABAergic", "6" = "Cortical Glutamatergic 02",
+  "7" = "Microglia", "8" = "OPC", "9" = "Hippocampal Glutamatergic 02", "10" = "Endothelial", "11" = "Unknown"
 )
+seurat@active.ident <- factor(unfactor(seurat@active.ident))
 seurat$annotations <- seurat@active.ident
 red_dim_plot(seurat, x = "umap1", y = "umap2", color = "annotations", type = "cat")
 
-rds <- file.path(cache_dir, "seurat_final.rds")
+seurat@active.ident <- seurat$seurat_clusters
+seurat <- RenameIdents(
+  object = seurat, "0" = "Cortical Glutamatergic", "1" = "Dentate Gyrus Glutamatergic", "2" = "Astrocyte",
+  "3" = "Oligodendrocyte", "4" = "Hippocampal Glutamatergic", "5" = "GABAergic", "6" = "Cortical Glutamatergic",
+  "7" = "Microglia", "8" = "OPC", "9" = "Hippocampal Glutamatergic", "10" = "Endothelial", "11" = "Unknown"
+)
+seurat@active.ident <- factor(unfactor(seurat@active.ident))
+seurat$annotations_short <- seurat@active.ident
+red_dim_plot(seurat, x = "umap1", y = "umap2", color = "annotations_short", type = "cat")
+
+rds <- file.path(cache_dir, "seurat_annotated.rds")
 if (!file.exists(rds)) {
   saveRDS(seurat, file = rds)
 }

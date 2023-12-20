@@ -345,7 +345,7 @@ parallel_plan <- function(object, parallel_override = NULL) {
     # Get free memory.
     # ----------------
     gc()
-    mem <- as.numeric(unlist(strsplit(system("free -b", TRUE)[2], " "))[15])
+    mem <- as.numeric(unlist(strsplit(system("free -b", TRUE)[2], " "))[17])
     # ----------------
 
     # Distribute free memory (minus 10 GiB) across available cores.
@@ -625,7 +625,15 @@ word_cloud = function(x, width = NULL){
            "placode", "half", "monoatomic", "cardioblast",
            "lymphoid", "morphogenesis", "essential", "mechanisms",
            "membranebounded", "absence", "atom", "genes",
-           "cerevisiae", "axons")
+           "cerevisiae", "axons", "acting", "absorption",
+           "budding", "centromeric", "acetate", "appears",
+           "receptors", "coenzyme", "additional", "acidresponsive",
+           "dinucleotide", "beta", "areas", "alphabeta",
+           "activator", "characterized", "approximately", "covalent",
+           "map", "basic", "axonal", "catalyzes",
+           "repeat", "repeats", "articular", "electrondense",
+           "enzyme", "consensus", "associate", "minusenddirected",
+           "extrinsic", "branch", "klinked", "bud")
   txt = unlist(strsplit(x, " "))
   txt = Corpus(VectorSource(txt))
   txt = tm_map(txt, PlainTextDocument)

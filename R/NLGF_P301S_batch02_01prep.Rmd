@@ -63,8 +63,9 @@ The toggle at the start of the document controls the visibility of all chunks.
 # Load required packages, suppressing startup messages.
 # -----------------------------------------------------
 library(conflicted)
-conflicts_prefer(matrixStats::rowMedians, .quiet = TRUE)
-packages <- c("SingleCellExperiment", "scuttle", "DT", "Seurat", "parallelly", "ggplot2", "dplyr", "ggrepel", "viridis")
+packages <- c(
+  "Seurat", "parallelly", "ggplot2", "dplyr", "ggrepel", "viridis", "DropletUtils", "scDblFinder", "BiocParallel", "DT"
+)
 invisible(suppressPackageStartupMessages(lapply(packages, FUN = library, character.only = TRUE)))
 # -----------------------------------------------------
 
@@ -86,7 +87,7 @@ step <- 1
 
 data_dir <- file.path(
   "..", "data", "tau-mutant-omics-analysis", "batch2",
-  "08_Batch_2_StarSolo_mapping", "S4_2_4Solo.out", "Gene", "filtered"
+  "08_Batch_2_StarSolo_mapping", "S4_2_4Solo.out", "Gene", "raw"
 )
 cache_dir <- file.path("..", "cache", genotype, paste0("0", batch), paste0("0", step))
 if (!dir.exists(cache_dir)) {
@@ -108,94 +109,149 @@ names(metadata_to_plot) <- "seurat_clusters"
 
 # Cleaning
 
-We first read in the data and form SingleCellExperiment and Seurat objects.
+We first read in the data and form a Seurat object.
 
 ```{r}
-sce <- SingleCellExperiment(list(counts = Read10X(data_dir)))
 seurat <- CreateSeuratObject(Read10X(data_dir))
-
-sce
 seurat
 ```
 
 # QC
 
-Then, we add cell QC metric metadata to the SCE object.
+In a droplet-based experiment, we first remove empty droplets.
 
 ```{r}
-mito <- grep("^MT-", rownames(sce), ignore.case = TRUE)
+if (protocol[2] == "droplet") {
 
-if (length(mito) != 0) {
-  sce <- addPerCellQC(sce, list(mito = mito))
-  remove <- quickPerCellQC(colData(sce), percent_subsets = "subsets_mito_percent")
-
-  if (protocol[3] == "single-nuc") {
-    cat(paste0("Removed ", length(mito), " mitochondrial genes:"), rownames(sce)[mito])
-    sce <- sce[-mito, ]
-    dim(sce)
+  rds <- file.path(cache_dir, "empty_drops.rds")
+  if (file.exists(rds)) {
+    empty_drops <- readRDS(rds)
   } else {
-    cat(paste0("Found but did not remove ", length(mito), " mitochondrial genes:"), rownames(sce)[mito])
+    set.seed(1)
+    empty_drops <- emptyDrops(GetAssayData(seurat), BPPARAM = MulticoreParam(availableCores()))
+    saveRDS(empty_drops, file = rds)
   }
 
-} else {
-  sce <- addPerCellQC(sce)
-  remove <- quickPerCellQC(colData(sce))
-}
+  bcrank <- barcodeRanks(GetAssayData(seurat))
+  uniq <- !duplicated(bcrank$rank)
+  plot(bcrank$rank[uniq], bcrank$total[uniq], log = "xy", xlab = "Rank", ylab = "Total UMI count", cex.lab = 1.2)
+  abline(h = metadata(bcrank)$inflection, col = "darkgreen", lty = 2)
+  abline(h = metadata(bcrank)$knee, col = "dodgerblue", lty = 2)
+  legend("bottomleft", legend = c("Inflection", "Knee"), col = c("darkgreen", "dodgerblue"), lty = 2, cex = 1.2)
 
-names(colData(sce))[(length(names(colData(sce))) - 5):length(names(colData(sce)))]
+  seurat <- seurat[ , which(empty_drops$FDR <= 0.001)]
+  seurat
+
+  bcrank <- barcodeRanks(GetAssayData(seurat))
+  uniq <- !duplicated(bcrank$rank)
+  plot(bcrank$rank[uniq], bcrank$total[uniq], log = "xy", xlab = "Rank", ylab = "Total UMI count", cex.lab = 1.2)
+  abline(h = metadata(bcrank)$inflection, col = "darkgreen", lty = 2)
+  abline(h = metadata(bcrank)$knee, col = "dodgerblue", lty = 2)
+  legend("bottomleft", legend = c("Inflection", "Knee"), col = c("darkgreen", "dodgerblue"), lty = 2, cex = 1.2)
+
+  rm(bcrank, empty_drops)
+}
 ```
 
-We use adaptive thresholds to view but not remove cells that are outliers by more than 3 MADs.
-StarSolo should have taken care of most filtering already, but we make sure to remove cells with more than 10% mitochondrial reads.
+We remove cells low in unique features and high in mito/ribo reads.
+Mitochondrial reads themselves are also removed in a snRNAseq experiment.
 
 ```{r}
-sce$discard <- remove$discard
-datatable_download(t(colSums(as.matrix(remove))))
+seurat[["percent_mt"]] <- PercentageFeatureSet(seurat, pattern = "^mt-")
+seurat[["percent_ribo"]] <- PercentageFeatureSet(seurat, pattern = "^Rp[sl][[:digit:]]")
 
-if (any(sce$subsets_mito_percent >= 10)) {
-  remove <- which(sce$subsets_mito_percent >= 10)
-  sce <- sce[ , -remove]
+mito <- grep("^MT-", rownames(seurat), ignore.case = TRUE)
+if (length(mito) != 0) {
+  if (protocol[3] == "single-nuc") {
+    cat(paste0("Removed ", length(mito), " mitochondrial genes:"), rownames(seurat)[mito])
+    seurat <- seurat[-mito, ]
+    seurat
+  } else {
+    cat(paste0("Found but did not remove ", length(mito), " mitochondrial genes:"), rownames(seurat)[mito])
+  }
 }
 
-# sce <- sce[ , !sce$discard]
-dim(sce)
+VlnPlot(seurat, features = c("nFeature_RNA", "nCount_RNA", "percent_mt", "percent_ribo"), ncol = 4)
+
+seurat@meta.data %>%
+  ggplot(aes(x = nFeature_RNA)) +
+  geom_density(alpha = 0.2) +
+  scale_x_log10() +
+  theme_classic() +
+  ylab("Cell Density") +
+  geom_vline(xintercept = 300)
+
+seurat@meta.data %>%
+  ggplot(aes(x = nCount_RNA)) +
+  geom_density(alpha = 0.2) +
+  scale_x_log10() +
+  theme_classic() +
+  ylab("Cell Density") +
+  geom_vline(xintercept = 400)
+
+seurat <- subset(
+  seurat,
+  subset = nFeature_RNA >= 300 & nCount_RNA >= 400 & nFeature_RNA < 4000 & nCount_RNA < 10000 &
+    percent_mt < 5 & percent_ribo < 10
+)
+seurat
+
+VlnPlot(seurat, features = c("nFeature_RNA", "nCount_RNA", "percent_mt", "percent_ribo"), ncol = 4)
+
+seurat@meta.data %>%
+  ggplot(aes(x = nFeature_RNA)) +
+  geom_density(alpha = 0.2) +
+  scale_x_log10() +
+  theme_classic() +
+  ylab("Cell Density")
+
+seurat@meta.data %>%
+  ggplot(aes(x = nCount_RNA)) +
+  geom_density(alpha = 0.2) +
+  scale_x_log10() +
+  theme_classic() +
+  ylab("Cell Density")
 ```
 
-Finally we add feature QC metrics and remove features not expressed in any cell.
+We remove doublets in a droplet-based experiments.
 
-```{r, fig.height = 5}
-sce <- addPerFeatureQC(sce)
-names(rowData(sce))
-dim(sce)
+```{r}
+if (protocol[2] == "droplet") {
 
-par(mfrow = c(1, 3), mar = c(5, 4, 1, 1))
-hist(
- log10(rowData(sce)$mean + 1e-6), col = "grey80",  main = "",
- breaks = 40, xlab = "log10(Mean Counts Per Gene + 1e-6)")
-hist(
- log10((rowData(sce)$detected * dim(sce)[2]) + 1), col = "grey80", main = "",
- breaks = 40, xlab = "log10(Number of Cells Expressing Gene + 1)")
-plot(
- log10(rowData(sce)$mean + 1e-6), pch = 16,
- col = rgb(0, 0, 0, 0.4), log10((rowData(sce)$detected * dim(sce)[2]) + 1),
- xlab = "log10(Mean Counts Per Gene + 1e-6)", ylab = "log10(Number of Cells Expressing Gene + 1)")
+  rds <- file.path(cache_dir, "doublets.rds")
+  if (file.exists(rds)) {
+    doublets <- readRDS(rds)
+  } else {
+    sce <- SingleCellExperiment(list(counts = GetAssayData(seurat)))
+    sce <- scDblFinder(sce, BPPARAM = MulticoreParam(availableCores()))
+    doublets <- sce$scDblFinder.class
+    rm(sce)
+    saveRDS(doublets, file = rds)
+  }
 
-sce <- sce[rowSums(counts(sce) > 0) > 0, ]
-rowData(sce) <- NULL
-sce <- addPerFeatureQC(sce)
-dim(sce)
+  seurat <- seurat[ , doublets == "singlet"]
+  seurat
 
-par(mfrow = c(1, 3), mar = c(5, 4, 1, 1))
-hist(
- log10(rowData(sce)$mean + 1e-6), col = "grey80",  main = "",
- breaks = 40, xlab = "log10(Mean Counts Per Gene + 1e-6)")
-hist(
- log10((rowData(sce)$detected * dim(sce)[2]) + 1), col = "grey80", main = "",
- breaks = 40, xlab = "log10(Number of Cells Expressing Gene + 1)")
-plot(
- log10(rowData(sce)$mean + 1e-6), pch = 16,
- col = rgb(0, 0, 0, 0.4), log10((rowData(sce)$detected * dim(sce)[2]) + 1),
- xlab = "log10(Mean Counts Per Gene + 1e-6)", ylab = "log10(Number of Cells Expressing Gene + 1)")
+  print(VlnPlot(seurat, features = c("nFeature_RNA", "nCount_RNA", "percent_mt", "percent_ribo"), ncol = 4))
+
+  print(
+    seurat@meta.data %>%
+      ggplot(aes(x = nFeature_RNA)) +
+      geom_density(alpha = 0.2) +
+      scale_x_log10() +
+      theme_classic() +
+      ylab("Cell Density")
+  )
+
+  print(
+    seurat@meta.data %>%
+      ggplot(aes(x = nCount_RNA)) +
+      geom_density(alpha = 0.2) +
+      scale_x_log10() +
+      theme_classic() +
+      ylab("Cell Density")
+  )
+}
 ```
 
 # Cluster Pipeline
@@ -204,16 +260,13 @@ We run a pipeline that applies normalization and scaling, dimensionality reducti
 
 ```{r}
 sub_name <- "prep"
-seurat <- seurat[rownames(seurat) %in% rownames(sce), colnames(seurat) %in% colnames(sce)]
-seurat$subsets_mito_percent <- sce$subsets_mito_percent
-rm(sce)
 seurat <- cluster_pipeline(
   seurat, cache_dir = cache_dir, sub_name = sub_name, protocol = protocol,
   vars_to_regress = vars_to_regress, parallel_override = parallel_override, cc = FALSE, res_divider = 50000
 )
 seurat
 
-for (i in 1:length(metadata_to_plot)) {
+for (i in seq_along(metadata_to_plot)) {
   if ("no_legend" %in% metadata_to_plot[[i]] && "no_label" %in% metadata_to_plot[[i]]) {
     print(
       red_dim_plot(seurat, x = "umap1", y = "umap2", color = names(metadata_to_plot)[i]) +
@@ -247,9 +300,71 @@ if (protocol[4] == "umis") {
   print(red_dim_plot(seurat, x = "umap1", y = "umap2", color = "nCount_RNA", type = "cont") + ggtitle("nCount_RNA"))
 }
 
-if (length(mito) != 0) {
-  red_dim_plot(seurat, x = "umap1", y = "umap2", color = "subsets_mito_percent", type = "cont") +
-    ggtitle("subsets_mito_percent")
+red_dim_plot(seurat, x = "umap1", y = "umap2", color = "percent_mt", type = "cont") + ggtitle("percent_mt")
+red_dim_plot(seurat, x = "umap1", y = "umap2", color = "percent_ribo", type = "cont") + ggtitle("percent_ribo")
+```
+
+# Cell-typing
+
+```{r}
+rds <- file.path(cache_dir, "markers.rds")
+if (file.exists(rds)) {
+  markers <- readRDS(rds)
+} else {
+  markers <- FindAllMarkers(seurat, only.pos = TRUE)
+  saveRDS(markers, file = rds)
+}
+
+markers <- markers[markers$p_val_adj < 0.05, ]
+markers <- markers %>% distinct(gene, .keep_all = TRUE)
+top <- markers %>% group_by(cluster) %>% top_n(n = -25, wt = p_val_adj)
+datatable_download(top)
+
+rds <- file.path(cache_dir, "allen_labels.rds")
+if (file.exists(rds)) {
+  allen_labels <- readRDS(rds)
+} else {
+  ref <- readRDS(file.path("..", "cache", "ref-datasets", "allen_mouse_hip_ctx_10x.rds"))
+
+  anchors <- FindTransferAnchors(
+    ref, seurat, normalization.method = "SCT", recompute.residuals = FALSE, reference.reduction = "pca", dims = 1:30
+  )
+  predictions <- MapQuery(anchors, seurat, ref, refdata = "subclass_label", reference.reduction = "umap")
+
+  allen_labels <- predictions$predicted.id
+  rm(ref, anchors, predictions)
+  saveRDS(allen_labels, file = rds)
+}
+
+seurat$allen_labels <- allen_labels
+red_dim_plot(seurat, x = "umap1", y = "umap2", color = "allen_labels", type = "cat")
+
+table <- table(seurat$seurat_clusters, seurat$allen_labels)
+max <- colnames(table)[apply(table, MARGIN = 1, FUN = which.max)]
+max
+
+seurat <- RenameIdents(
+  object = seurat, "0" = "Cortical Glutamatergic 01", "1" = "Oligodendrocyte", "2" = "Microglia", "3" = "Astrocyte",
+  "4" = "GABAergic", "5" = "Cortical Glutamatergic 02", "6" = "Hippocampal Glutamatergic", "7" = "DG Glutamatergic",
+  "8" = "OPC", "9" = "Endothelial", "10" = "Unknown 01", "11" = "Cortical Glutamatergic 03", "12" = "Unknown 02"
+)
+seurat@active.ident <- factor(unfactor(seurat@active.ident))
+seurat$annotations <- seurat@active.ident
+red_dim_plot(seurat, x = "umap1", y = "umap2", color = "annotations", type = "cat")
+
+seurat@active.ident <- seurat$seurat_clusters
+seurat <- RenameIdents(
+  object = seurat, "0" = "Cortical Glutamatergic", "1" = "Oligodendrocyte", "2" = "Microglia", "3" = "Astrocyte",
+  "4" = "GABAergic", "5" = "Cortical Glutamatergic", "6" = "Hippocampal Glutamatergic", "7" = "DG Glutamatergic",
+  "8" = "OPC", "9" = "Endothelial", "10" = "Unknown 01", "11" = "Cortical Glutamatergic", "12" = "Unknown 02"
+)
+seurat@active.ident <- factor(unfactor(seurat@active.ident))
+seurat$annotations_short <- seurat@active.ident
+red_dim_plot(seurat, x = "umap1", y = "umap2", color = "annotations_short", type = "cat")
+
+rds <- file.path(cache_dir, "seurat_annotated.rds")
+if (!file.exists(rds)) {
+  saveRDS(seurat, file = rds)
 }
 ```
 
