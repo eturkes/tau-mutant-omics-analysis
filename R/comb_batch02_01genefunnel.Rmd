@@ -174,7 +174,7 @@ draw(
     column_split = condition,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
-      title = "scaled ssGSEA score", direction = "horizontal",
+      title = "Scaled ssGSEA Score", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
       labels_gp = gpar(fontsize = 7), grid_height = unit(0.3, "cm")
     )
@@ -196,7 +196,7 @@ draw(
     column_split = condition,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
-      title = "scaled ssGSEA score", direction = "horizontal",
+      title = "Scaled ssGSEA Score", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
       labels_gp = gpar(fontsize = 7), grid_height = unit(0.3, "cm")
     )
@@ -263,7 +263,7 @@ draw(
     show_column_names = FALSE,
     column_split = condition,
     heatmap_legend_param = list(
-      title = "scaled ssGSEA score", direction = "horizontal",
+      title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
       labels_gp = gpar(fontsize = 7), grid_height = unit(0.3, "cm")
     )
@@ -284,7 +284,7 @@ draw(
     show_column_names = FALSE,
     column_split = condition,
     heatmap_legend_param = list(
-      title = "scaled ssGSEA score", direction = "horizontal",
+      title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
       labels_gp = gpar(fontsize = 7), grid_height = unit(0.3, "cm")
     )
