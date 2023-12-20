@@ -1,3 +1,0 @@
-# Only commit this gitignore to track directory but not contents 
-*
-!.gitignore

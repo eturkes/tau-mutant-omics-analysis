@@ -27,6 +27,8 @@ RUN apt-get update \
         libudunits2-0 \
         libproj22 \
         libgdal30 \
+        liblzma-dev \
+        libbz2-dev \
     && Rscript -e "install.packages('rmarkdown')" \
         -e "install.packages('markdown')" \
         -e "install.packages('conflicted')" \
@@ -50,7 +52,8 @@ RUN apt-get update \
         -e "BiocManager::install('edgeR')" \
         -e "BiocManager::install('ComplexHeatmap')" \
         -e "BiocManager::install('GO.db')" \
-        -e "remotes::install_github('chris-mcginnis-ucsf/DoubletFinder')" \
+        -e "BiocManager::install('DropletUtils')" \
+        -e "BiocManager::install('scDblFinder')" \
         -e "remotes::install_github('jmw86069/multienrichjam', dependencies = TRUE)" \
     && apt-get clean \
     && rm -Rf /var/lib/apt/lists/ \
