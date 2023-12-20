@@ -162,6 +162,7 @@ datatable_download_exp(gsva_list[[3]][(ncol-3):ncol])
 
 ```{r, fig.height = 5}
 mat <- gsva[rownames(gsva) %in% rownames(gsva_list[[2]])[1:25], ]
+mat <- mat[match(rownames(gsva_list[[2]])[1:25], rownames(mat)), ]
 set.seed(1)
 draw(
   Heatmap(
@@ -183,6 +184,7 @@ draw(
 )
 
 mat <- gsva[rownames(gsva) %in% rownames(gsva_list[[3]])[1:25], ]
+mat <- mat[match(rownames(gsva_list[[3]])[1:25], rownames(mat)), ]
 set.seed(1)
 draw(
   Heatmap(
@@ -250,6 +252,7 @@ datatable_download_exp(seurat_list[[3]][(ncol-3):ncol])
 
 ```{r, fig.height = 5}
 mat <- as.matrix(seurat[rownames(seurat) %in% rownames(seurat_list[[2]])[1:25], ])
+mat <- mat[match(rownames(seurat_list[[2]])[1:25], rownames(mat)), ]
 set.seed(1)
 draw(
   Heatmap(
@@ -270,6 +273,7 @@ draw(
 )
 
 mat <- as.matrix(seurat[rownames(seurat) %in% rownames(seurat_list[[3]])[1:25], ])
+mat <- mat[match(rownames(seurat_list[[3]])[1:25], rownames(mat)), ]
 set.seed(1)
 draw(
   Heatmap(
