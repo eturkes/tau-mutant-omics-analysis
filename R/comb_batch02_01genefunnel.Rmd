@@ -121,9 +121,11 @@ seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", met
 ```{r}
 gsva1_sub <- gsva1[ , which(seurat1$annotations_short == "Microglia")]
 gsva2_sub <- gsva2[ , which(seurat2$annotations_short == "Microglia")]
+gsva1_sub <- ((2 * (gsva1_sub - min(gsva1_sub)) / (max(gsva1_sub) - min(gsva1_sub))) - 1)
+gsva2_sub <- ((2 * (gsva2_sub - min(gsva2_sub)) / (max(gsva2_sub) - min(gsva2_sub))) - 1)
 gsva <- cbind(gsva1_sub, gsva2_sub)
-condition <- factor(c(rep("MAPTKI", ncol(gsva1_sub)), rep("NLGF_MAPTKI", ncol(gsva2_sub))))
 
+condition <- factor(c(rep("MAPTKI", ncol(gsva1_sub)), rep("NLGF_MAPTKI", ncol(gsva2_sub))))
 design <- model.matrix(~ 0 + condition)
 colnames(design) <- levels(condition)
 fit <- lmFit(gsva, design)
@@ -163,12 +165,7 @@ mat <- gsva[rownames(gsva) %in% rownames(gsva_list[[2]])[1:25], ]
 set.seed(1)
 draw(
   Heatmap(
-    t(
-      apply(
-        mat, 1,
-        function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1)
-      )
-    ),
+    mat,
     colour,
     cluster_rows = FALSE,
     cluster_columns = FALSE,
@@ -189,12 +186,7 @@ mat <- gsva[rownames(gsva) %in% rownames(gsva_list[[3]])[1:25], ]
 set.seed(1)
 draw(
   Heatmap(
-    t(
-      apply(
-        mat, 1,
-        function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1)
-      )
-    ),
+    mat,
     colour,
     cluster_rows = FALSE,
     cluster_columns = FALSE,
@@ -217,9 +209,11 @@ draw(
 ```{r}
 seurat1_sub <- GetAssayData(seurat1[ , which(seurat1$annotations_short == "Microglia")])
 seurat2_sub <- GetAssayData(seurat2[ , which(seurat2$annotations_short == "Microglia")])
+seurat1_sub <- ((2 * (seurat1_sub - min(seurat1_sub)) / (max(seurat1_sub) - min(seurat1_sub))) - 1)
+seurat2_sub <- ((2 * (seurat2_sub - min(seurat2_sub)) / (max(seurat2_sub) - min(seurat2_sub))) - 1)
 seurat <- cbind(seurat1_sub, seurat2_sub)
-condition <- factor(c(rep("MAPTKI", ncol(seurat1_sub)), rep("NLGF_MAPTKI", ncol(seurat2_sub))))
 
+condition <- factor(c(rep("MAPTKI", ncol(seurat1_sub)), rep("NLGF_MAPTKI", ncol(seurat2_sub))))
 design <- model.matrix(~ 0 + condition)
 colnames(design) <- levels(condition)
 fit <- lmFit(seurat, design)
@@ -255,16 +249,11 @@ datatable_download_exp(seurat_list[[3]][(ncol-3):ncol])
 ```
 
 ```{r, fig.height = 5}
-mat <- seurat[rownames(seurat) %in% rownames(seurat_list[[2]])[1:25], ]
+mat <- as.matrix(seurat[rownames(seurat) %in% rownames(seurat_list[[2]])[1:25], ])
 set.seed(1)
 draw(
   Heatmap(
-    t(
-      apply(
-        mat, 1,
-        function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1)
-      )
-    ),
+    mat,
     colour,
     cluster_rows = FALSE,
     cluster_columns = FALSE,
@@ -280,16 +269,11 @@ draw(
   annotation_legend_side = "top"
 )
 
-mat <- seurat[rownames(seurat) %in% rownames(seurat_list[[3]])[1:25], ]
+mat <- as.matrix(seurat[rownames(seurat) %in% rownames(seurat_list[[3]])[1:25], ])
 set.seed(1)
 draw(
   Heatmap(
-    t(
-      apply(
-        mat, 1,
-        function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1)
-      )
-    ),
+    mat,
     colour,
     cluster_rows = FALSE,
     cluster_columns = FALSE,
