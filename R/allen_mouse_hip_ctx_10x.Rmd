@@ -1,5 +1,5 @@
 ---
-title: "Allen Mouse Hippocampus/Cortex 10x Genomics - 01 Prep"
+title: "Allen Mouse Hippocampus/Cortex 10x Genomics"
 author:
   - name: "Emir Turkes"
 date: '`r strftime(Sys.time(), format = "%B %d, %Y")`'
@@ -11,16 +11,15 @@ output:
     theme: lumen
     highlight: haddock
     toc: true
-    toc_depth: 2
+    toc_depth: 3
     toc_float:
       collapsed: false
       smooth_scroll: false
 knit: (function(inputFile, encoding) {
   rmarkdown::render(
     inputFile, encoding = encoding,
-    output_file = file.path(
-      "..", "..", "results", unlist(strsplit(getwd(), "/"))[6], "allen_mouse_hip_ctx_10x_01_prep.html"
-  ))})
+    output_file = file.path("..", "results", "allen_mouse_hip_ctx_10x.html")
+  )})
 ---
 
 <style type="text/css">
@@ -28,9 +27,11 @@ body {font-size: 16px;}
 h1.title {font-size: 35px;}
 h1 {font-size: 24px;}
 h2 {font-size: 22px;}
+h3 {font-size: 20px;}
 .toc-content {padding-left: 0px; padding-right: 0px;}
 div.tocify {width: 100%;}
 .tocify-subheader .tocify-item {font-size: 0.95em; padding-left: 25px; text-indent: 0;}
+.tocify-subheader .tocify-subheader .tocify-item {font-size: 0.95em; padding-left: 35px; text-indent: 0;}
 div.main-container {max-width: none; width: 100%;}
 </style>
 
@@ -76,17 +77,13 @@ setDTthreads(availableCores())
 
 # Define functions.
 # -----------------
-source(file.path("..", "utils.R"))
+source("utils.R")
 # -----------------
 
 # Useful variables.
 # -----------------
-analysis_no <- 1
-data_name <- unlist(strsplit(getwd(), "/"))[6] # Name of dataset derived from path.
-
-data_dir <- file.path("..", "..", "data", "allen_mouse_hip_ctx_10x")
-
-cache_dir <- file.path("..", "..", "cache", data_name, paste0("0", analysis_no)) # Store intermediate data objects here.
+data_dir <- file.path("..", "data", "allen_mouse_hip_ctx_10x")
+cache_dir <- file.path("..", "cache", "ref-datasets")
 if (!dir.exists(cache_dir)) {
   dir.create(cache_dir, recursive = TRUE)
 }
