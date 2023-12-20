@@ -96,14 +96,14 @@ colour <- colorRampPalette(rev(brewer.pal(9, "RdBu")))(100)
 # Prep
 
 ```{r}
-gsva1 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "gsva.rds"))
-gsva2 <- readRDS(file.path("..", "cache", "MAPTKI", "02", "02", "gsva.rds"))
+gsva1 <- readRDS(file.path("..", "cache", "MAPTKI", "02", "02", "gsva.rds"))
+gsva2 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "gsva.rds"))
 
-seurat1 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "seurat_cleaned.rds"))
-seurat2 <- readRDS(file.path("..", "cache", "MAPTKI", "02", "02", "seurat_cleaned.rds"))
+seurat1 <- readRDS(file.path("..", "cache", "MAPTKI", "02", "02", "seurat_cleaned.rds"))
+seurat2 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "seurat_cleaned.rds"))
 
-gene_anno1 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "gene_anno.rds"))
-gene_anno2 <- readRDS(file.path("..", "cache", "MAPTKI", "02", "02", "gene_anno.rds"))
+gene_anno1 <- readRDS(file.path("..", "cache", "MAPTKI", "02", "02", "gene_anno.rds"))
+gene_anno2 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "gene_anno.rds"))
 
 data_mat <- GetAssayData(seurat1, layer = "data")
 gene_anno1 <- gene_anno1[match(rownames(data_mat), gene_anno1$ensembl_gene_id), ]
@@ -122,7 +122,7 @@ seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", met
 gsva1_sub <- gsva1[ , which(seurat1$annotations_short == "Microglia")]
 gsva2_sub <- gsva2[ , which(seurat2$annotations_short == "Microglia")]
 gsva <- cbind(gsva1_sub, gsva2_sub)
-condition <- factor(c(rep("NLGF_MAPTKI", ncol(gsva1_sub)), rep("MAPTKI", ncol(gsva2_sub))))
+condition <- factor(c(rep("MAPTKI", ncol(gsva1_sub)), rep("NLGF_MAPTKI", ncol(gsva2_sub))))
 
 design <- model.matrix(~ 0 + condition)
 colnames(design) <- levels(condition)
@@ -218,7 +218,7 @@ draw(
 seurat1_sub <- GetAssayData(seurat1[ , which(seurat1$annotations_short == "Microglia")])
 seurat2_sub <- GetAssayData(seurat2[ , which(seurat2$annotations_short == "Microglia")])
 seurat <- cbind(seurat1_sub, seurat2_sub)
-condition <- factor(c(rep("NLGF_MAPTKI", ncol(seurat1_sub)), rep("MAPTKI", ncol(seurat2_sub))))
+condition <- factor(c(rep("MAPTKI", ncol(seurat1_sub)), rep("NLGF_MAPTKI", ncol(seurat2_sub))))
 
 design <- model.matrix(~ 0 + condition)
 colnames(design) <- levels(condition)
