@@ -93,7 +93,9 @@ colour <- colorRampPalette(rev(brewer.pal(9, "RdBu")))(100)
 # -----------------
 ```
 
-# Prep
+# NLGF MAPT KI vs. MAPT KI
+
+## Prep
 
 ```{r}
 gsva1 <- readRDS(file.path("..", "cache", "MAPTKI", "02", "02", "gsva.rds"))
@@ -116,7 +118,9 @@ rownames(data_mat) <- gene_anno2$external_gene_name
 seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat2[[]])
 ```
 
-# GSE Analysis
+## Microglia
+
+### GSE Analysis
 
 ```{r}
 gsva1_sub <- gsva1[ , which(seurat1$annotations_short == "Microglia")]
@@ -206,7 +210,7 @@ draw(
 )
 ```
 
-# DGE Analysis
+### DGE Analysis
 
 ```{r}
 seurat1_sub <- GetAssayData(seurat1[ , which(seurat1$annotations_short == "Microglia")])
