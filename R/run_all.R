@@ -24,6 +24,15 @@ setwd(dirname(parent.frame(2)$ofile)) # Move to location of this file.
 xfun::Rscript_call(
   rmarkdown::render,
   list(
+    file.path("allen_mouse_hip_ctx_10x.Rmd"),
+    output_file = file.path("..", "results", "allen_mouse_hip_ctx_10x.html"),
+    envir = new.env()
+  )
+)
+
+xfun::Rscript_call(
+  rmarkdown::render,
+  list(
     file.path("MAPTKI_batch02_01prep.Rmd"),
     output_file = file.path("..", "results", "MAPTKI_batch02_01prep.html"),
     envir = new.env()
@@ -115,6 +124,15 @@ xfun::Rscript_call(
   list(
     file.path("NLGF_P301S_batch02_02genefunnel.Rmd"),
     output_file = file.path("..", "results", "NLGF_P301S_batch02_02genefunnel.html"),
+    envir = new.env()
+  )
+)
+
+xfun::Rscript_call(
+  rmarkdown::render,
+  list(
+    file.path("comb_batch02_01genefunnel.Rmd"),
+    output_file = file.path("..", "results", "comb_batch02_01genefunnel.html"),
     envir = new.env()
   )
 )
