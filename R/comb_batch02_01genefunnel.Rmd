@@ -122,6 +122,10 @@ seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", met
 
 ## Astrocyte
 
+```{r}
+ctype <- "Astrocyte"
+```
+
 ### GSE Analysis
 
 ```{r}
@@ -180,6 +184,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -202,6 +207,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -272,6 +278,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -293,6 +300,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -327,6 +335,10 @@ seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", met
 ```
 
 ## Astrocyte
+
+```{r}
+ctype <- "Astrocyte"
+```
 
 ### GSE Analysis
 
@@ -386,6 +398,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -408,6 +421,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -478,6 +492,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -499,6 +514,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -533,6 +549,10 @@ seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", met
 ```
 
 ## Astrocyte
+
+```{r}
+ctype <- "Astrocyte"
+```
 
 ### GSE Analysis
 
@@ -592,6 +612,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -614,6 +635,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -684,6 +706,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -705,6 +728,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -739,6 +763,10 @@ seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", met
 ```
 
 ## Astrocyte
+
+```{r}
+ctype <- "Astrocyte"
+```
 
 ### GSE Analysis
 
@@ -798,6 +826,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -820,6 +849,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -890,6 +920,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -911,6 +942,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -945,6 +977,10 @@ seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", met
 ```
 
 ## Cortical Glutamatergic
+
+```{r}
+ctype <- "Cortical Glutamatergic"
+```
 
 ### GSE Analysis
 
@@ -1004,6 +1040,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -1026,6 +1063,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -1096,6 +1134,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -1117,6 +1156,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -1151,6 +1191,10 @@ seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", met
 ```
 
 ## Cortical Glutamatergic
+
+```{r}
+ctype <- "Cortical Glutamatergic"
+```
 
 ### GSE Analysis
 
@@ -1210,6 +1254,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -1232,6 +1277,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -1302,6 +1348,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -1323,6 +1370,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -1357,6 +1405,10 @@ seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", met
 ```
 
 ## Cortical Glutamatergic
+
+```{r}
+ctype <- "Cortical Glutamatergic"
+```
 
 ### GSE Analysis
 
@@ -1416,6 +1468,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -1438,6 +1491,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -1508,6 +1562,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -1529,6 +1584,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -1563,6 +1619,10 @@ seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", met
 ```
 
 ## Cortical Glutamatergic
+
+```{r}
+ctype <- "Cortical Glutamatergic"
+```
 
 ### GSE Analysis
 
@@ -1622,6 +1682,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -1644,6 +1705,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -1714,6 +1776,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -1735,6 +1798,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -1769,6 +1833,10 @@ seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", met
 ```
 
 ## GABAergic
+
+```{r}
+ctype <- "GABAergic"
+```
 
 ### GSE Analysis
 
@@ -1828,6 +1896,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -1850,6 +1919,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -1920,6 +1990,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -1930,26 +2001,27 @@ draw(
   annotation_legend_side = "top"
 )
 
-mat <- as.matrix(seurat[rownames(seurat) %in% rownames(seurat_list[[3]])[1:25], ])
-mat <- mat[match(rownames(seurat_list[[3]])[1:25], rownames(mat)), ]
-set.seed(1)
-draw(
-  Heatmap(
-    mat,
-    colour,
-    cluster_rows = FALSE,
-    cluster_columns = FALSE,
-    show_column_names = FALSE,
-    column_split = condition,
-    heatmap_legend_param = list(
-      title = "Scaled Normalised Counts", direction = "horizontal",
-      legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
-      labels_gp = gpar(fontsize = 7), grid_height = unit(0.3, "cm")
-    )
-  ),
-  heatmap_legend_side = "top",
-  annotation_legend_side = "top"
-)
+# mat <- as.matrix(seurat[rownames(seurat) %in% rownames(seurat_list[[3]])[1:25], ])
+# mat <- mat[match(rownames(seurat_list[[3]])[1:25], rownames(mat)), ]
+# set.seed(1)
+# draw(
+#   Heatmap(
+#     mat,
+#     colour,
+#     cluster_rows = FALSE,
+#     cluster_columns = FALSE,
+#     show_column_names = FALSE,
+#     column_split = condition,
+#     column_title = ctype,
+#     heatmap_legend_param = list(
+#       title = "Scaled Normalised Counts", direction = "horizontal",
+#       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
+#       labels_gp = gpar(fontsize = 7), grid_height = unit(0.3, "cm")
+#     )
+#   ),
+#   heatmap_legend_side = "top",
+#   annotation_legend_side = "top"
+# )
 ```
 
 # NLGF S305N+3 vs. S305N+3
@@ -1975,6 +2047,10 @@ seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", met
 ```
 
 ## GABAergic
+
+```{r}
+ctype <- "GABAergic"
+```
 
 ### GSE Analysis
 
@@ -2034,6 +2110,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -2056,6 +2133,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -2126,6 +2204,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -2147,6 +2226,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -2181,6 +2261,10 @@ seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", met
 ```
 
 ## GABAergic
+
+```{r}
+ctype <- "GABAergic"
+```
 
 ### GSE Analysis
 
@@ -2240,6 +2324,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -2262,6 +2347,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -2332,6 +2418,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -2353,6 +2440,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -2387,6 +2475,10 @@ seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", met
 ```
 
 ## GABAergic
+
+```{r}
+ctype <- "GABAergic"
+```
 
 ### GSE Analysis
 
@@ -2446,6 +2538,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -2468,6 +2561,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -2538,6 +2632,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -2559,6 +2654,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -2593,6 +2689,10 @@ seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", met
 ```
 
 ## Hippocampal Glutamatergic
+
+```{r}
+ctype <- "Hippocampal Glutamatergic"
+```
 
 ### GSE Analysis
 
@@ -2652,6 +2752,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -2674,6 +2775,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -2744,6 +2846,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -2765,6 +2868,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -2799,6 +2903,10 @@ seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", met
 ```
 
 ## Hippocampal Glutamatergic
+
+```{r}
+ctype <- "Hippocampal Glutamatergic"
+```
 
 ### GSE Analysis
 
@@ -2858,6 +2966,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -2880,6 +2989,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -2950,6 +3060,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -2971,6 +3082,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -3005,6 +3117,10 @@ seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", met
 ```
 
 ## Hippocampal Glutamatergic
+
+```{r}
+ctype <- "Hippocampal Glutamatergic"
+```
 
 ### GSE Analysis
 
@@ -3064,6 +3180,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -3086,6 +3203,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -3156,6 +3274,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -3177,6 +3296,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -3211,6 +3331,10 @@ seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", met
 ```
 
 ## Hippocampal Glutamatergic
+
+```{r}
+ctype <- "Hippocampal Glutamatergic"
+```
 
 ### GSE Analysis
 
@@ -3270,6 +3394,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -3292,6 +3417,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -3362,6 +3488,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -3383,6 +3510,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -3417,6 +3545,10 @@ seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", met
 ```
 
 ## Microglia
+
+```{r}
+ctype <- "Microglia"
+```
 
 ### GSE Analysis
 
@@ -3476,6 +3608,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -3498,6 +3631,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -3568,6 +3702,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -3589,6 +3724,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -3623,6 +3759,10 @@ seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", met
 ```
 
 ## Microglia
+
+```{r}
+ctype <- "Microglia"
+```
 
 ### GSE Analysis
 
@@ -3682,6 +3822,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -3704,6 +3845,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -3774,6 +3916,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -3795,6 +3938,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -3829,6 +3973,10 @@ seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", met
 ```
 
 ## Microglia
+
+```{r}
+ctype <- "Microglia"
+```
 
 ### GSE Analysis
 
@@ -3888,6 +4036,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -3910,6 +4059,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -3980,6 +4130,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -4001,6 +4152,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -4035,6 +4187,10 @@ seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", met
 ```
 
 ## Microglia
+
+```{r}
+ctype <- "Microglia"
+```
 
 ### GSE Analysis
 
@@ -4094,6 +4250,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -4116,6 +4273,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -4186,6 +4344,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -4207,6 +4366,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -4241,6 +4401,10 @@ seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", met
 ```
 
 ## Oligodendrocyte
+
+```{r}
+ctype <- "Oligodendrocyte"
+```
 
 ### GSE Analysis
 
@@ -4300,6 +4464,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -4322,6 +4487,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -4392,6 +4558,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -4413,6 +4580,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -4447,6 +4615,10 @@ seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", met
 ```
 
 ## Oligodendrocyte
+
+```{r}
+ctype <- "Oligodendrocyte"
+```
 
 ### GSE Analysis
 
@@ -4506,6 +4678,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -4528,6 +4701,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -4598,6 +4772,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -4619,6 +4794,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -4653,6 +4829,10 @@ seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", met
 ```
 
 ## Oligodendrocyte
+
+```{r}
+ctype <- "Oligodendrocyte"
+```
 
 ### GSE Analysis
 
@@ -4712,6 +4892,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -4734,6 +4915,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -4804,6 +4986,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -4825,6 +5008,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -4859,6 +5043,10 @@ seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", met
 ```
 
 ## Oligodendrocyte
+
+```{r}
+ctype <- "Oligodendrocyte"
+```
 
 ### GSE Analysis
 
@@ -4918,6 +5106,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -4940,6 +5129,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     row_names_max_width = max_text_width(rownames(mat)),
     heatmap_legend_param = list(
       title = "Scaled ssGSEA Score", direction = "horizontal",
@@ -5010,6 +5200,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
@@ -5031,6 +5222,7 @@ draw(
     cluster_columns = FALSE,
     show_column_names = FALSE,
     column_split = condition,
+    column_title = ctype,
     heatmap_legend_param = list(
       title = "Scaled Normalised Counts", direction = "horizontal",
       legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7, fontface = "bold"), title_position = "topcenter",
