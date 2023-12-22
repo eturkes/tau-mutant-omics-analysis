@@ -91,6 +91,11 @@ if (!dir.exists(cache_dir)) {
 
 colour <- colorRampPalette(rev(brewer.pal(9, "RdBu")))(100)
 # -----------------
+
+# Useful data.
+# ------------
+gene_anno <- readRDS(file.path("..", "cache", "MAPTKI", "02", "02", "gene_anno.rds"))
+# ------------
 ```
 
 # NLGF MAPT KI vs. MAPT KI
@@ -104,17 +109,14 @@ gsva2 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "gsva.rds")
 seurat1 <- readRDS(file.path("..", "cache", "MAPTKI", "02", "02", "seurat_cleaned.rds"))
 seurat2 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "seurat_cleaned.rds"))
 
-gene_anno1 <- readRDS(file.path("..", "cache", "MAPTKI", "02", "02", "gene_anno.rds"))
-gene_anno2 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "gene_anno.rds"))
-
 data_mat <- GetAssayData(seurat1, layer = "data")
-gene_anno1 <- gene_anno1[match(rownames(data_mat), gene_anno1$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno1$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat1 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat1[[]])
 
 data_mat <- GetAssayData(seurat2, layer = "data")
-gene_anno2 <- gene_anno2[match(rownames(data_mat), gene_anno2$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno2$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat2[[]])
 ```
 
@@ -313,17 +315,14 @@ gsva2 <- readRDS(file.path("..", "cache", "NLGF_S305N", "02", "02", "gsva.rds"))
 seurat1 <- readRDS(file.path("..", "cache", "S305N", "02", "02", "seurat_cleaned.rds"))
 seurat2 <- readRDS(file.path("..", "cache", "NLGF_S305N", "02", "02", "seurat_cleaned.rds"))
 
-gene_anno1 <- readRDS(file.path("..", "cache", "S305N", "02", "02", "gene_anno.rds"))
-gene_anno2 <- readRDS(file.path("..", "cache", "NLGF_S305N", "02", "02", "gene_anno.rds"))
-
 data_mat <- GetAssayData(seurat1, layer = "data")
-gene_anno1 <- gene_anno1[match(rownames(data_mat), gene_anno1$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno1$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat1 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat1[[]])
 
 data_mat <- GetAssayData(seurat2, layer = "data")
-gene_anno2 <- gene_anno2[match(rownames(data_mat), gene_anno2$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno2$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat2[[]])
 ```
 
@@ -522,17 +521,14 @@ gsva2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "gsva.rds"))
 seurat1 <- readRDS(file.path("..", "cache", "P301S", "02", "02", "seurat_cleaned.rds"))
 seurat2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "seurat_cleaned.rds"))
 
-gene_anno1 <- readRDS(file.path("..", "cache", "P301S", "02", "02", "gene_anno.rds"))
-gene_anno2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "gene_anno.rds"))
-
 data_mat <- GetAssayData(seurat1, layer = "data")
-gene_anno1 <- gene_anno1[match(rownames(data_mat), gene_anno1$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno1$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat1 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat1[[]])
 
 data_mat <- GetAssayData(seurat2, layer = "data")
-gene_anno2 <- gene_anno2[match(rownames(data_mat), gene_anno2$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno2$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat2[[]])
 ```
 
@@ -731,17 +727,14 @@ gsva2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "gsva.rds"))
 seurat1 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "seurat_cleaned.rds"))
 seurat2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "seurat_cleaned.rds"))
 
-gene_anno1 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "gene_anno.rds"))
-gene_anno2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "gene_anno.rds"))
-
 data_mat <- GetAssayData(seurat1, layer = "data")
-gene_anno1 <- gene_anno1[match(rownames(data_mat), gene_anno1$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno1$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat1 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat1[[]])
 
 data_mat <- GetAssayData(seurat2, layer = "data")
-gene_anno2 <- gene_anno2[match(rownames(data_mat), gene_anno2$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno2$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat2[[]])
 ```
 
@@ -940,17 +933,14 @@ gsva2 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "gsva.rds")
 seurat1 <- readRDS(file.path("..", "cache", "MAPTKI", "02", "02", "seurat_cleaned.rds"))
 seurat2 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "seurat_cleaned.rds"))
 
-gene_anno1 <- readRDS(file.path("..", "cache", "MAPTKI", "02", "02", "gene_anno.rds"))
-gene_anno2 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "gene_anno.rds"))
-
 data_mat <- GetAssayData(seurat1, layer = "data")
-gene_anno1 <- gene_anno1[match(rownames(data_mat), gene_anno1$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno1$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat1 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat1[[]])
 
 data_mat <- GetAssayData(seurat2, layer = "data")
-gene_anno2 <- gene_anno2[match(rownames(data_mat), gene_anno2$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno2$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat2[[]])
 ```
 
@@ -1149,17 +1139,14 @@ gsva2 <- readRDS(file.path("..", "cache", "NLGF_S305N", "02", "02", "gsva.rds"))
 seurat1 <- readRDS(file.path("..", "cache", "S305N", "02", "02", "seurat_cleaned.rds"))
 seurat2 <- readRDS(file.path("..", "cache", "NLGF_S305N", "02", "02", "seurat_cleaned.rds"))
 
-gene_anno1 <- readRDS(file.path("..", "cache", "S305N", "02", "02", "gene_anno.rds"))
-gene_anno2 <- readRDS(file.path("..", "cache", "NLGF_S305N", "02", "02", "gene_anno.rds"))
-
 data_mat <- GetAssayData(seurat1, layer = "data")
-gene_anno1 <- gene_anno1[match(rownames(data_mat), gene_anno1$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno1$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat1 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat1[[]])
 
 data_mat <- GetAssayData(seurat2, layer = "data")
-gene_anno2 <- gene_anno2[match(rownames(data_mat), gene_anno2$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno2$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat2[[]])
 ```
 
@@ -1358,17 +1345,14 @@ gsva2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "gsva.rds"))
 seurat1 <- readRDS(file.path("..", "cache", "P301S", "02", "02", "seurat_cleaned.rds"))
 seurat2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "seurat_cleaned.rds"))
 
-gene_anno1 <- readRDS(file.path("..", "cache", "P301S", "02", "02", "gene_anno.rds"))
-gene_anno2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "gene_anno.rds"))
-
 data_mat <- GetAssayData(seurat1, layer = "data")
-gene_anno1 <- gene_anno1[match(rownames(data_mat), gene_anno1$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno1$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat1 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat1[[]])
 
 data_mat <- GetAssayData(seurat2, layer = "data")
-gene_anno2 <- gene_anno2[match(rownames(data_mat), gene_anno2$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno2$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat2[[]])
 ```
 
@@ -1567,17 +1551,14 @@ gsva2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "gsva.rds"))
 seurat1 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "seurat_cleaned.rds"))
 seurat2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "seurat_cleaned.rds"))
 
-gene_anno1 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "gene_anno.rds"))
-gene_anno2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "gene_anno.rds"))
-
 data_mat <- GetAssayData(seurat1, layer = "data")
-gene_anno1 <- gene_anno1[match(rownames(data_mat), gene_anno1$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno1$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat1 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat1[[]])
 
 data_mat <- GetAssayData(seurat2, layer = "data")
-gene_anno2 <- gene_anno2[match(rownames(data_mat), gene_anno2$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno2$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat2[[]])
 ```
 
@@ -1776,17 +1757,14 @@ gsva2 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "gsva.rds")
 seurat1 <- readRDS(file.path("..", "cache", "MAPTKI", "02", "02", "seurat_cleaned.rds"))
 seurat2 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "seurat_cleaned.rds"))
 
-gene_anno1 <- readRDS(file.path("..", "cache", "MAPTKI", "02", "02", "gene_anno.rds"))
-gene_anno2 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "gene_anno.rds"))
-
 data_mat <- GetAssayData(seurat1, layer = "data")
-gene_anno1 <- gene_anno1[match(rownames(data_mat), gene_anno1$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno1$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat1 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat1[[]])
 
 data_mat <- GetAssayData(seurat2, layer = "data")
-gene_anno2 <- gene_anno2[match(rownames(data_mat), gene_anno2$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno2$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat2[[]])
 ```
 
@@ -1985,17 +1963,14 @@ gsva2 <- readRDS(file.path("..", "cache", "NLGF_S305N", "02", "02", "gsva.rds"))
 seurat1 <- readRDS(file.path("..", "cache", "S305N", "02", "02", "seurat_cleaned.rds"))
 seurat2 <- readRDS(file.path("..", "cache", "NLGF_S305N", "02", "02", "seurat_cleaned.rds"))
 
-gene_anno1 <- readRDS(file.path("..", "cache", "S305N", "02", "02", "gene_anno.rds"))
-gene_anno2 <- readRDS(file.path("..", "cache", "NLGF_S305N", "02", "02", "gene_anno.rds"))
-
 data_mat <- GetAssayData(seurat1, layer = "data")
-gene_anno1 <- gene_anno1[match(rownames(data_mat), gene_anno1$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno1$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat1 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat1[[]])
 
 data_mat <- GetAssayData(seurat2, layer = "data")
-gene_anno2 <- gene_anno2[match(rownames(data_mat), gene_anno2$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno2$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat2[[]])
 ```
 
@@ -2194,17 +2169,14 @@ gsva2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "gsva.rds"))
 seurat1 <- readRDS(file.path("..", "cache", "P301S", "02", "02", "seurat_cleaned.rds"))
 seurat2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "seurat_cleaned.rds"))
 
-gene_anno1 <- readRDS(file.path("..", "cache", "P301S", "02", "02", "gene_anno.rds"))
-gene_anno2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "gene_anno.rds"))
-
 data_mat <- GetAssayData(seurat1, layer = "data")
-gene_anno1 <- gene_anno1[match(rownames(data_mat), gene_anno1$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno1$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat1 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat1[[]])
 
 data_mat <- GetAssayData(seurat2, layer = "data")
-gene_anno2 <- gene_anno2[match(rownames(data_mat), gene_anno2$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno2$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat2[[]])
 ```
 
@@ -2403,17 +2375,14 @@ gsva2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "gsva.rds"))
 seurat1 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "seurat_cleaned.rds"))
 seurat2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "seurat_cleaned.rds"))
 
-gene_anno1 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "gene_anno.rds"))
-gene_anno2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "gene_anno.rds"))
-
 data_mat <- GetAssayData(seurat1, layer = "data")
-gene_anno1 <- gene_anno1[match(rownames(data_mat), gene_anno1$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno1$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat1 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat1[[]])
 
 data_mat <- GetAssayData(seurat2, layer = "data")
-gene_anno2 <- gene_anno2[match(rownames(data_mat), gene_anno2$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno2$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat2[[]])
 ```
 
@@ -2612,17 +2581,14 @@ gsva2 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "gsva.rds")
 seurat1 <- readRDS(file.path("..", "cache", "MAPTKI", "02", "02", "seurat_cleaned.rds"))
 seurat2 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "seurat_cleaned.rds"))
 
-gene_anno1 <- readRDS(file.path("..", "cache", "MAPTKI", "02", "02", "gene_anno.rds"))
-gene_anno2 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "gene_anno.rds"))
-
 data_mat <- GetAssayData(seurat1, layer = "data")
-gene_anno1 <- gene_anno1[match(rownames(data_mat), gene_anno1$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno1$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat1 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat1[[]])
 
 data_mat <- GetAssayData(seurat2, layer = "data")
-gene_anno2 <- gene_anno2[match(rownames(data_mat), gene_anno2$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno2$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat2[[]])
 ```
 
@@ -2821,17 +2787,14 @@ gsva2 <- readRDS(file.path("..", "cache", "NLGF_S305N", "02", "02", "gsva.rds"))
 seurat1 <- readRDS(file.path("..", "cache", "S305N", "02", "02", "seurat_cleaned.rds"))
 seurat2 <- readRDS(file.path("..", "cache", "NLGF_S305N", "02", "02", "seurat_cleaned.rds"))
 
-gene_anno1 <- readRDS(file.path("..", "cache", "S305N", "02", "02", "gene_anno.rds"))
-gene_anno2 <- readRDS(file.path("..", "cache", "NLGF_S305N", "02", "02", "gene_anno.rds"))
-
 data_mat <- GetAssayData(seurat1, layer = "data")
-gene_anno1 <- gene_anno1[match(rownames(data_mat), gene_anno1$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno1$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat1 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat1[[]])
 
 data_mat <- GetAssayData(seurat2, layer = "data")
-gene_anno2 <- gene_anno2[match(rownames(data_mat), gene_anno2$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno2$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat2[[]])
 ```
 
@@ -3030,17 +2993,14 @@ gsva2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "gsva.rds"))
 seurat1 <- readRDS(file.path("..", "cache", "P301S", "02", "02", "seurat_cleaned.rds"))
 seurat2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "seurat_cleaned.rds"))
 
-gene_anno1 <- readRDS(file.path("..", "cache", "P301S", "02", "02", "gene_anno.rds"))
-gene_anno2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "gene_anno.rds"))
-
 data_mat <- GetAssayData(seurat1, layer = "data")
-gene_anno1 <- gene_anno1[match(rownames(data_mat), gene_anno1$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno1$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat1 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat1[[]])
 
 data_mat <- GetAssayData(seurat2, layer = "data")
-gene_anno2 <- gene_anno2[match(rownames(data_mat), gene_anno2$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno2$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat2[[]])
 ```
 
@@ -3239,17 +3199,14 @@ gsva2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "gsva.rds"))
 seurat1 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "seurat_cleaned.rds"))
 seurat2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "seurat_cleaned.rds"))
 
-gene_anno1 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "gene_anno.rds"))
-gene_anno2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "gene_anno.rds"))
-
 data_mat <- GetAssayData(seurat1, layer = "data")
-gene_anno1 <- gene_anno1[match(rownames(data_mat), gene_anno1$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno1$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat1 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat1[[]])
 
 data_mat <- GetAssayData(seurat2, layer = "data")
-gene_anno2 <- gene_anno2[match(rownames(data_mat), gene_anno2$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno2$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat2[[]])
 ```
 
@@ -3448,17 +3405,14 @@ gsva2 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "gsva.rds")
 seurat1 <- readRDS(file.path("..", "cache", "MAPTKI", "02", "02", "seurat_cleaned.rds"))
 seurat2 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "seurat_cleaned.rds"))
 
-gene_anno1 <- readRDS(file.path("..", "cache", "MAPTKI", "02", "02", "gene_anno.rds"))
-gene_anno2 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "gene_anno.rds"))
-
 data_mat <- GetAssayData(seurat1, layer = "data")
-gene_anno1 <- gene_anno1[match(rownames(data_mat), gene_anno1$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno1$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat1 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat1[[]])
 
 data_mat <- GetAssayData(seurat2, layer = "data")
-gene_anno2 <- gene_anno2[match(rownames(data_mat), gene_anno2$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno2$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat2[[]])
 ```
 
@@ -3657,17 +3611,14 @@ gsva2 <- readRDS(file.path("..", "cache", "NLGF_S305N", "02", "02", "gsva.rds"))
 seurat1 <- readRDS(file.path("..", "cache", "S305N", "02", "02", "seurat_cleaned.rds"))
 seurat2 <- readRDS(file.path("..", "cache", "NLGF_S305N", "02", "02", "seurat_cleaned.rds"))
 
-gene_anno1 <- readRDS(file.path("..", "cache", "S305N", "02", "02", "gene_anno.rds"))
-gene_anno2 <- readRDS(file.path("..", "cache", "NLGF_S305N", "02", "02", "gene_anno.rds"))
-
 data_mat <- GetAssayData(seurat1, layer = "data")
-gene_anno1 <- gene_anno1[match(rownames(data_mat), gene_anno1$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno1$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat1 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat1[[]])
 
 data_mat <- GetAssayData(seurat2, layer = "data")
-gene_anno2 <- gene_anno2[match(rownames(data_mat), gene_anno2$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno2$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat2[[]])
 ```
 
@@ -3866,17 +3817,14 @@ gsva2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "gsva.rds"))
 seurat1 <- readRDS(file.path("..", "cache", "P301S", "02", "02", "seurat_cleaned.rds"))
 seurat2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "seurat_cleaned.rds"))
 
-gene_anno1 <- readRDS(file.path("..", "cache", "P301S", "02", "02", "gene_anno.rds"))
-gene_anno2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "gene_anno.rds"))
-
 data_mat <- GetAssayData(seurat1, layer = "data")
-gene_anno1 <- gene_anno1[match(rownames(data_mat), gene_anno1$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno1$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat1 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat1[[]])
 
 data_mat <- GetAssayData(seurat2, layer = "data")
-gene_anno2 <- gene_anno2[match(rownames(data_mat), gene_anno2$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno2$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat2[[]])
 ```
 
@@ -4075,17 +4023,14 @@ gsva2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "gsva.rds"))
 seurat1 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "seurat_cleaned.rds"))
 seurat2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "seurat_cleaned.rds"))
 
-gene_anno1 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "gene_anno.rds"))
-gene_anno2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "gene_anno.rds"))
-
 data_mat <- GetAssayData(seurat1, layer = "data")
-gene_anno1 <- gene_anno1[match(rownames(data_mat), gene_anno1$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno1$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat1 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat1[[]])
 
 data_mat <- GetAssayData(seurat2, layer = "data")
-gene_anno2 <- gene_anno2[match(rownames(data_mat), gene_anno2$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno2$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat2[[]])
 ```
 
@@ -4284,17 +4229,14 @@ gsva2 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "gsva.rds")
 seurat1 <- readRDS(file.path("..", "cache", "MAPTKI", "02", "02", "seurat_cleaned.rds"))
 seurat2 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "seurat_cleaned.rds"))
 
-gene_anno1 <- readRDS(file.path("..", "cache", "MAPTKI", "02", "02", "gene_anno.rds"))
-gene_anno2 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "gene_anno.rds"))
-
 data_mat <- GetAssayData(seurat1, layer = "data")
-gene_anno1 <- gene_anno1[match(rownames(data_mat), gene_anno1$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno1$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat1 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat1[[]])
 
 data_mat <- GetAssayData(seurat2, layer = "data")
-gene_anno2 <- gene_anno2[match(rownames(data_mat), gene_anno2$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno2$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat2[[]])
 ```
 
@@ -4493,17 +4435,14 @@ gsva2 <- readRDS(file.path("..", "cache", "NLGF_S305N", "02", "02", "gsva.rds"))
 seurat1 <- readRDS(file.path("..", "cache", "S305N", "02", "02", "seurat_cleaned.rds"))
 seurat2 <- readRDS(file.path("..", "cache", "NLGF_S305N", "02", "02", "seurat_cleaned.rds"))
 
-gene_anno1 <- readRDS(file.path("..", "cache", "S305N", "02", "02", "gene_anno.rds"))
-gene_anno2 <- readRDS(file.path("..", "cache", "NLGF_S305N", "02", "02", "gene_anno.rds"))
-
 data_mat <- GetAssayData(seurat1, layer = "data")
-gene_anno1 <- gene_anno1[match(rownames(data_mat), gene_anno1$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno1$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat1 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat1[[]])
 
 data_mat <- GetAssayData(seurat2, layer = "data")
-gene_anno2 <- gene_anno2[match(rownames(data_mat), gene_anno2$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno2$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat2[[]])
 ```
 
@@ -4702,17 +4641,14 @@ gsva2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "gsva.rds"))
 seurat1 <- readRDS(file.path("..", "cache", "P301S", "02", "02", "seurat_cleaned.rds"))
 seurat2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "seurat_cleaned.rds"))
 
-gene_anno1 <- readRDS(file.path("..", "cache", "P301S", "02", "02", "gene_anno.rds"))
-gene_anno2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "gene_anno.rds"))
-
 data_mat <- GetAssayData(seurat1, layer = "data")
-gene_anno1 <- gene_anno1[match(rownames(data_mat), gene_anno1$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno1$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat1 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat1[[]])
 
 data_mat <- GetAssayData(seurat2, layer = "data")
-gene_anno2 <- gene_anno2[match(rownames(data_mat), gene_anno2$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno2$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat2[[]])
 ```
 
@@ -4911,17 +4847,14 @@ gsva2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "gsva.rds"))
 seurat1 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "seurat_cleaned.rds"))
 seurat2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "seurat_cleaned.rds"))
 
-gene_anno1 <- readRDS(file.path("..", "cache", "NLGF_MAPTKI", "02", "02", "gene_anno.rds"))
-gene_anno2 <- readRDS(file.path("..", "cache", "NLGF_P301S", "02", "02", "gene_anno.rds"))
-
 data_mat <- GetAssayData(seurat1, layer = "data")
-gene_anno1 <- gene_anno1[match(rownames(data_mat), gene_anno1$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno1$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat1 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat1[[]])
 
 data_mat <- GetAssayData(seurat2, layer = "data")
-gene_anno2 <- gene_anno2[match(rownames(data_mat), gene_anno2$ensembl_gene_id), ]
-rownames(data_mat) <- gene_anno2$external_gene_name
+data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
+rownames(data_mat) <- gene_anno$external_gene_name
 seurat2 <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat2[[]])
 ```
 
