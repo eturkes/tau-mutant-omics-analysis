@@ -95,7 +95,7 @@ if (!dir.exists(cache_dir)) {
 }
 
 protocol <- c("mouse", "droplet", "single-nuc", "umis") # See `cluster_pipeline` in `utils.R`.
-vars_to_regress <- "percent_ribo" # See `cluster_pipeline` in `utils.R`.
+vars_to_regress <- NULL # See `cluster_pipeline` in `utils.R`.
 parallel_override <- NULL # See `parallel_plan` in `utils.R`.
 # -----------------
 
