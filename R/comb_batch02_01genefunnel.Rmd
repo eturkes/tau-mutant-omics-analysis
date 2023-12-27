@@ -147,7 +147,7 @@ if (file.exists(rds)) {
   rm(files)
   colnames(gsva) <- colnames(seurat)
 
-  seurat[["GSVA"]] <- CreateAssay5Object(gsva)
+  seurat[["GSVA"]] <- CreateAssay5Object(data = gsva)
   rm(gsva)
 
   saveRDS(seurat, file = rds)
