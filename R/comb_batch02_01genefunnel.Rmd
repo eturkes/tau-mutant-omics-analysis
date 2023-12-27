@@ -161,7 +161,8 @@ if (file.exists(rds)) {
   gsva <- Reduce(function(...) cbind(...), x = files)
   colnames(gsva) <- colnames(seurat)
   min <- abs(min(gsva))
-  seurat[["GSVA"]] <- CreateAssay5Object(counts = gsva, data = log1p(gsva + min))
+  gsva <- gsva + min
+  seurat[["GSVA"]] <- CreateAssay5Object(counts = gsva, data = log1p(gsva))
 
   rm(counts_mat, data_mat, files, gsva)
   saveRDS(seurat, file = rds)
