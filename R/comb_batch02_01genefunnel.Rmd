@@ -120,6 +120,7 @@ if (file.exists(rds)) {
     rownames(data_mat) <- gene_anno$external_gene_name
     files[i] <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = files[[i]][[]]) 
   }
+  rm(data_mat)
 
   seurat <- Reduce(function(...) merge(...), x = files)
   seurat@meta.data[grep("SCT", colnames(seurat@meta.data))] <- NULL
@@ -143,11 +144,12 @@ if (file.exists(rds)) {
   }
 
   gsva <- Reduce(function(...) cbind(...), x = files)
+  rm(files)
   colnames(gsva) <- colnames(seurat)
 
   seurat[["GSVA"]] <- CreateAssay5Object(gsva)
+  rm(gsva)
 
-  rm(files, data_mat, gsva)
   saveRDS(seurat, file = rds)
 }
 ```
