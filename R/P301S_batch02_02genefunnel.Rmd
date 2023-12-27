@@ -101,7 +101,7 @@ if (!dir.exists(cache_dir)) {
 ```{r}
 # Load and filter gene sets.
 # --------------------------
-rds <- file.path("..", "filtered_GO_comb_gene_sets.rds")
+rds <- file.path("..", "cache", "filtered_gene_sets.rds")
 if (file.exists(rds)) {
   gene_sets <- readRDS(rds)
 } else {
