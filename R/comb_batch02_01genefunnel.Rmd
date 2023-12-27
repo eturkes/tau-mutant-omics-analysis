@@ -64,7 +64,7 @@ The toggle at the start of the document controls the visibility of all chunks.
 # -----------------------------------------------------
 library(conflicted)
 conflicts_prefer(DT::JS, .quiet = TRUE)
-packages <- c("Seurat", "limma", "DT", "RColorBrewer", "ComplexHeatmap")
+packages <- c("Seurat", "dplyr", "ggrepel", "ggplot2", "limma", "DT", "RColorBrewer", "ComplexHeatmap")
 invisible(suppressPackageStartupMessages(lapply(packages, FUN = library, character.only = TRUE)))
 # -----------------------------------------------------
 
@@ -139,6 +139,7 @@ if (file.exists(rds)) {
     rep(sub("\\/.*", "", file_list[5]), times = ncol(files[[5]])),
     rep(sub("\\/.*", "", file_list[6]), times = ncol(files[[6]]))
   )
+  seurat$sample <- factor(seurat$sample, levels = unique(seurat$sample))
 
   file_list <- list.files(file.path(cache_dir, "..", "..", ".."), recursive = TRUE)
   file_list <- file_list[grep("gsva.rds", x = file_list)]
@@ -157,6 +158,41 @@ if (file.exists(rds)) {
 
   saveRDS(seurat, file = rds)
 }
+```
+
+# Analysis
+
+```{r}
+rds <- file.path(cache_dir, "seurat_analysed.rds")
+if (file.exists(rds)) {
+  seurat <- readRDS(rds)
+} else {
+
+  seurat <- ScaleData(seurat, verbose = FALSE)
+
+  seurat <- RunPCA(seurat, features = rownames(seurat), reduction.name = "SCT_pca", verbose = FALSE)
+  seurat <- RunUMAP(seurat, dims = 1:30, reduction = "SCT_pca", reduction.name = "SCT_umap", verbose = FALSE)
+  add_df <- data.frame(Embeddings(seurat, reduction = "SCT_umap"))
+  names(add_df) <- paste0("umap", seq(ncol(add_df)))
+  seurat$SCT_umap1 <- add_df$umap1
+  seurat$SCT_umap2 <- add_df$umap2
+
+  DefaultAssay(seurat) <- "GSVA"
+  seurat <- ScaleData(seurat, verbose = FALSE)
+
+  seurat <- RunPCA(seurat, features = rownames(seurat), reduction.name = "GSVA_pca", verbose = FALSE)
+  seurat <- RunUMAP(seurat, dims = 1:30, reduction = "GSVA_pca", reduction.name = "GSVA_umap", verbose = FALSE)
+  add_df <- data.frame(Embeddings(seurat, reduction = "GSVA_umap"))
+  names(add_df) <- paste0("umap", seq(ncol(add_df)))
+  seurat$GSVA_umap1 <- add_df$umap1
+  seurat$GSVA_umap2 <- add_df$umap2
+
+  rm(add_df)
+  saveRDS(seurat, file = rds)
+}
+
+red_dim_plot(seurat, x = "GSVA_umap1", y = "GSVA_umap2", color = "sample", type = "cat")
+red_dim_plot(seurat, x = "SCT_umap1", y = "SCT_umap2", color = "sample")
 ```
 
 # References
