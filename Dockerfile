@@ -55,6 +55,7 @@ RUN apt-get update \
         -e "BiocManager::install('DropletUtils')" \
         -e "BiocManager::install('scDblFinder')" \
         -e "remotes::install_github('jmw86069/multienrichjam', dependencies = TRUE)" \
+        -e "remotes::install_github('immunogenomics/presto')" \
     && apt-get clean \
     && rm -Rf /var/lib/apt/lists/ \
         /tmp/downloaded_packages/ \
