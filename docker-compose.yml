@@ -19,6 +19,12 @@
 version: "3"
 
 services:
+  all:
+    image: eturkes/tau-mutant-omics-analysis:R4.3.2v2
+    volumes:
+      - ".:/home/rstudio/tau-mutant-omics-analysis:rw"
+    command: Rscript -e "source('/home/rstudio/tau-mutant-omics-analysis/R/run_all.R')"
+
   rstudio:
     image: eturkes/tau-mutant-omics-analysis:R4.3.2v2
     volumes:
