@@ -147,7 +147,6 @@ if (file.exists(rds)) {
   files <- vector("list", length = length(file_list))
   for (i in seq_along(files)) {
     files[[i]] <- readRDS(file.path(cache_dir, "..", "..", "..", file_list[i]))
-    files[[i]] <- ((2 * (files[[i]] - min(files[[i]])) / (max(files[[i]]) - min(files[[i]]))) - 1)
   }
 
   gsva <- Reduce(function(...) cbind(...), x = files)
