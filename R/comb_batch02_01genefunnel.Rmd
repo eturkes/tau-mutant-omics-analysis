@@ -124,6 +124,11 @@ if (file.exists(rds)) {
 
   seurat <- Reduce(function(...) merge(...), x = files)
   seurat@meta.data[grep("SCT", colnames(seurat@meta.data))] <- NULL
+  seurat@meta.data[grep("orig.ident", colnames(seurat@meta.data))] <- NULL
+  seurat@meta.data[grep("pca", colnames(seurat@meta.data))] <- NULL
+  seurat@meta.data[grep("umap", colnames(seurat@meta.data))] <- NULL
+  seurat@meta.data[grep("seurat_clusters", colnames(seurat@meta.data))] <- NULL
+  seurat@meta.data[grep("allen_labels", colnames(seurat@meta.data))] <- NULL
   seurat <- JoinLayers(seurat)
 
   seurat$sample <- c(
