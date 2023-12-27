@@ -63,8 +63,11 @@ The toggle at the start of the document controls the visibility of all chunks.
 # Load required packages, suppressing startup messages.
 # -----------------------------------------------------
 library(conflicted)
-conflicts_prefer(DT::JS, .quiet = TRUE)
-packages <- c("Seurat", "dplyr", "ggrepel", "ggplot2", "limma", "DT", "RColorBrewer", "ComplexHeatmap")
+conflicts_prefer(AnnotationDbi::select, .quiet = TRUE)
+packages <- c(
+  "GSEABase", "Seurat", "ggplot2", "dplyr", "ggrepel", "scuttle", "GO.db", "tm", "pals", "ComplexHeatmap",
+  "RColorBrewer"
+)
 invisible(suppressPackageStartupMessages(lapply(packages, FUN = library, character.only = TRUE)))
 # -----------------------------------------------------
 
@@ -95,6 +98,7 @@ colour <- colorRampPalette(rev(brewer.pal(9, "RdBu")))(100)
 # Useful data.
 # ------------
 gene_anno <- readRDS(file.path("..", "cache", "MAPTKI", "02", "02", "gene_anno.rds"))
+gene_sets <- readRDS(file.path("..", "cache", "filtered_gene_sets.rds"))
 # ------------
 ```
 
@@ -115,12 +119,16 @@ if (file.exists(rds)) {
   }
 
   for (i in seq_along(files)) {
+    counts_mat <- GetAssayData(files[[i]], layer = "counts")
+    counts_mat <- counts_mat[match(gene_anno$ensembl_gene_id, rownames(counts_mat)), ]
+    rownames(counts_mat) <- gene_anno$external_gene_name
+
     data_mat <- GetAssayData(files[[i]], layer = "data")
     data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
     rownames(data_mat) <- gene_anno$external_gene_name
-    files[i] <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = files[[i]][[]]) 
+
+    files[i] <- CreateSeuratObject(counts = counts_mat, data = data_mat, assay = "SCT", meta.data = files[[i]][[]])
   }
-  rm(data_mat)
 
   seurat <- Reduce(function(...) merge(...), x = files)
   seurat@meta.data[grep("SCT", colnames(seurat@meta.data))] <- NULL
@@ -140,6 +148,7 @@ if (file.exists(rds)) {
     rep(sub("\\/.*", "", file_list[6]), times = ncol(files[[6]]))
   )
   seurat$sample <- factor(seurat$sample, levels = unique(seurat$sample))
+  seurat@active.ident <- seurat$sample
 
   file_list <- list.files(file.path(cache_dir, "..", "..", ".."), recursive = TRUE)
   file_list <- file_list[grep("gsva.rds", x = file_list)]
@@ -150,12 +159,11 @@ if (file.exists(rds)) {
   }
 
   gsva <- Reduce(function(...) cbind(...), x = files)
-  rm(files)
   colnames(gsva) <- colnames(seurat)
+  min <- abs(min(gsva))
+  seurat[["GSVA"]] <- CreateAssay5Object(counts = gsva, data = log1p(gsva + min))
 
-  seurat[["GSVA"]] <- CreateAssay5Object(data = gsva)
-  rm(gsva)
-
+  rm(counts_mat, data_mat, files, gsva)
   saveRDS(seurat, file = rds)
 }
 ```
@@ -191,8 +199,8 @@ if (file.exists(rds)) {
   saveRDS(seurat, file = rds)
 }
 
-red_dim_plot(seurat, x = "GSVA_umap1", y = "GSVA_umap2", color = "sample", type = "cat")
 red_dim_plot(seurat, x = "SCT_umap1", y = "SCT_umap2", color = "sample")
+red_dim_plot(seurat, x = "GSVA_umap1", y = "GSVA_umap2", color = "sample", type = "cat")
 ```
 
 # References

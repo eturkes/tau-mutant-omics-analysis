@@ -205,28 +205,36 @@ if (file.exists(rds) & file.exists(rds2)) {
   }
 
   gene_anno_sub <- gene_anno[gene_anno$external_gene_name %in% rownames(seurat), ]
-  data_mat <- GetAssayData(seurat, layer = "data")
+
+  counts_mat <- GetAssayData(seurat, layer = "counts")
+  counts_mat <- counts_mat[rownames(counts_mat) %in% gene_anno_sub$external_gene_name, ]
+  gene_anno_sub <- gene_anno_sub[match(rownames(counts_mat), gene_anno_sub$external_gene_name), ]
+  rownames(counts_mat) <- gene_anno_sub$ensembl_gene_id
+
+  data_mat <- GetAssayData(seurat)
   data_mat <- data_mat[rownames(data_mat) %in% gene_anno_sub$external_gene_name, ]
   gene_anno_sub <- gene_anno_sub[match(rownames(data_mat), gene_anno_sub$external_gene_name), ]
   rownames(data_mat) <- gene_anno_sub$ensembl_gene_id
-  seurat <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat[[]])
 
-  add <- unique(gene_anno$ensembl_gene_id[which(gene_anno$ensembl_gene_id %notin% rownames(seurat))])
-  null_mat <- matrix(0, nrow = length(add), ncol = ncol(data_mat))
-  rownames(null_mat) <- add
-  colnames(null_mat) <- colnames(seurat)
+  add <- unique(gene_anno$ensembl_gene_id[which(gene_anno$ensembl_gene_id %notin% rownames(counts_mat))])
+  counts_null_mat <- matrix(0, nrow = length(add), ncol = ncol(counts_mat))
+  rownames(counts_null_mat) <- add
+  colnames(counts_null_mat) <- colnames(counts_mat)
+  data_null_mat <- counts_null_mat
 
   set.seed(1)
-  col <- sample(seq(ncol(null_mat)), size = length(add), replace = TRUE)
+  col <- sample(seq(ncol(counts_null_mat)), size = length(add), replace = TRUE)
   for (i in seq_along(add)) {
-    null_mat[i, col[i]] <- log1p(1)
+    counts_null_mat[i, col[i]] <- 1
+    data_null_mat[i, col[i]] <- log1p(1)
   }
 
-  data_mat <- rbind(data_mat, null_mat)
-  seurat <- CreateSeuratObject(counts = NULL, data = data_mat, assay = "SCT", meta.data = seurat[[]])
+  counts_mat <- rbind(data_mat, counts_null_mat)
+  data_mat <- rbind(data_mat, data_null_mat)
+  seurat <- CreateSeuratObject(counts = counts_mat, data = data_mat, assay = "SCT", meta.data = seurat[[]])
   gene_anno <- gene_anno[match(rownames(seurat), gene_anno$ensembl_gene_id), ]
 
-  rm(data_mat, null_mat, gene_anno_sub, mart)
+  rm(counts_mat, data_mat, counts_null_mat, data_null_mat, mart)
   saveRDS(seurat, rds)
   saveRDS(gene_anno, rds2)
 }
