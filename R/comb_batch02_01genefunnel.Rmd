@@ -101,25 +101,11 @@ gene_anno <- readRDS(file.path("..", "cache", "MAPTKI", "02", "02", "gene_anno.r
 # Merging
 
 ```{r}
-rds <- file.path(cache_dir, "merged_gsva.rds")
-if (file.exists(rds)) {
-  gsva <- readRDS(rds)
-} else {
-  file_list <- list.files(file.path(cache_dir, "..", "..", ".."), recursive = TRUE)
-  file_list <- file_list[grep("gsva.rds", x = file_list)]
-  file_list <- c(file_list[1], file_list[6], file_list[5], file_list[2], file_list[4], file_list[3])
-  files <- vector("list", length = length(file_list))
-  for (i in seq_along(files)) {
-    files[[i]] <- readRDS(file.path(cache_dir, "..", "..", "..", file_list[i]))
-  }
-  gsva <- Reduce(function(...) cbind(...), x = files)
-  saveRDS(gsva, file = rds)
-}
-
 rds <- file.path(cache_dir, "merged_seurat.rds")
 if (file.exists(rds)) {
   seurat <- readRDS(rds)
 } else {
+
   file_list <- list.files(file.path(cache_dir, "..", "..", ".."), recursive = TRUE)
   file_list <- file_list[grep("seurat_cleaned.rds", x = file_list)]
   file_list <- c(file_list[1], file_list[6], file_list[5], file_list[2], file_list[4], file_list[3])
@@ -148,10 +134,22 @@ if (file.exists(rds)) {
     rep(sub("\\/.*", "", file_list[6]), times = ncol(files[[6]]))
   )
 
+  file_list <- list.files(file.path(cache_dir, "..", "..", ".."), recursive = TRUE)
+  file_list <- file_list[grep("gsva.rds", x = file_list)]
+  file_list <- c(file_list[1], file_list[6], file_list[5], file_list[2], file_list[4], file_list[3])
+  files <- vector("list", length = length(file_list))
+  for (i in seq_along(files)) {
+    files[[i]] <- readRDS(file.path(cache_dir, "..", "..", "..", file_list[i]))
+  }
+
+  gsva <- Reduce(function(...) cbind(...), x = files)
+  colnames(gsva) <- colnames(seurat)
+
+  seurat[["GSVA"]] <- CreateAssay5Object(gsva)
+
+  rm(files, data_mat, gsva)
   saveRDS(seurat, file = rds)
 }
-
-rm(files, data_mat)
 ```
 
 # References
