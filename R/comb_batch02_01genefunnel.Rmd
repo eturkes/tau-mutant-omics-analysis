@@ -101,7 +101,7 @@ gene_anno <- readRDS(file.path("..", "cache", "MAPTKI", "02", "02", "gene_anno.r
 # Merging
 
 ```{r}
-rds <- file.path(cache_dir, "merged_seurat.rds")
+rds <- file.path(cache_dir, "seurat_merged.rds")
 if (file.exists(rds)) {
   seurat <- readRDS(rds)
 } else {
