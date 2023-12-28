@@ -182,6 +182,11 @@ if (file.exists(rds)) {
   seurat <- ScaleData(seurat, verbose = FALSE)
 
   seurat <- RunPCA(seurat, features = rownames(seurat), reduction.name = "SCT_pca", verbose = FALSE)
+  add_df <- data.frame(Embeddings(seurat, reduction = "SCT_pca"))
+  names(add_df) <- paste0("pca", seq(ncol(add_df)))
+  seurat$SCT_pca1 <- add_df$pca1
+  seurat$SCT_pca2 <- add_df$pca2
+
   seurat <- RunUMAP(seurat, dims = 1:30, reduction = "SCT_pca", reduction.name = "SCT_umap", verbose = FALSE)
   add_df <- data.frame(Embeddings(seurat, reduction = "SCT_umap"))
   names(add_df) <- paste0("umap", seq(ncol(add_df)))
@@ -192,6 +197,11 @@ if (file.exists(rds)) {
   seurat <- ScaleData(seurat, verbose = FALSE)
 
   seurat <- RunPCA(seurat, features = rownames(seurat), reduction.name = "GSVA_pca", verbose = FALSE)
+  add_df <- data.frame(Embeddings(seurat, reduction = "GSVA_pca"))
+  names(add_df) <- paste0("pca", seq(ncol(add_df)))
+  seurat$GSVA_pca1 <- add_df$pca1
+  seurat$GSVA_pca2 <- add_df$pca2
+
   seurat <- RunUMAP(seurat, dims = 1:30, reduction = "GSVA_pca", reduction.name = "GSVA_umap", verbose = FALSE)
   add_df <- data.frame(Embeddings(seurat, reduction = "GSVA_umap"))
   names(add_df) <- paste0("umap", seq(ncol(add_df)))
@@ -204,6 +214,9 @@ if (file.exists(rds)) {
 
 red_dim_plot(seurat, x = "SCT_umap1", y = "SCT_umap2", color = "sample")
 red_dim_plot(seurat, x = "GSVA_umap1", y = "GSVA_umap2", color = "sample", type = "cat")
+
+red_dim_plot(seurat, x = "SCT_pca1", y = "SCT_pca2", color = "sample")
+red_dim_plot(seurat, x = "GSVA_pca1", y = "GSVA_pca2", color = "sample", type = "cat")
 ```
 
 # GSE
