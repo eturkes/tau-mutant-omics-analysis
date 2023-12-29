@@ -635,7 +635,21 @@ word_cloud = function(x, width = NULL){
            "enzyme", "consensus", "associate", "minusenddirected",
            "extrinsic", "branch", "klinked", "bud",
            "adhesion", "amino", "adeninethyminerich", "alkaline",
-           "alphaactinin", "ammonium", "anchor")
+           "alphaactinin", "ammonium", "anchor", "acylglycerol",
+           "adp", "alcohol", "acidification", "actinmyosin",
+           "acyclic", "acyl", "added", "alcoholic",
+           "aldehyde", "alditol", "alditols", "alphaandrostanebetabetadiol",
+           "ameloblast", "amine", "actin", "antimicrobial",
+           "autonomic", "adenosine", "atp", "atrial",
+           "complexes", "bisphosphate", "aqueous", "cerebrospinal",
+           "cytoplasmic", "biphenyl", "birth", "adult",
+           "blood", "bone", "coa", "adiponectin", "amp",
+           "apocs", "acetylcoa", "arteriosus", "aryl",
+           "cameratype", "axoneme", "circulating", "amines",
+           "centriole", "carrying", "alkali", "alternative",
+           "anaphasepromoting", "aid", "acetyl", "activities",
+           "amacrine", "amide"
+          )
   txt = unlist(strsplit(x, " "))
   txt = Corpus(VectorSource(txt))
   txt = tm_map(txt, PlainTextDocument)
