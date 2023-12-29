@@ -453,7 +453,6 @@ sce <- as.SingleCellExperiment(seurat_sub, assay = "GSVA")
 sce <- suppressWarnings(
   aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
 )
-
 dge <- DGEList(counts(sce))
 dge <- calcNormFactors(dge)
 logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
@@ -567,7 +566,6 @@ sce <- as.SingleCellExperiment(seurat_sub, assay = "GSVA")
 sce <- suppressWarnings(
   aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
 )
-
 dge <- DGEList(counts(sce))
 dge <- calcNormFactors(dge)
 logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
@@ -681,7 +679,6 @@ sce <- as.SingleCellExperiment(seurat_sub, assay = "GSVA")
 sce <- suppressWarnings(
   aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
 )
-
 dge <- DGEList(counts(sce))
 dge <- calcNormFactors(dge)
 logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
@@ -795,7 +792,6 @@ sce <- as.SingleCellExperiment(seurat_sub, assay = "GSVA")
 sce <- suppressWarnings(
   aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
 )
-
 dge <- DGEList(counts(sce))
 dge <- calcNormFactors(dge)
 logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
@@ -909,7 +905,6 @@ sce <- as.SingleCellExperiment(seurat_sub, assay = "GSVA")
 sce <- suppressWarnings(
   aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
 )
-
 dge <- DGEList(counts(sce))
 dge <- calcNormFactors(dge)
 logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
@@ -1023,7 +1018,6 @@ sce <- as.SingleCellExperiment(seurat_sub, assay = "GSVA")
 sce <- suppressWarnings(
   aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
 )
-
 dge <- DGEList(counts(sce))
 dge <- calcNormFactors(dge)
 logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
@@ -1137,7 +1131,6 @@ sce <- as.SingleCellExperiment(seurat_sub, assay = "GSVA")
 sce <- suppressWarnings(
   aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
 )
-
 dge <- DGEList(counts(sce))
 dge <- calcNormFactors(dge)
 logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
@@ -1251,7 +1244,6 @@ sce <- as.SingleCellExperiment(seurat_sub, assay = "GSVA")
 sce <- suppressWarnings(
   aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
 )
-
 dge <- DGEList(counts(sce))
 dge <- calcNormFactors(dge)
 logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
