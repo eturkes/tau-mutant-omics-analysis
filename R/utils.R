@@ -645,7 +645,7 @@ word_cloud = function(x, width = NULL){
            "glomerular", "prostatic", "bud", "drosophila",
            "carbonnitrogen", "diphosphate", "beta", "gtpase",
            "axonemal", "minusenddirected", "extrinsic", "branch",
-           "klinked", "consensus", "bmp")
+           "klinked", "consensus", "bmp", "proteincoupled")
   txt = unlist(strsplit(x, " "))
   txt = Corpus(VectorSource(txt))
   txt = tm_map(txt, PlainTextDocument)

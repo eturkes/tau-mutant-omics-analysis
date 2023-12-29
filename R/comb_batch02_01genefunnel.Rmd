@@ -337,7 +337,12 @@ q2 <- quantile(markers[ , 2])[2]
 markers <- markers[markers[ , 1] > q1, ]
 markers <- markers[markers[ , 2] < q2, ]
 markers <- abs(markers)
-markers <- markers[order(rowSums(markers), decreasing = TRUE), ]
+
+markers$total <- rowSums(markers)
+markers <- markers[order(markers$total, decreasing = TRUE), ]
+markers$gene <- rownames(markers)
+markers$cluster <- rep("0", times = nrow(markers))
+markers$number <- seq(rownames(markers))
 ```
 
 ```{r, fig.width = 10}
@@ -348,10 +353,6 @@ FeaturePlot(
 ```
 
 ```{r}
-markers$gene <- rownames(markers)
-markers$cluster <- rep("0", times = nrow(markers))
-markers$number <- seq(rownames(markers))
-
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
 module_names <- modules
 gene_sets_sub_ids <- gene_sets[names(gene_sets) %in% rownames(markers)]
@@ -376,7 +377,10 @@ for (i in seq_along(top_words_list)) {
     top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
   }
   tmp <- table(strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]])
-  tmp <- tmp[tmp > 1]
+  for (j in seq_along(tmp)) {
+    total <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
+    tmp[j] <- sum(markers$total[total])
+  }
   tmp <- names(tmp[order(tmp, decreasing = TRUE)])
   if (length(tmp) >= 10) {
     tmp <- tmp[1:10]
@@ -570,7 +574,12 @@ q2 <- quantile(markers[ , 2])[4]
 markers <- markers[markers[ , 1] < q1, ]
 markers <- markers[markers[ , 2] > q2, ]
 markers <- abs(markers)
-markers <- markers[order(rowSums(markers), decreasing = TRUE), ]
+
+markers$total <- rowSums(markers)
+markers <- markers[order(markers$total, decreasing = TRUE), ]
+markers$gene <- rownames(markers)
+markers$cluster <- rep("0", times = nrow(markers))
+markers$number <- seq(rownames(markers))
 ```
 
 ```{r, fig.width = 20}
@@ -581,10 +590,6 @@ FeaturePlot(
 ```
 
 ```{r}
-markers$gene <- rownames(markers)
-markers$cluster <- rep("0", times = nrow(markers))
-markers$number <- seq(rownames(markers))
-
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
 module_names <- modules
 gene_sets_sub_ids <- gene_sets[names(gene_sets) %in% rownames(markers)]
@@ -609,7 +614,10 @@ for (i in seq_along(top_words_list)) {
     top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
   }
   tmp <- table(strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]])
-  tmp <- tmp[tmp > 1]
+  for (j in seq_along(tmp)) {
+    total <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
+    tmp[j] <- sum(markers$total[total])
+  }
   tmp <- names(tmp[order(tmp, decreasing = TRUE)])
   if (length(tmp) >= 10) {
     tmp <- tmp[1:10]
@@ -801,7 +809,12 @@ markers <- markers[ , 1:2]
 q1 <- quantile(markers[ , 1])[4]
 markers <- markers[markers[ , 1] > q1, ]
 markers <- abs(markers)
-markers <- markers[order(rowSums(markers), decreasing = TRUE), ]
+
+markers$total <- rowSums(markers)
+markers <- markers[order(markers$total, decreasing = TRUE), ]
+markers$gene <- rownames(markers)
+markers$cluster <- rep("0", times = nrow(markers))
+markers$number <- seq(rownames(markers))
 ```
 
 ```{r}
@@ -812,10 +825,6 @@ FeaturePlot(
 ```
 
 ```{r}
-markers$gene <- rownames(markers)
-markers$cluster <- rep("0", times = nrow(markers))
-markers$number <- seq(rownames(markers))
-
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
 module_names <- modules
 gene_sets_sub_ids <- gene_sets[names(gene_sets) %in% rownames(markers)]
@@ -840,7 +849,10 @@ for (i in seq_along(top_words_list)) {
     top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
   }
   tmp <- table(strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]])
-  tmp <- tmp[tmp > 1]
+  for (j in seq_along(tmp)) {
+    total <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
+    tmp[j] <- sum(markers$total[total])
+  }
   tmp <- names(tmp[order(tmp, decreasing = TRUE)])
   if (length(tmp) >= 10) {
     tmp <- tmp[1:10]
@@ -1284,7 +1296,12 @@ q2 <- quantile(markers[ , 2])[2]
 markers <- markers[markers[ , 1] > q1, ]
 markers <- markers[markers[ , 2] < q2, ]
 markers <- abs(markers)
-markers <- markers[order(rowSums(markers), decreasing = TRUE), ]
+
+markers$total <- rowSums(markers)
+markers <- markers[order(markers$total, decreasing = TRUE), ]
+markers$gene <- rownames(markers)
+markers$cluster <- rep("0", times = nrow(markers))
+markers$number <- seq(rownames(markers))
 ```
 
 ```{r, fig.width = 10}
@@ -1295,10 +1312,6 @@ FeaturePlot(
 ```
 
 ```{r}
-markers$gene <- rownames(markers)
-markers$cluster <- rep("0", times = nrow(markers))
-markers$number <- seq(rownames(markers))
-
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
 module_names <- modules
 gene_sets_sub_ids <- gene_sets[names(gene_sets) %in% rownames(markers)]
@@ -1323,7 +1336,10 @@ for (i in seq_along(top_words_list)) {
     top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
   }
   tmp <- table(strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]])
-  tmp <- tmp[tmp > 1]
+  for (j in seq_along(tmp)) {
+    total <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
+    tmp[j] <- sum(markers$total[total])
+  }
   tmp <- names(tmp[order(tmp, decreasing = TRUE)])
   if (length(tmp) >= 10) {
     tmp <- tmp[1:10]
@@ -1517,7 +1533,12 @@ q2 <- quantile(markers[ , 2])[2]
 markers <- markers[markers[ , 1] > q1, ]
 markers <- markers[markers[ , 2] < q2, ]
 markers <- abs(markers)
-markers <- markers[order(rowSums(markers), decreasing = TRUE), ]
+
+markers$total <- rowSums(markers)
+markers <- markers[order(markers$total, decreasing = TRUE), ]
+markers$gene <- rownames(markers)
+markers$cluster <- rep("0", times = nrow(markers))
+markers$number <- seq(rownames(markers))
 ```
 
 ```{r, fig.width = 12.5}
@@ -1528,10 +1549,6 @@ FeaturePlot(
 ```
 
 ```{r}
-markers$gene <- rownames(markers)
-markers$cluster <- rep("0", times = nrow(markers))
-markers$number <- seq(rownames(markers))
-
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
 module_names <- modules
 gene_sets_sub_ids <- gene_sets[names(gene_sets) %in% rownames(markers)]
@@ -1556,7 +1573,10 @@ for (i in seq_along(top_words_list)) {
     top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
   }
   tmp <- table(strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]])
-  tmp <- tmp[tmp > 1]
+  for (j in seq_along(tmp)) {
+    total <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
+    tmp[j] <- sum(markers$total[total])
+  }
   tmp <- names(tmp[order(tmp, decreasing = TRUE)])
   if (length(tmp) >= 10) {
     tmp <- tmp[1:10]
@@ -1748,7 +1768,12 @@ markers <- markers[ , 1:2]
 q1 <- quantile(markers[ , 1])[4]
 markers <- markers[markers[ , 1] > q1, ]
 markers <- abs(markers)
-markers <- markers[order(rowSums(markers), decreasing = TRUE), ]
+
+markers$total <- rowSums(markers)
+markers <- markers[order(markers$total, decreasing = TRUE), ]
+markers$gene <- rownames(markers)
+markers$cluster <- rep("0", times = nrow(markers))
+markers$number <- seq(rownames(markers))
 ```
 
 ```{r}
@@ -1759,10 +1784,6 @@ FeaturePlot(
 ```
 
 ```{r}
-markers$gene <- rownames(markers)
-markers$cluster <- rep("0", times = nrow(markers))
-markers$number <- seq(rownames(markers))
-
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
 module_names <- modules
 gene_sets_sub_ids <- gene_sets[names(gene_sets) %in% rownames(markers)]
@@ -1787,7 +1808,10 @@ for (i in seq_along(top_words_list)) {
     top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
   }
   tmp <- table(strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]])
-  tmp <- tmp[tmp > 1]
+  for (j in seq_along(tmp)) {
+    total <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
+    tmp[j] <- sum(markers$total[total])
+  }
   tmp <- names(tmp[order(tmp, decreasing = TRUE)])
   if (length(tmp) >= 10) {
     tmp <- tmp[1:10]
@@ -1981,7 +2005,12 @@ q2 <- quantile(markers[ , 2])[2]
 markers <- markers[markers[ , 1] > q1, ]
 markers <- markers[markers[ , 2] < q2, ]
 markers <- abs(markers)
-markers <- markers[order(rowSums(markers), decreasing = TRUE), ]
+
+markers$total <- rowSums(markers)
+markers <- markers[order(markers$total, decreasing = TRUE), ]
+markers$gene <- rownames(markers)
+markers$cluster <- rep("0", times = nrow(markers))
+markers$number <- seq(rownames(markers))
 ```
 
 ```{r, fig.width = 10}
@@ -1992,10 +2021,6 @@ FeaturePlot(
 ```
 
 ```{r}
-markers$gene <- rownames(markers)
-markers$cluster <- rep("0", times = nrow(markers))
-markers$number <- seq(rownames(markers))
-
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
 module_names <- modules
 gene_sets_sub_ids <- gene_sets[names(gene_sets) %in% rownames(markers)]
@@ -2020,7 +2045,10 @@ for (i in seq_along(top_words_list)) {
     top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
   }
   tmp <- table(strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]])
-  tmp <- tmp[tmp > 1]
+  for (j in seq_along(tmp)) {
+    total <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
+    tmp[j] <- sum(markers$total[total])
+  }
   tmp <- names(tmp[order(tmp, decreasing = TRUE)])
   if (length(tmp) >= 10) {
     tmp <- tmp[1:10]
