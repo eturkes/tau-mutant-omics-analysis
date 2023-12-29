@@ -183,30 +183,26 @@ if (file.exists(rds)) {
 
   seurat <- RunPCA(seurat, features = rownames(seurat), reduction.name = "SCT_pca", verbose = FALSE)
   add_df <- data.frame(Embeddings(seurat, reduction = "SCT_pca"))
-  names(add_df) <- paste0("pca", seq(ncol(add_df)))
-  seurat$SCT_pca1 <- add_df$pca1
-  seurat$SCT_pca2 <- add_df$pca2
+  seurat$SCT_pca1 <- add_df[ , 1]
+  seurat$SCT_pca2 <- add_df[ , 2]
 
   seurat <- RunUMAP(seurat, dims = 1:30, reduction = "SCT_pca", reduction.name = "SCT_umap", verbose = FALSE)
   add_df <- data.frame(Embeddings(seurat, reduction = "SCT_umap"))
-  names(add_df) <- paste0("umap", seq(ncol(add_df)))
-  seurat$SCT_umap1 <- add_df$umap1
-  seurat$SCT_umap2 <- add_df$umap2
+  seurat$SCT_umap1 <- add_df[ , 1]
+  seurat$SCT_umap2 <- add_df[ , 2]
 
   DefaultAssay(seurat) <- "GSVA"
   seurat <- ScaleData(seurat, verbose = FALSE)
 
   seurat <- RunPCA(seurat, features = rownames(seurat), reduction.name = "GSVA_pca", verbose = FALSE)
   add_df <- data.frame(Embeddings(seurat, reduction = "GSVA_pca"))
-  names(add_df) <- paste0("pca", seq(ncol(add_df)))
-  seurat$GSVA_pca1 <- add_df$pca1
-  seurat$GSVA_pca2 <- add_df$pca2
+  seurat$GSVA_pca1 <- add_df[ , 1]
+  seurat$GSVA_pca2 <- add_df[ , 2]
 
   seurat <- RunUMAP(seurat, dims = 1:30, reduction = "GSVA_pca", reduction.name = "GSVA_umap", verbose = FALSE)
   add_df <- data.frame(Embeddings(seurat, reduction = "GSVA_umap"))
-  names(add_df) <- paste0("umap", seq(ncol(add_df)))
-  seurat$GSVA_umap1 <- add_df$umap1
-  seurat$GSVA_umap2 <- add_df$umap2
+  seurat$GSVA_umap1 <- add_df[ , 1]
+  seurat$GSVA_umap2 <- add_df[ , 2]
 
   rm(add_df)
   saveRDS(seurat, file = rds)
