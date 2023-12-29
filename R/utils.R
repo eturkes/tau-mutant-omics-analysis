@@ -648,7 +648,12 @@ word_cloud = function(x, width = NULL){
            "cameratype", "axoneme", "circulating", "amines",
            "centriole", "carrying", "alkali", "alternative",
            "anaphasepromoting", "aid", "acetyl", "activities",
-           "amacrine", "amide"
+           "amacrine", "amide", "adherens", "cilium",
+           "ciliary", "acylcoa", "aluminum", "axes",
+           "arch", "hypotonic", "glomerular", "aminoacid",
+           "carbonnitrogen", "prostatic", "acinar", "diphosphate",
+           "aminobutyrate", "bmp", "copper", "drosophila",
+           "dentin", "gtpase"
           )
   txt = unlist(strsplit(x, " "))
   txt = Corpus(VectorSource(txt))
