@@ -1505,9 +1505,9 @@ red_dim_plot(seurat_sub, x = "GSVA_pca1", y = "GSVA_pca2", color = "sample", typ
 
 markers <- as.data.frame(Loadings(seurat, reduction = "GSVA_pca"))
 markers <- markers[ , 1:2]
-q1 <- quantile(markers[ , 1])[2]
+q1 <- quantile(markers[ , 1])[4]
 q2 <- quantile(markers[ , 2])[2]
-markers <- markers[markers[ , 1] < q1, ]
+markers <- markers[markers[ , 1] > q1, ]
 markers <- markers[markers[ , 2] < q2, ]
 markers <- abs(markers)
 markers <- markers[order(rowSums(markers), decreasing = TRUE), ]
