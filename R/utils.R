@@ -633,7 +633,9 @@ word_cloud = function(x, width = NULL){
            "map", "basic", "axonal", "catalyzes",
            "repeat", "repeats", "articular", "electrondense",
            "enzyme", "consensus", "associate", "minusenddirected",
-           "extrinsic", "branch", "klinked", "bud")
+           "extrinsic", "branch", "klinked", "bud",
+           "adhesion", "amino", "adeninethyminerich", "alkaline",
+           "alphaactinin", "ammonium", "anchor")
   txt = unlist(strsplit(x, " "))
   txt = Corpus(VectorSource(txt))
   txt = tm_map(txt, PlainTextDocument)
