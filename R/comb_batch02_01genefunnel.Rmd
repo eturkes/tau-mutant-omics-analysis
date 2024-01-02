@@ -240,6 +240,7 @@ markers$number <- seq(rownames(markers))
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
 module_names <- modules
 gene_sets_sub_ids <- gene_sets[names(gene_sets) %in% rownames(markers)]
+gene_sets_sub_ids <- gene_sets_sub_ids[match(rownames(markers), names(gene_sets_sub_ids)), ]
 
 for (j in seq(length(gene_sets_sub_ids@.Data))) {
   suppressWarnings(gene_sets_sub_ids[[j]]@setName <- gene_sets_sub_ids[[j]]@shortDescription)
@@ -256,13 +257,26 @@ top_words <- c()
 
 for (i in seq_along(top_words_list)) {
   top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
-  top_words_list[[i]] <- vector("list", length = nrow(top_words_tmp_sub))
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
   for (j in seq_along(top_words_list[[i]])) {
     top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
   }
-  tmp <- table(strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]])
-  tmp <- tmp[tmp > 1]
-  tmp <- names(tmp[order(tmp, decreasing = TRUE)])
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  tmp <- table(tmp)
+  for (j in seq_along(tmp)) {
+    log2FC <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
+    tmp[j] <- sum(markers$avg_log2FC[log2FC])
+  }
+  tmp <- tmp[order(tmp, decreasing = TRUE)]
+  dup <- which(duplicated(tmp))
+  if (length(dup) > 0) {
+    tmp <- tmp[-dup]
+  }
+  tmp <- names(tmp)
   if (length(tmp) >= 3) {
     tmp <- tmp[1:3]
     tmp <- paste(paste0(tmp, " "), collapse = "")
@@ -272,6 +286,9 @@ for (i in seq_along(top_words_list)) {
     tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
     tmp2 <- tmp2[tmp2 %notin% tmp]
     tmp <- c(tmp, tmp2[1:add])
+    if (any(is.na(tmp))) {
+      tmp <- tmp[-which(is.na(tmp))]
+    }
     tmp <- paste(paste0(tmp, " "), collapse = "")
     tmp <- substr(tmp, 1, nchar(tmp) - 1)
   } else {
@@ -356,6 +373,7 @@ FeaturePlot(
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
 module_names <- modules
 gene_sets_sub_ids <- gene_sets[names(gene_sets) %in% rownames(markers)]
+gene_sets_sub_ids <- gene_sets_sub_ids[match(rownames(markers), names(gene_sets_sub_ids)), ]
 
 for (j in seq(length(gene_sets_sub_ids@.Data))) {
   suppressWarnings(gene_sets_sub_ids[[j]]@setName <- gene_sets_sub_ids[[j]]@shortDescription)
@@ -372,16 +390,26 @@ top_words <- c()
 
 for (i in seq_along(top_words_list)) {
   top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
-  top_words_list[[i]] <- vector("list", length = nrow(top_words_tmp_sub))
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
   for (j in seq_along(top_words_list[[i]])) {
     top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
   }
-  tmp <- table(strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]])
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  tmp <- table(tmp)
   for (j in seq_along(tmp)) {
     total <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
     tmp[j] <- sum(markers$total[total])
   }
-  tmp <- names(tmp[order(tmp, decreasing = TRUE)])
+  tmp <- tmp[order(tmp, decreasing = TRUE)]
+  dup <- which(duplicated(tmp))
+  if (length(dup) > 0) {
+    tmp <- tmp[-dup]
+  }
+  tmp <- names(tmp)
   if (length(tmp) >= 10) {
     tmp <- tmp[1:10]
     tmp <- paste(paste0(tmp, "\n"), collapse = "")
@@ -391,6 +419,9 @@ for (i in seq_along(top_words_list)) {
     tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
     tmp2 <- tmp2[tmp2 %notin% tmp]
     tmp <- c(tmp, tmp2[1:add])
+    if (any(is.na(tmp))) {
+      tmp <- tmp[-which(is.na(tmp))]
+    }
     tmp <- paste(paste0(tmp, "\n"), collapse = "")
     tmp <- substr(tmp, 1, nchar(tmp) - 1)
   } else {
@@ -472,6 +503,7 @@ markers$number <- seq(rownames(markers))
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
 module_names <- modules
 gene_sets_sub_ids <- gene_sets[names(gene_sets) %in% rownames(markers)]
+gene_sets_sub_ids <- gene_sets_sub_ids[match(rownames(markers), names(gene_sets_sub_ids)), ]
 
 for (j in seq(length(gene_sets_sub_ids@.Data))) {
   suppressWarnings(gene_sets_sub_ids[[j]]@setName <- gene_sets_sub_ids[[j]]@shortDescription)
@@ -488,13 +520,26 @@ top_words <- c()
 
 for (i in seq_along(top_words_list)) {
   top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
-  top_words_list[[i]] <- vector("list", length = nrow(top_words_tmp_sub))
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
   for (j in seq_along(top_words_list[[i]])) {
     top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
   }
-  tmp <- table(strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]])
-  tmp <- tmp[tmp > 1]
-  tmp <- names(tmp[order(tmp, decreasing = TRUE)])
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  tmp <- table(tmp)
+  for (j in seq_along(tmp)) {
+    log2FC <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
+    tmp[j] <- sum(markers$avg_log2FC[log2FC])
+  }
+  tmp <- tmp[order(tmp, decreasing = TRUE)]
+  dup <- which(duplicated(tmp))
+  if (length(dup) > 0) {
+    tmp <- tmp[-dup]
+  }
+  tmp <- names(tmp)
   if (length(tmp) >= 3) {
     tmp <- tmp[1:3]
     tmp <- paste(paste0(tmp, " "), collapse = "")
@@ -504,6 +549,9 @@ for (i in seq_along(top_words_list)) {
     tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
     tmp2 <- tmp2[tmp2 %notin% tmp]
     tmp <- c(tmp, tmp2[1:add])
+    if (any(is.na(tmp))) {
+      tmp <- tmp[-which(is.na(tmp))]
+    }
     tmp <- paste(paste0(tmp, " "), collapse = "")
     tmp <- substr(tmp, 1, nchar(tmp) - 1)
   } else {
@@ -593,6 +641,7 @@ FeaturePlot(
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
 module_names <- modules
 gene_sets_sub_ids <- gene_sets[names(gene_sets) %in% rownames(markers)]
+gene_sets_sub_ids <- gene_sets_sub_ids[match(rownames(markers), names(gene_sets_sub_ids)), ]
 
 for (j in seq(length(gene_sets_sub_ids@.Data))) {
   suppressWarnings(gene_sets_sub_ids[[j]]@setName <- gene_sets_sub_ids[[j]]@shortDescription)
@@ -609,16 +658,26 @@ top_words <- c()
 
 for (i in seq_along(top_words_list)) {
   top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
-  top_words_list[[i]] <- vector("list", length = nrow(top_words_tmp_sub))
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
   for (j in seq_along(top_words_list[[i]])) {
     top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
   }
-  tmp <- table(strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]])
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  tmp <- table(tmp)
   for (j in seq_along(tmp)) {
     total <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
     tmp[j] <- sum(markers$total[total])
   }
-  tmp <- names(tmp[order(tmp, decreasing = TRUE)])
+  tmp <- tmp[order(tmp, decreasing = TRUE)]
+  dup <- which(duplicated(tmp))
+  if (length(dup) > 0) {
+    tmp <- tmp[-dup]
+  }
+  tmp <- names(tmp)
   if (length(tmp) >= 10) {
     tmp <- tmp[1:10]
     tmp <- paste(paste0(tmp, "\n"), collapse = "")
@@ -628,6 +687,9 @@ for (i in seq_along(top_words_list)) {
     tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
     tmp2 <- tmp2[tmp2 %notin% tmp]
     tmp <- c(tmp, tmp2[1:add])
+    if (any(is.na(tmp))) {
+      tmp <- tmp[-which(is.na(tmp))]
+    }
     tmp <- paste(paste0(tmp, "\n"), collapse = "")
     tmp <- substr(tmp, 1, nchar(tmp) - 1)
   } else {
@@ -709,6 +771,7 @@ markers$number <- seq(rownames(markers))
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
 module_names <- modules
 gene_sets_sub_ids <- gene_sets[names(gene_sets) %in% rownames(markers)]
+gene_sets_sub_ids <- gene_sets_sub_ids[match(rownames(markers), names(gene_sets_sub_ids)), ]
 
 for (j in seq(length(gene_sets_sub_ids@.Data))) {
   suppressWarnings(gene_sets_sub_ids[[j]]@setName <- gene_sets_sub_ids[[j]]@shortDescription)
@@ -725,13 +788,26 @@ top_words <- c()
 
 for (i in seq_along(top_words_list)) {
   top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
-  top_words_list[[i]] <- vector("list", length = nrow(top_words_tmp_sub))
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
   for (j in seq_along(top_words_list[[i]])) {
     top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
   }
-  tmp <- table(strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]])
-  tmp <- tmp[tmp > 1]
-  tmp <- names(tmp[order(tmp, decreasing = TRUE)])
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  tmp <- table(tmp)
+  for (j in seq_along(tmp)) {
+    log2FC <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
+    tmp[j] <- sum(markers$avg_log2FC[log2FC])
+  }
+  tmp <- tmp[order(tmp, decreasing = TRUE)]
+  dup <- which(duplicated(tmp))
+  if (length(dup) > 0) {
+    tmp <- tmp[-dup]
+  }
+  tmp <- names(tmp)
   if (length(tmp) >= 3) {
     tmp <- tmp[1:3]
     tmp <- paste(paste0(tmp, " "), collapse = "")
@@ -741,6 +817,9 @@ for (i in seq_along(top_words_list)) {
     tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
     tmp2 <- tmp2[tmp2 %notin% tmp]
     tmp <- c(tmp, tmp2[1:add])
+    if (any(is.na(tmp))) {
+      tmp <- tmp[-which(is.na(tmp))]
+    }
     tmp <- paste(paste0(tmp, " "), collapse = "")
     tmp <- substr(tmp, 1, nchar(tmp) - 1)
   } else {
@@ -828,6 +907,7 @@ FeaturePlot(
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
 module_names <- modules
 gene_sets_sub_ids <- gene_sets[names(gene_sets) %in% rownames(markers)]
+gene_sets_sub_ids <- gene_sets_sub_ids[match(rownames(markers), names(gene_sets_sub_ids)), ]
 
 for (j in seq(length(gene_sets_sub_ids@.Data))) {
   suppressWarnings(gene_sets_sub_ids[[j]]@setName <- gene_sets_sub_ids[[j]]@shortDescription)
@@ -844,16 +924,26 @@ top_words <- c()
 
 for (i in seq_along(top_words_list)) {
   top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
-  top_words_list[[i]] <- vector("list", length = nrow(top_words_tmp_sub))
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
   for (j in seq_along(top_words_list[[i]])) {
     top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
   }
-  tmp <- table(strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]])
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  tmp <- table(tmp)
   for (j in seq_along(tmp)) {
     total <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
     tmp[j] <- sum(markers$total[total])
   }
-  tmp <- names(tmp[order(tmp, decreasing = TRUE)])
+  tmp <- tmp[order(tmp, decreasing = TRUE)]
+  dup <- which(duplicated(tmp))
+  if (length(dup) > 0) {
+    tmp <- tmp[-dup]
+  }
+  tmp <- names(tmp)
   if (length(tmp) >= 10) {
     tmp <- tmp[1:10]
     tmp <- paste(paste0(tmp, "\n"), collapse = "")
@@ -863,6 +953,9 @@ for (i in seq_along(top_words_list)) {
     tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
     tmp2 <- tmp2[tmp2 %notin% tmp]
     tmp <- c(tmp, tmp2[1:add])
+    if (any(is.na(tmp))) {
+      tmp <- tmp[-which(is.na(tmp))]
+    }
     tmp <- paste(paste0(tmp, "\n"), collapse = "")
     tmp <- substr(tmp, 1, nchar(tmp) - 1)
   } else {
@@ -944,6 +1037,7 @@ markers$number <- seq(rownames(markers))
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
 module_names <- modules
 gene_sets_sub_ids <- gene_sets[names(gene_sets) %in% rownames(markers)]
+gene_sets_sub_ids <- gene_sets_sub_ids[match(rownames(markers), names(gene_sets_sub_ids)), ]
 
 for (j in seq(length(gene_sets_sub_ids@.Data))) {
   suppressWarnings(gene_sets_sub_ids[[j]]@setName <- gene_sets_sub_ids[[j]]@shortDescription)
@@ -960,13 +1054,26 @@ top_words <- c()
 
 for (i in seq_along(top_words_list)) {
   top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
-  top_words_list[[i]] <- vector("list", length = nrow(top_words_tmp_sub))
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
   for (j in seq_along(top_words_list[[i]])) {
     top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
   }
-  tmp <- table(strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]])
-  tmp <- tmp[tmp > 1]
-  tmp <- names(tmp[order(tmp, decreasing = TRUE)])
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  tmp <- table(tmp)
+  for (j in seq_along(tmp)) {
+    log2FC <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
+    tmp[j] <- sum(markers$avg_log2FC[log2FC])
+  }
+  tmp <- tmp[order(tmp, decreasing = TRUE)]
+  dup <- which(duplicated(tmp))
+  if (length(dup) > 0) {
+    tmp <- tmp[-dup]
+  }
+  tmp <- names(tmp)
   if (length(tmp) >= 3) {
     tmp <- tmp[1:3]
     tmp <- paste(paste0(tmp, " "), collapse = "")
@@ -976,6 +1083,9 @@ for (i in seq_along(top_words_list)) {
     tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
     tmp2 <- tmp2[tmp2 %notin% tmp]
     tmp <- c(tmp, tmp2[1:add])
+    if (any(is.na(tmp))) {
+      tmp <- tmp[-which(is.na(tmp))]
+    }
     tmp <- paste(paste0(tmp, " "), collapse = "")
     tmp <- substr(tmp, 1, nchar(tmp) - 1)
   } else {
@@ -1069,6 +1179,7 @@ markers$number <- seq(rownames(markers))
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
 module_names <- modules
 gene_sets_sub_ids <- gene_sets[names(gene_sets) %in% rownames(markers)]
+gene_sets_sub_ids <- gene_sets_sub_ids[match(rownames(markers), names(gene_sets_sub_ids)), ]
 
 for (j in seq(length(gene_sets_sub_ids@.Data))) {
   suppressWarnings(gene_sets_sub_ids[[j]]@setName <- gene_sets_sub_ids[[j]]@shortDescription)
@@ -1085,13 +1196,26 @@ top_words <- c()
 
 for (i in seq_along(top_words_list)) {
   top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
-  top_words_list[[i]] <- vector("list", length = nrow(top_words_tmp_sub))
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
   for (j in seq_along(top_words_list[[i]])) {
     top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
   }
-  tmp <- table(strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]])
-  tmp <- tmp[tmp > 1]
-  tmp <- names(tmp[order(tmp, decreasing = TRUE)])
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  tmp <- table(tmp)
+  for (j in seq_along(tmp)) {
+    log2FC <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
+    tmp[j] <- sum(markers$avg_log2FC[log2FC])
+  }
+  tmp <- tmp[order(tmp, decreasing = TRUE)]
+  dup <- which(duplicated(tmp))
+  if (length(dup) > 0) {
+    tmp <- tmp[-dup]
+  }
+  tmp <- names(tmp)
   if (length(tmp) >= 3) {
     tmp <- tmp[1:3]
     tmp <- paste(paste0(tmp, " "), collapse = "")
@@ -1101,6 +1225,9 @@ for (i in seq_along(top_words_list)) {
     tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
     tmp2 <- tmp2[tmp2 %notin% tmp]
     tmp <- c(tmp, tmp2[1:add])
+    if (any(is.na(tmp))) {
+      tmp <- tmp[-which(is.na(tmp))]
+    }
     tmp <- paste(paste0(tmp, " "), collapse = "")
     tmp <- substr(tmp, 1, nchar(tmp) - 1)
   } else {
@@ -1194,6 +1321,7 @@ markers$number <- seq(rownames(markers))
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
 module_names <- modules
 gene_sets_sub_ids <- gene_sets[names(gene_sets) %in% rownames(markers)]
+gene_sets_sub_ids <- gene_sets_sub_ids[match(rownames(markers), names(gene_sets_sub_ids)), ]
 
 for (j in seq(length(gene_sets_sub_ids@.Data))) {
   suppressWarnings(gene_sets_sub_ids[[j]]@setName <- gene_sets_sub_ids[[j]]@shortDescription)
@@ -1210,13 +1338,26 @@ top_words <- c()
 
 for (i in seq_along(top_words_list)) {
   top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
-  top_words_list[[i]] <- vector("list", length = nrow(top_words_tmp_sub))
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
   for (j in seq_along(top_words_list[[i]])) {
     top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
   }
-  tmp <- table(strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]])
-  tmp <- tmp[tmp > 1]
-  tmp <- names(tmp[order(tmp, decreasing = TRUE)])
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  tmp <- table(tmp)
+  for (j in seq_along(tmp)) {
+    log2FC <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
+    tmp[j] <- sum(markers$avg_log2FC[log2FC])
+  }
+  tmp <- tmp[order(tmp, decreasing = TRUE)]
+  dup <- which(duplicated(tmp))
+  if (length(dup) > 0) {
+    tmp <- tmp[-dup]
+  }
+  tmp <- names(tmp)
   if (length(tmp) >= 3) {
     tmp <- tmp[1:3]
     tmp <- paste(paste0(tmp, " "), collapse = "")
@@ -1226,6 +1367,9 @@ for (i in seq_along(top_words_list)) {
     tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
     tmp2 <- tmp2[tmp2 %notin% tmp]
     tmp <- c(tmp, tmp2[1:add])
+    if (any(is.na(tmp))) {
+      tmp <- tmp[-which(is.na(tmp))]
+    }
     tmp <- paste(paste0(tmp, " "), collapse = "")
     tmp <- substr(tmp, 1, nchar(tmp) - 1)
   } else {
@@ -1315,6 +1459,7 @@ FeaturePlot(
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
 module_names <- modules
 gene_sets_sub_ids <- gene_sets[names(gene_sets) %in% rownames(markers)]
+gene_sets_sub_ids <- gene_sets_sub_ids[match(rownames(markers), names(gene_sets_sub_ids)), ]
 
 for (j in seq(length(gene_sets_sub_ids@.Data))) {
   suppressWarnings(gene_sets_sub_ids[[j]]@setName <- gene_sets_sub_ids[[j]]@shortDescription)
@@ -1331,16 +1476,26 @@ top_words <- c()
 
 for (i in seq_along(top_words_list)) {
   top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
-  top_words_list[[i]] <- vector("list", length = nrow(top_words_tmp_sub))
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
   for (j in seq_along(top_words_list[[i]])) {
     top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
   }
-  tmp <- table(strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]])
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  tmp <- table(tmp)
   for (j in seq_along(tmp)) {
     total <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
     tmp[j] <- sum(markers$total[total])
   }
-  tmp <- names(tmp[order(tmp, decreasing = TRUE)])
+  tmp <- tmp[order(tmp, decreasing = TRUE)]
+  dup <- which(duplicated(tmp))
+  if (length(dup) > 0) {
+    tmp <- tmp[-dup]
+  }
+  tmp <- names(tmp)
   if (length(tmp) >= 10) {
     tmp <- tmp[1:10]
     tmp <- paste(paste0(tmp, "\n"), collapse = "")
@@ -1350,6 +1505,9 @@ for (i in seq_along(top_words_list)) {
     tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
     tmp2 <- tmp2[tmp2 %notin% tmp]
     tmp <- c(tmp, tmp2[1:add])
+    if (any(is.na(tmp))) {
+      tmp <- tmp[-which(is.na(tmp))]
+    }
     tmp <- paste(paste0(tmp, "\n"), collapse = "")
     tmp <- substr(tmp, 1, nchar(tmp) - 1)
   } else {
@@ -1431,6 +1589,7 @@ markers$number <- seq(rownames(markers))
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
 module_names <- modules
 gene_sets_sub_ids <- gene_sets[names(gene_sets) %in% rownames(markers)]
+gene_sets_sub_ids <- gene_sets_sub_ids[match(rownames(markers), names(gene_sets_sub_ids)), ]
 
 for (j in seq(length(gene_sets_sub_ids@.Data))) {
   suppressWarnings(gene_sets_sub_ids[[j]]@setName <- gene_sets_sub_ids[[j]]@shortDescription)
@@ -1447,13 +1606,26 @@ top_words <- c()
 
 for (i in seq_along(top_words_list)) {
   top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
-  top_words_list[[i]] <- vector("list", length = nrow(top_words_tmp_sub))
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
   for (j in seq_along(top_words_list[[i]])) {
     top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
   }
-  tmp <- table(strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]])
-  tmp <- tmp[tmp > 1]
-  tmp <- names(tmp[order(tmp, decreasing = TRUE)])
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  tmp <- table(tmp)
+  for (j in seq_along(tmp)) {
+    log2FC <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
+    tmp[j] <- sum(markers$avg_log2FC[log2FC])
+  }
+  tmp <- tmp[order(tmp, decreasing = TRUE)]
+  dup <- which(duplicated(tmp))
+  if (length(dup) > 0) {
+    tmp <- tmp[-dup]
+  }
+  tmp <- names(tmp)
   if (length(tmp) >= 3) {
     tmp <- tmp[1:3]
     tmp <- paste(paste0(tmp, " "), collapse = "")
@@ -1463,6 +1635,9 @@ for (i in seq_along(top_words_list)) {
     tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
     tmp2 <- tmp2[tmp2 %notin% tmp]
     tmp <- c(tmp, tmp2[1:add])
+    if (any(is.na(tmp))) {
+      tmp <- tmp[-which(is.na(tmp))]
+    }
     tmp <- paste(paste0(tmp, " "), collapse = "")
     tmp <- substr(tmp, 1, nchar(tmp) - 1)
   } else {
@@ -1552,6 +1727,7 @@ FeaturePlot(
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
 module_names <- modules
 gene_sets_sub_ids <- gene_sets[names(gene_sets) %in% rownames(markers)]
+gene_sets_sub_ids <- gene_sets_sub_ids[match(rownames(markers), names(gene_sets_sub_ids)), ]
 
 for (j in seq(length(gene_sets_sub_ids@.Data))) {
   suppressWarnings(gene_sets_sub_ids[[j]]@setName <- gene_sets_sub_ids[[j]]@shortDescription)
@@ -1568,16 +1744,26 @@ top_words <- c()
 
 for (i in seq_along(top_words_list)) {
   top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
-  top_words_list[[i]] <- vector("list", length = nrow(top_words_tmp_sub))
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
   for (j in seq_along(top_words_list[[i]])) {
     top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
   }
-  tmp <- table(strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]])
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  tmp <- table(tmp)
   for (j in seq_along(tmp)) {
     total <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
     tmp[j] <- sum(markers$total[total])
   }
-  tmp <- names(tmp[order(tmp, decreasing = TRUE)])
+  tmp <- tmp[order(tmp, decreasing = TRUE)]
+  dup <- which(duplicated(tmp))
+  if (length(dup) > 0) {
+    tmp <- tmp[-dup]
+  }
+  tmp <- names(tmp)
   if (length(tmp) >= 10) {
     tmp <- tmp[1:10]
     tmp <- paste(paste0(tmp, "\n"), collapse = "")
@@ -1587,6 +1773,9 @@ for (i in seq_along(top_words_list)) {
     tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
     tmp2 <- tmp2[tmp2 %notin% tmp]
     tmp <- c(tmp, tmp2[1:add])
+    if (any(is.na(tmp))) {
+      tmp <- tmp[-which(is.na(tmp))]
+    }
     tmp <- paste(paste0(tmp, "\n"), collapse = "")
     tmp <- substr(tmp, 1, nchar(tmp) - 1)
   } else {
@@ -1668,6 +1857,7 @@ markers$number <- seq(rownames(markers))
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
 module_names <- modules
 gene_sets_sub_ids <- gene_sets[names(gene_sets) %in% rownames(markers)]
+gene_sets_sub_ids <- gene_sets_sub_ids[match(rownames(markers), names(gene_sets_sub_ids)), ]
 
 for (j in seq(length(gene_sets_sub_ids@.Data))) {
   suppressWarnings(gene_sets_sub_ids[[j]]@setName <- gene_sets_sub_ids[[j]]@shortDescription)
@@ -1684,13 +1874,26 @@ top_words <- c()
 
 for (i in seq_along(top_words_list)) {
   top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
-  top_words_list[[i]] <- vector("list", length = nrow(top_words_tmp_sub))
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
   for (j in seq_along(top_words_list[[i]])) {
     top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
   }
-  tmp <- table(strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]])
-  tmp <- tmp[tmp > 1]
-  tmp <- names(tmp[order(tmp, decreasing = TRUE)])
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  tmp <- table(tmp)
+  for (j in seq_along(tmp)) {
+    log2FC <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
+    tmp[j] <- sum(markers$avg_log2FC[log2FC])
+  }
+  tmp <- tmp[order(tmp, decreasing = TRUE)]
+  dup <- which(duplicated(tmp))
+  if (length(dup) > 0) {
+    tmp <- tmp[-dup]
+  }
+  tmp <- names(tmp)
   if (length(tmp) >= 3) {
     tmp <- tmp[1:3]
     tmp <- paste(paste0(tmp, " "), collapse = "")
@@ -1700,6 +1903,9 @@ for (i in seq_along(top_words_list)) {
     tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
     tmp2 <- tmp2[tmp2 %notin% tmp]
     tmp <- c(tmp, tmp2[1:add])
+    if (any(is.na(tmp))) {
+      tmp <- tmp[-which(is.na(tmp))]
+    }
     tmp <- paste(paste0(tmp, " "), collapse = "")
     tmp <- substr(tmp, 1, nchar(tmp) - 1)
   } else {
@@ -1787,6 +1993,7 @@ FeaturePlot(
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
 module_names <- modules
 gene_sets_sub_ids <- gene_sets[names(gene_sets) %in% rownames(markers)]
+gene_sets_sub_ids <- gene_sets_sub_ids[match(rownames(markers), names(gene_sets_sub_ids)), ]
 
 for (j in seq(length(gene_sets_sub_ids@.Data))) {
   suppressWarnings(gene_sets_sub_ids[[j]]@setName <- gene_sets_sub_ids[[j]]@shortDescription)
@@ -1803,16 +2010,26 @@ top_words <- c()
 
 for (i in seq_along(top_words_list)) {
   top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
-  top_words_list[[i]] <- vector("list", length = nrow(top_words_tmp_sub))
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
   for (j in seq_along(top_words_list[[i]])) {
     top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
   }
-  tmp <- table(strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]])
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  tmp <- table(tmp)
   for (j in seq_along(tmp)) {
     total <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
     tmp[j] <- sum(markers$total[total])
   }
-  tmp <- names(tmp[order(tmp, decreasing = TRUE)])
+  tmp <- tmp[order(tmp, decreasing = TRUE)]
+  dup <- which(duplicated(tmp))
+  if (length(dup) > 0) {
+    tmp <- tmp[-dup]
+  }
+  tmp <- names(tmp)
   if (length(tmp) >= 10) {
     tmp <- tmp[1:10]
     tmp <- paste(paste0(tmp, "\n"), collapse = "")
@@ -1822,6 +2039,9 @@ for (i in seq_along(top_words_list)) {
     tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
     tmp2 <- tmp2[tmp2 %notin% tmp]
     tmp <- c(tmp, tmp2[1:add])
+    if (any(is.na(tmp))) {
+      tmp <- tmp[-which(is.na(tmp))]
+    }
     tmp <- paste(paste0(tmp, "\n"), collapse = "")
     tmp <- substr(tmp, 1, nchar(tmp) - 1)
   } else {
@@ -1903,6 +2123,7 @@ markers$number <- seq(rownames(markers))
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
 module_names <- modules
 gene_sets_sub_ids <- gene_sets[names(gene_sets) %in% rownames(markers)]
+gene_sets_sub_ids <- gene_sets_sub_ids[match(rownames(markers), names(gene_sets_sub_ids)), ]
 
 for (j in seq(length(gene_sets_sub_ids@.Data))) {
   suppressWarnings(gene_sets_sub_ids[[j]]@setName <- gene_sets_sub_ids[[j]]@shortDescription)
@@ -1919,13 +2140,26 @@ top_words <- c()
 
 for (i in seq_along(top_words_list)) {
   top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
-  top_words_list[[i]] <- vector("list", length = nrow(top_words_tmp_sub))
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
   for (j in seq_along(top_words_list[[i]])) {
     top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
   }
-  tmp <- table(strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]])
-  tmp <- tmp[tmp > 1]
-  tmp <- names(tmp[order(tmp, decreasing = TRUE)])
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  tmp <- table(tmp)
+  for (j in seq_along(tmp)) {
+    log2FC <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
+    tmp[j] <- sum(markers$avg_log2FC[log2FC])
+  }
+  tmp <- tmp[order(tmp, decreasing = TRUE)]
+  dup <- which(duplicated(tmp))
+  if (length(dup) > 0) {
+    tmp <- tmp[-dup]
+  }
+  tmp <- names(tmp)
   if (length(tmp) >= 3) {
     tmp <- tmp[1:3]
     tmp <- paste(paste0(tmp, " "), collapse = "")
@@ -1935,6 +2169,9 @@ for (i in seq_along(top_words_list)) {
     tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
     tmp2 <- tmp2[tmp2 %notin% tmp]
     tmp <- c(tmp, tmp2[1:add])
+    if (any(is.na(tmp))) {
+      tmp <- tmp[-which(is.na(tmp))]
+    }
     tmp <- paste(paste0(tmp, " "), collapse = "")
     tmp <- substr(tmp, 1, nchar(tmp) - 1)
   } else {
@@ -2024,6 +2261,7 @@ FeaturePlot(
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
 module_names <- modules
 gene_sets_sub_ids <- gene_sets[names(gene_sets) %in% rownames(markers)]
+gene_sets_sub_ids <- gene_sets_sub_ids[match(rownames(markers), names(gene_sets_sub_ids)), ]
 
 for (j in seq(length(gene_sets_sub_ids@.Data))) {
   suppressWarnings(gene_sets_sub_ids[[j]]@setName <- gene_sets_sub_ids[[j]]@shortDescription)
@@ -2040,16 +2278,26 @@ top_words <- c()
 
 for (i in seq_along(top_words_list)) {
   top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
-  top_words_list[[i]] <- vector("list", length = nrow(top_words_tmp_sub))
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
   for (j in seq_along(top_words_list[[i]])) {
     top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
   }
-  tmp <- table(strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]])
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  tmp <- table(tmp)
   for (j in seq_along(tmp)) {
     total <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
     tmp[j] <- sum(markers$total[total])
   }
-  tmp <- names(tmp[order(tmp, decreasing = TRUE)])
+  tmp <- tmp[order(tmp, decreasing = TRUE)]
+  dup <- which(duplicated(tmp))
+  if (length(dup) > 0) {
+    tmp <- tmp[-dup]
+  }
+  tmp <- names(tmp)
   if (length(tmp) >= 10) {
     tmp <- tmp[1:10]
     tmp <- paste(paste0(tmp, "\n"), collapse = "")
@@ -2059,6 +2307,9 @@ for (i in seq_along(top_words_list)) {
     tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
     tmp2 <- tmp2[tmp2 %notin% tmp]
     tmp <- c(tmp, tmp2[1:add])
+    if (any(is.na(tmp))) {
+      tmp <- tmp[-which(is.na(tmp))]
+    }
     tmp <- paste(paste0(tmp, "\n"), collapse = "")
     tmp <- substr(tmp, 1, nchar(tmp) - 1)
   } else {
