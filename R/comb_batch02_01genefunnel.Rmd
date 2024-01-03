@@ -2362,6 +2362,442 @@ draw(
 )
 ```
 
+# DGE
+
+```{r}
+DefaultAssay(seurat) <- "SCT"
+```
+
+## All Cell-types
+
+```{r}
+sce <- as.SingleCellExperiment(seurat, assay = "SCT")
+sce <- suppressWarnings(
+  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
+)
+dge <- DGEList(counts(sce))
+dge <- calcNormFactors(dge)
+logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
+
+rds <- file.path(cache_dir, "markers_sct_all.rds")
+if (file.exists(rds)) {
+  markers <- readRDS(rds)
+} else {
+  markers <- FindAllMarkers(seurat, only.pos = TRUE)
+  saveRDS(markers, rds)
+}
+
+markers <- markers[markers$p_val_adj < 0.05, ]
+markers <- markers %>% distinct(gene, .keep_all = TRUE)
+markers <- markers %>% group_by(cluster) %>% slice_head(n = 3)
+
+mat <- logcounts(sce)
+mat <- mat[rownames(mat) %in% markers$gene, ]
+mat <- mat[match(markers$gene, rownames(mat)), ]
+
+set.seed(1)
+draw(
+  Heatmap(
+    t(
+      apply(
+        mat, 1,
+        function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1)
+      )
+    ),
+    colour,
+    cluster_rows = FALSE,
+    cluster_columns = FALSE,
+    row_split = rep(seq(6), each = 3),
+    rect_gp = gpar(col = "lightgray", lwd = 0.1),
+    row_gap = unit(2, "mm"),
+    column_gap = unit(2, "mm"),
+    column_names_side = "top",
+    row_title_rot = 0,
+    column_names_rot = 45,
+    heatmap_legend_param = list(title = "Scaled Normalised Counts", title_position = "lefttop-rot")
+  ),
+  column_title = "All Cell-types"
+)
+```
+
+## Astrocyte
+
+```{r}
+seurat_sub <- seurat[ , which(seurat$annotations_short == "Astrocyte")]
+
+sce <- as.SingleCellExperiment(seurat_sub, assay = "SCT")
+sce <- suppressWarnings(
+  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
+)
+dge <- DGEList(counts(sce))
+dge <- calcNormFactors(dge)
+logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
+
+rds <- file.path(cache_dir, "markers_sct_astro.rds")
+if (file.exists(rds)) {
+  markers <- readRDS(rds)
+} else {
+  markers <- FindAllMarkers(seurat_sub, only.pos = TRUE)
+  saveRDS(markers, rds)
+}
+
+markers <- markers[markers$p_val_adj < 0.05, ]
+markers <- markers %>% distinct(gene, .keep_all = TRUE)
+markers <- markers %>% group_by(cluster) %>% slice_head(n = 3)
+
+mat <- logcounts(sce)
+mat <- mat[rownames(mat) %in% markers$gene, ]
+mat <- mat[match(markers$gene, rownames(mat)), ]
+
+set.seed(1)
+draw(
+  Heatmap(
+    t(
+      apply(
+        mat, 1,
+        function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1)
+      )
+    ),
+    colour,
+    cluster_rows = FALSE,
+    cluster_columns = FALSE,
+    row_split = rep(seq(6), each = 3),
+    rect_gp = gpar(col = "lightgray", lwd = 0.1),
+    row_gap = unit(2, "mm"),
+    column_gap = unit(2, "mm"),
+    column_names_side = "top",
+    row_title_rot = 0,
+    column_names_rot = 45,
+    heatmap_legend_param = list(title = "Scaled Normalised Counts", title_position = "lefttop-rot")
+  ),
+  column_title = "Astrocyte"
+)
+```
+
+## Cortical Glutamatergic
+
+```{r}
+seurat_sub <- seurat[ , which(seurat$annotations_short == "Cortical Glutamatergic")]
+
+sce <- as.SingleCellExperiment(seurat_sub, assay = "SCT")
+sce <- suppressWarnings(
+  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
+)
+dge <- DGEList(counts(sce))
+dge <- calcNormFactors(dge)
+logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
+
+rds <- file.path(cache_dir, "markers_sct_glut.rds")
+if (file.exists(rds)) {
+  markers <- readRDS(rds)
+} else {
+  markers <- FindAllMarkers(seurat_sub, only.pos = TRUE)
+  saveRDS(markers, rds)
+}
+
+markers <- markers[markers$p_val_adj < 0.05, ]
+markers <- markers %>% distinct(gene, .keep_all = TRUE)
+markers <- markers %>% group_by(cluster) %>% slice_head(n = 3)
+
+mat <- logcounts(sce)
+mat <- mat[rownames(mat) %in% markers$gene, ]
+mat <- mat[match(markers$gene, rownames(mat)), ]
+
+set.seed(1)
+draw(
+  Heatmap(
+    t(
+      apply(
+        mat, 1,
+        function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1)
+      )
+    ),
+    colour,
+    cluster_rows = FALSE,
+    cluster_columns = FALSE,
+    row_split = rep(seq(6), each = 3),
+    rect_gp = gpar(col = "lightgray", lwd = 0.1),
+    row_gap = unit(2, "mm"),
+    column_gap = unit(2, "mm"),
+    column_names_side = "top",
+    row_title_rot = 0,
+    column_names_rot = 45,
+    heatmap_legend_param = list(title = "Scaled Normalised Counts", title_position = "lefttop-rot")
+  ),
+  column_title = "Cortical Glutamatergic"
+)
+```
+
+## Dentate Gyrus Glutamatergic
+
+```{r}
+seurat_sub <- seurat[ , which(seurat$annotations_short == "Dentate Gyrus Glutamatergic")]
+
+sce <- as.SingleCellExperiment(seurat_sub, assay = "SCT")
+sce <- suppressWarnings(
+  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
+)
+dge <- DGEList(counts(sce))
+dge <- calcNormFactors(dge)
+logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
+
+rds <- file.path(cache_dir, "markers_sct_dg.rds")
+if (file.exists(rds)) {
+  markers <- readRDS(rds)
+} else {
+  markers <- FindAllMarkers(seurat_sub, only.pos = TRUE)
+  saveRDS(markers, rds)
+}
+
+markers <- markers[markers$p_val_adj < 0.05, ]
+markers <- markers %>% distinct(gene, .keep_all = TRUE)
+markers <- markers %>% group_by(cluster) %>% slice_head(n = 3)
+
+mat <- logcounts(sce)
+mat <- mat[rownames(mat) %in% markers$gene, ]
+mat <- mat[match(markers$gene, rownames(mat)), ]
+
+set.seed(1)
+draw(
+  Heatmap(
+    t(
+      apply(
+        mat, 1,
+        function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1)
+      )
+    ),
+    colour,
+    cluster_rows = FALSE,
+    cluster_columns = FALSE,
+    row_split = rep(seq(3), each = 3),
+    rect_gp = gpar(col = "lightgray", lwd = 0.1),
+    row_gap = unit(2, "mm"),
+    column_gap = unit(2, "mm"),
+    column_names_side = "top",
+    row_title_rot = 0,
+    column_names_rot = 45,
+    heatmap_legend_param = list(title = "Scaled Normalised Counts", title_position = "lefttop-rot")
+  ),
+  column_title = "Dentate Gyrus Glutamatergic"
+)
+```
+
+## GABAergic
+
+```{r}
+seurat_sub <- seurat[ , which(seurat$annotations_short == "GABAergic")]
+
+sce <- as.SingleCellExperiment(seurat_sub, assay = "SCT")
+sce <- suppressWarnings(
+  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
+)
+dge <- DGEList(counts(sce))
+dge <- calcNormFactors(dge)
+logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
+
+rds <- file.path(cache_dir, "markers_sct_gaba.rds")
+if (file.exists(rds)) {
+  markers <- readRDS(rds)
+} else {
+  markers <- FindAllMarkers(seurat_sub, only.pos = TRUE)
+  saveRDS(markers, rds)
+}
+
+markers <- markers[markers$p_val_adj < 0.05, ]
+markers <- markers %>% distinct(gene, .keep_all = TRUE)
+markers <- markers %>% group_by(cluster) %>% slice_head(n = 3)
+
+mat <- logcounts(sce)
+mat <- mat[rownames(mat) %in% markers$gene, ]
+mat <- mat[match(markers$gene, rownames(mat)), ]
+
+set.seed(1)
+draw(
+  Heatmap(
+    t(
+      apply(
+        mat, 1,
+        function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1)
+      )
+    ),
+    colour,
+    cluster_rows = FALSE,
+    cluster_columns = FALSE,
+    row_split = rep(seq(6), each = 3),
+    rect_gp = gpar(col = "lightgray", lwd = 0.1),
+    row_gap = unit(2, "mm"),
+    column_gap = unit(2, "mm"),
+    column_names_side = "top",
+    row_title_rot = 0,
+    column_names_rot = 45,
+    heatmap_legend_param = list(title = "Scaled Normalised Counts", title_position = "lefttop-rot")
+  ),
+  column_title = "GABAergic"
+)
+```
+
+## Hippocampal Glutamatergic
+
+```{r}
+seurat_sub <- seurat[ , which(seurat$annotations_short == "Hippocampal Glutamatergic")]
+
+sce <- as.SingleCellExperiment(seurat_sub, assay = "SCT")
+sce <- suppressWarnings(
+  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
+)
+dge <- DGEList(counts(sce))
+dge <- calcNormFactors(dge)
+logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
+
+rds <- file.path(cache_dir, "markers_sct_hip.rds")
+if (file.exists(rds)) {
+  markers <- readRDS(rds)
+} else {
+  markers <- FindAllMarkers(seurat_sub, only.pos = TRUE)
+  saveRDS(markers, rds)
+}
+
+markers <- markers[markers$p_val_adj < 0.05, ]
+markers <- markers %>% distinct(gene, .keep_all = TRUE)
+markers <- markers %>% group_by(cluster) %>% slice_head(n = 3)
+
+mat <- logcounts(sce)
+mat <- mat[rownames(mat) %in% markers$gene, ]
+mat <- mat[match(markers$gene, rownames(mat)), ]
+
+set.seed(1)
+draw(
+  Heatmap(
+    t(
+      apply(
+        mat, 1,
+        function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1)
+      )
+    ),
+    colour,
+    cluster_rows = FALSE,
+    cluster_columns = FALSE,
+    row_split = rep(seq(6), each = 3),
+    rect_gp = gpar(col = "lightgray", lwd = 0.1),
+    row_gap = unit(2, "mm"),
+    column_gap = unit(2, "mm"),
+    column_names_side = "top",
+    row_title_rot = 0,
+    column_names_rot = 45,
+    heatmap_legend_param = list(title = "Scaled Normalised Counts", title_position = "lefttop-rot")
+  ),
+  column_title = "Hippocampal Glutamatergic"
+)
+```
+
+## Microglia
+
+```{r}
+seurat_sub <- seurat[ , which(seurat$annotations_short == "Microglia")]
+
+sce <- as.SingleCellExperiment(seurat_sub, assay = "SCT")
+sce <- suppressWarnings(
+  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
+)
+dge <- DGEList(counts(sce))
+dge <- calcNormFactors(dge)
+logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
+
+rds <- file.path(cache_dir, "markers_sct_micro.rds")
+if (file.exists(rds)) {
+  markers <- readRDS(rds)
+} else {
+  markers <- FindAllMarkers(seurat_sub, only.pos = TRUE)
+  saveRDS(markers, rds)
+}
+
+markers <- markers[markers$p_val_adj < 0.05, ]
+markers <- markers %>% distinct(gene, .keep_all = TRUE)
+markers <- markers %>% group_by(cluster) %>% slice_head(n = 3)
+
+mat <- logcounts(sce)
+mat <- mat[rownames(mat) %in% markers$gene, ]
+mat <- mat[match(markers$gene, rownames(mat)), ]
+
+set.seed(1)
+draw(
+  Heatmap(
+    t(
+      apply(
+        mat, 1,
+        function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1)
+      )
+    ),
+    colour,
+    cluster_rows = FALSE,
+    cluster_columns = FALSE,
+    row_split = rep(seq(6), each = 3),
+    rect_gp = gpar(col = "lightgray", lwd = 0.1),
+    row_gap = unit(2, "mm"),
+    column_gap = unit(2, "mm"),
+    column_names_side = "top",
+    row_title_rot = 0,
+    column_names_rot = 45,
+    heatmap_legend_param = list(title = "Scaled Normalised Counts", title_position = "lefttop-rot")
+  ),
+  column_title = "Microglia"
+)
+```
+
+## Oligodendrocyte
+
+```{r}
+seurat_sub <- seurat[ , which(seurat$annotations_short == "Oligodendrocyte")]
+
+sce <- as.SingleCellExperiment(seurat_sub, assay = "SCT")
+sce <- suppressWarnings(
+  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
+)
+dge <- DGEList(counts(sce))
+dge <- calcNormFactors(dge)
+logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
+
+rds <- file.path(cache_dir, "markers_sct_oligo.rds")
+if (file.exists(rds)) {
+  markers <- readRDS(rds)
+} else {
+  markers <- FindAllMarkers(seurat_sub, only.pos = TRUE)
+  saveRDS(markers, rds)
+}
+
+markers <- markers[markers$p_val_adj < 0.05, ]
+markers <- markers %>% distinct(gene, .keep_all = TRUE)
+markers <- markers %>% group_by(cluster) %>% slice_head(n = 3)
+
+mat <- logcounts(sce)
+mat <- mat[rownames(mat) %in% markers$gene, ]
+mat <- mat[match(markers$gene, rownames(mat)), ]
+
+set.seed(1)
+draw(
+  Heatmap(
+    t(
+      apply(
+        mat, 1,
+        function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1)
+      )
+    ),
+    colour,
+    cluster_rows = FALSE,
+    cluster_columns = FALSE,
+    row_split = rep(seq(6), each = 3),
+    rect_gp = gpar(col = "lightgray", lwd = 0.1),
+    row_gap = unit(2, "mm"),
+    column_gap = unit(2, "mm"),
+    column_names_side = "top",
+    row_title_rot = 0,
+    column_names_rot = 45,
+    heatmap_legend_param = list(title = "Scaled Normalised Counts", title_position = "lefttop-rot")
+  ),
+  column_title = "Oligodendrocyte"
+)
+```
+
 # References
 
 This is the concluding section of the document. Here we output the `sessionInfo` and create a bibliography for works cited.
