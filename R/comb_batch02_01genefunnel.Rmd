@@ -63,10 +63,10 @@ The toggle at the start of the document controls the visibility of all chunks.
 # Load required packages, suppressing startup messages.
 # -----------------------------------------------------
 library(conflicted)
-conflicts_prefer(AnnotationDbi::select, edgeR::cpm, .quiet = TRUE)
+conflicts_prefer(AnnotationDbi::select, edgeR::cpm, DT::JS, .quiet = TRUE)
 packages <- c(
   "GSEABase", "Seurat", "ggplot2", "dplyr", "ggrepel", "scuttle", "GO.db", "tm", "pals", "ComplexHeatmap",
-  "RColorBrewer", "edgeR"
+  "RColorBrewer", "edgeR", "DT"
 )
 invisible(suppressPackageStartupMessages(lapply(packages, FUN = library, character.only = TRUE)))
 # -----------------------------------------------------
@@ -235,6 +235,7 @@ if (file.exists(rds)) {
 markers <- markers[markers$p_val_adj < 0.05, ]
 markers <- markers %>% distinct(gene, .keep_all = TRUE)
 rownames(markers) <- markers$gene
+datatable_download_exp(markers)
 markers$number <- seq(rownames(markers))
 
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
@@ -358,6 +359,7 @@ markers <- abs(markers)
 markers$total <- rowSums(markers)
 markers <- markers[order(markers$total, decreasing = TRUE), ]
 markers$gene <- rownames(markers)
+datatable_download(markers)
 markers$cluster <- rep("0", times = nrow(markers))
 markers$number <- seq(rownames(markers))
 ```
@@ -498,6 +500,7 @@ if (file.exists(rds)) {
 markers <- markers[markers$p_val_adj < 0.05, ]
 markers <- markers %>% distinct(gene, .keep_all = TRUE)
 rownames(markers) <- markers$gene
+datatable_download_exp(markers)
 markers$number <- seq(rownames(markers))
 
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
@@ -626,6 +629,7 @@ markers <- abs(markers)
 markers$total <- rowSums(markers)
 markers <- markers[order(markers$total, decreasing = TRUE), ]
 markers$gene <- rownames(markers)
+datatable_download(markers)
 markers$cluster <- rep("0", times = nrow(markers))
 markers$number <- seq(rownames(markers))
 ```
@@ -766,6 +770,7 @@ if (file.exists(rds)) {
 markers <- markers[markers$p_val_adj < 0.05, ]
 markers <- markers %>% distinct(gene, .keep_all = TRUE)
 rownames(markers) <- markers$gene
+datatable_download_exp(markers)
 markers$number <- seq(rownames(markers))
 
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
@@ -892,6 +897,7 @@ markers <- abs(markers)
 markers$total <- rowSums(markers)
 markers <- markers[order(markers$total, decreasing = TRUE), ]
 markers$gene <- rownames(markers)
+datatable_download(markers)
 markers$cluster <- rep("0", times = nrow(markers))
 markers$number <- seq(rownames(markers))
 ```
@@ -1032,6 +1038,7 @@ if (file.exists(rds)) {
 markers <- markers[markers$p_val_adj < 0.05, ]
 markers <- markers %>% distinct(gene, .keep_all = TRUE)
 rownames(markers) <- markers$gene
+datatable_download_exp(markers)
 markers$number <- seq(rownames(markers))
 
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
@@ -1174,6 +1181,7 @@ if (file.exists(rds)) {
 markers <- markers[markers$p_val_adj < 0.05, ]
 markers <- markers %>% distinct(gene, .keep_all = TRUE)
 rownames(markers) <- markers$gene
+datatable_download_exp(markers)
 markers$number <- seq(rownames(markers))
 
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
@@ -1316,6 +1324,7 @@ if (file.exists(rds)) {
 markers <- markers[markers$p_val_adj < 0.05, ]
 markers <- markers %>% distinct(gene, .keep_all = TRUE)
 rownames(markers) <- markers$gene
+datatable_download_exp(markers)
 markers$number <- seq(rownames(markers))
 
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
@@ -1444,6 +1453,7 @@ markers <- abs(markers)
 markers$total <- rowSums(markers)
 markers <- markers[order(markers$total, decreasing = TRUE), ]
 markers$gene <- rownames(markers)
+datatable_download(markers)
 markers$cluster <- rep("0", times = nrow(markers))
 markers$number <- seq(rownames(markers))
 ```
@@ -1584,6 +1594,7 @@ if (file.exists(rds)) {
 markers <- markers[markers$p_val_adj < 0.05, ]
 markers <- markers %>% distinct(gene, .keep_all = TRUE)
 rownames(markers) <- markers$gene
+datatable_download_exp(markers)
 markers$number <- seq(rownames(markers))
 
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
@@ -1712,6 +1723,7 @@ markers <- abs(markers)
 markers$total <- rowSums(markers)
 markers <- markers[order(markers$total, decreasing = TRUE), ]
 markers$gene <- rownames(markers)
+datatable_download(markers)
 markers$cluster <- rep("0", times = nrow(markers))
 markers$number <- seq(rownames(markers))
 ```
@@ -1852,6 +1864,7 @@ if (file.exists(rds)) {
 markers <- markers[markers$p_val_adj < 0.05, ]
 markers <- markers %>% distinct(gene, .keep_all = TRUE)
 rownames(markers) <- markers$gene
+datatable_download_exp(markers)
 markers$number <- seq(rownames(markers))
 
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
@@ -1978,6 +1991,7 @@ markers <- abs(markers)
 markers$total <- rowSums(markers)
 markers <- markers[order(markers$total, decreasing = TRUE), ]
 markers$gene <- rownames(markers)
+datatable_download(markers)
 markers$cluster <- rep("0", times = nrow(markers))
 markers$number <- seq(rownames(markers))
 ```
@@ -2118,6 +2132,7 @@ if (file.exists(rds)) {
 markers <- markers[markers$p_val_adj < 0.05, ]
 markers <- markers %>% distinct(gene, .keep_all = TRUE)
 rownames(markers) <- markers$gene
+datatable_download_exp(markers)
 markers$number <- seq(rownames(markers))
 
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
@@ -2246,6 +2261,7 @@ markers <- abs(markers)
 markers$total <- rowSums(markers)
 markers <- markers[order(markers$total, decreasing = TRUE), ]
 markers$gene <- rownames(markers)
+datatable_download(markers)
 markers$cluster <- rep("0", times = nrow(markers))
 markers$number <- seq(rownames(markers))
 ```
@@ -2389,6 +2405,8 @@ if (file.exists(rds)) {
 
 markers <- markers[markers$p_val_adj < 0.05, ]
 markers <- markers %>% distinct(gene, .keep_all = TRUE)
+rownames(markers) <- markers$gene
+datatable_download_exp(markers)
 markers <- markers %>% group_by(cluster) %>% slice_head(n = 3)
 
 mat <- logcounts(sce)
@@ -2443,6 +2461,8 @@ if (file.exists(rds)) {
 
 markers <- markers[markers$p_val_adj < 0.05, ]
 markers <- markers %>% distinct(gene, .keep_all = TRUE)
+rownames(markers) <- markers$gene
+datatable_download_exp(markers)
 markers <- markers %>% group_by(cluster) %>% slice_head(n = 3)
 
 mat <- logcounts(sce)
@@ -2497,6 +2517,8 @@ if (file.exists(rds)) {
 
 markers <- markers[markers$p_val_adj < 0.05, ]
 markers <- markers %>% distinct(gene, .keep_all = TRUE)
+rownames(markers) <- markers$gene
+datatable_download_exp(markers)
 markers <- markers %>% group_by(cluster) %>% slice_head(n = 3)
 
 mat <- logcounts(sce)
@@ -2551,6 +2573,8 @@ if (file.exists(rds)) {
 
 markers <- markers[markers$p_val_adj < 0.05, ]
 markers <- markers %>% distinct(gene, .keep_all = TRUE)
+rownames(markers) <- markers$gene
+datatable_download_exp(markers)
 markers <- markers %>% group_by(cluster) %>% slice_head(n = 3)
 
 mat <- logcounts(sce)
@@ -2605,6 +2629,8 @@ if (file.exists(rds)) {
 
 markers <- markers[markers$p_val_adj < 0.05, ]
 markers <- markers %>% distinct(gene, .keep_all = TRUE)
+rownames(markers) <- markers$gene
+datatable_download_exp(markers)
 markers <- markers %>% group_by(cluster) %>% slice_head(n = 3)
 
 mat <- logcounts(sce)
@@ -2659,6 +2685,8 @@ if (file.exists(rds)) {
 
 markers <- markers[markers$p_val_adj < 0.05, ]
 markers <- markers %>% distinct(gene, .keep_all = TRUE)
+rownames(markers) <- markers$gene
+datatable_download_exp(markers)
 markers <- markers %>% group_by(cluster) %>% slice_head(n = 3)
 
 mat <- logcounts(sce)
@@ -2713,6 +2741,8 @@ if (file.exists(rds)) {
 
 markers <- markers[markers$p_val_adj < 0.05, ]
 markers <- markers %>% distinct(gene, .keep_all = TRUE)
+rownames(markers) <- markers$gene
+datatable_download_exp(markers)
 markers <- markers %>% group_by(cluster) %>% slice_head(n = 3)
 
 mat <- logcounts(sce)
@@ -2767,6 +2797,8 @@ if (file.exists(rds)) {
 
 markers <- markers[markers$p_val_adj < 0.05, ]
 markers <- markers %>% distinct(gene, .keep_all = TRUE)
+rownames(markers) <- markers$gene
+datatable_download_exp(markers)
 markers <- markers %>% group_by(cluster) %>% slice_head(n = 3)
 
 mat <- logcounts(sce)
