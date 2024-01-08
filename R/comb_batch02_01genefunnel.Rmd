@@ -476,7 +476,7 @@ draw(
 )
 ```
 
-```{r, fig.height = 5, fig.width = 10}
+```{r, fig.height = 5, fig.width = 12.5}
 sce <- as.SingleCellExperiment(seurat, assay = "SCT")
 sce <- suppressWarnings(
   aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
@@ -487,7 +487,21 @@ logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
 
 colour2 <- colorRamp2(c(0, max(logcounts(sce)) / 2, max(logcounts(sce))), c("#0077BB", "#FFFFFF", "#CC3311"))
 
-for (i in 1:25) {
+idx <- c()
+for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
+  idx <- c(
+    idx, grep(paste0("\\b", unlist(strsplit(top_words, split = "\n"))[i], "\\b"), x = unlist(top_words_list[[1]]))
+  )
+}
+idx <- table(idx)
+idx <- idx[order(idx, decreasing = TRUE)]
+if (length(idx) < 25) {
+  idx <- as.numeric(names(idx)[seq_along(idx)])
+} else {
+  idx <- as.numeric(names(idx)[1:25])
+}
+
+for (i in idx) {
   gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
   gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
   genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
@@ -786,7 +800,7 @@ draw(
 )
 ```
 
-```{r, fig.height = 5, fig.width = 10}
+```{r, fig.height = 5, fig.width = 12.5}
 sce <- as.SingleCellExperiment(seurat_sub, assay = "SCT")
 sce <- suppressWarnings(
   aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
@@ -795,7 +809,21 @@ dge <- DGEList(counts(sce))
 dge <- calcNormFactors(dge)
 logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
 
-for (i in 1:25) {
+idx <- c()
+for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
+  idx <- c(
+    idx, grep(paste0("\\b", unlist(strsplit(top_words, split = "\n"))[i], "\\b"), x = unlist(top_words_list[[1]]))
+  )
+}
+idx <- table(idx)
+idx <- idx[order(idx, decreasing = TRUE)]
+if (length(idx) < 25) {
+  idx <- as.numeric(names(idx)[seq_along(idx)])
+} else {
+  idx <- as.numeric(names(idx)[1:25])
+}
+
+for (i in idx) {
   gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
   gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
   genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
@@ -1092,7 +1120,7 @@ draw(
 )
 ```
 
-```{r, fig.height = 5, fig.width = 10}
+```{r, fig.height = 5, fig.width = 12.5}
 sce <- as.SingleCellExperiment(seurat_sub, assay = "SCT")
 sce <- suppressWarnings(
   aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
@@ -1101,7 +1129,21 @@ dge <- DGEList(counts(sce))
 dge <- calcNormFactors(dge)
 logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
 
-for (i in 1:25) {
+idx <- c()
+for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
+  idx <- c(
+    idx, grep(paste0("\\b", unlist(strsplit(top_words, split = "\n"))[i], "\\b"), x = unlist(top_words_list[[1]]))
+  )
+}
+idx <- table(idx)
+idx <- idx[order(idx, decreasing = TRUE)]
+if (length(idx) < 25) {
+  idx <- as.numeric(names(idx)[seq_along(idx)])
+} else {
+  idx <- as.numeric(names(idx)[1:25])
+}
+
+for (i in idx) {
   gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
   gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
   genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
@@ -1686,7 +1728,7 @@ draw(
 )
 ```
 
-```{r, fig.height = 5, fig.width = 10}
+```{r, fig.height = 5, fig.width = 12.5}
 sce <- as.SingleCellExperiment(seurat_sub, assay = "SCT")
 sce <- suppressWarnings(
   aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
@@ -1695,7 +1737,21 @@ dge <- DGEList(counts(sce))
 dge <- calcNormFactors(dge)
 logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
 
-for (i in 1:25) {
+idx <- c()
+for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
+  idx <- c(
+    idx, grep(paste0("\\b", unlist(strsplit(top_words, split = "\n"))[i], "\\b"), x = unlist(top_words_list[[1]]))
+  )
+}
+idx <- table(idx)
+idx <- idx[order(idx, decreasing = TRUE)]
+if (length(idx) < 25) {
+  idx <- as.numeric(names(idx)[seq_along(idx)])
+} else {
+  idx <- as.numeric(names(idx)[1:25])
+}
+
+for (i in idx) {
   gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
   gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
   genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
@@ -1994,7 +2050,7 @@ draw(
 )
 ```
 
-```{r, fig.height = 5, fig.width = 10}
+```{r, fig.height = 5, fig.width = 12.5}
 sce <- as.SingleCellExperiment(seurat_sub, assay = "SCT")
 sce <- suppressWarnings(
   aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
@@ -2003,7 +2059,21 @@ dge <- DGEList(counts(sce))
 dge <- calcNormFactors(dge)
 logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
 
-for (i in 1:25) {
+idx <- c()
+for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
+  idx <- c(
+    idx, grep(paste0("\\b", unlist(strsplit(top_words, split = "\n"))[i], "\\b"), x = unlist(top_words_list[[1]]))
+  )
+}
+idx <- table(idx)
+idx <- idx[order(idx, decreasing = TRUE)]
+if (length(idx) < 25) {
+  idx <- as.numeric(names(idx)[seq_along(idx)])
+} else {
+  idx <- as.numeric(names(idx)[1:25])
+}
+
+for (i in idx) {
   gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
   gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
   genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
@@ -2300,7 +2370,7 @@ draw(
 )
 ```
 
-```{r, fig.height = 5, fig.width = 10}
+```{r, fig.height = 5, fig.width = 12.5}
 sce <- as.SingleCellExperiment(seurat_sub, assay = "SCT")
 sce <- suppressWarnings(
   aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
@@ -2309,7 +2379,21 @@ dge <- DGEList(counts(sce))
 dge <- calcNormFactors(dge)
 logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
 
-for (i in 1:25) {
+idx <- c()
+for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
+  idx <- c(
+    idx, grep(paste0("\\b", unlist(strsplit(top_words, split = "\n"))[i], "\\b"), x = unlist(top_words_list[[1]]))
+  )
+}
+idx <- table(idx)
+idx <- idx[order(idx, decreasing = TRUE)]
+if (length(idx) < 25) {
+  idx <- as.numeric(names(idx)[seq_along(idx)])
+} else {
+  idx <- as.numeric(names(idx)[1:25])
+}
+
+for (i in idx) {
   gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
   gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
   genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
@@ -2608,7 +2692,7 @@ draw(
 )
 ```
 
-```{r, fig.height = 5, fig.width = 10}
+```{r, fig.height = 5, fig.width = 12.5}
 sce <- as.SingleCellExperiment(seurat_sub, assay = "SCT")
 sce <- suppressWarnings(
   aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
@@ -2617,7 +2701,21 @@ dge <- DGEList(counts(sce))
 dge <- calcNormFactors(dge)
 logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
 
-for (i in 1:25) {
+idx <- c()
+for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
+  idx <- c(
+    idx, grep(paste0("\\b", unlist(strsplit(top_words, split = "\n"))[i], "\\b"), x = unlist(top_words_list[[1]]))
+  )
+}
+idx <- table(idx)
+idx <- idx[order(idx, decreasing = TRUE)]
+if (length(idx) < 25) {
+  idx <- as.numeric(names(idx)[seq_along(idx)])
+} else {
+  idx <- as.numeric(names(idx)[1:25])
+}
+
+for (i in idx) {
   gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
   gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
   genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
