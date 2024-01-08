@@ -66,7 +66,7 @@ library(conflicted)
 conflicts_prefer(AnnotationDbi::select, edgeR::cpm, DT::JS, .quiet = TRUE)
 packages <- c(
   "GSEABase", "Seurat", "ggplot2", "dplyr", "ggrepel", "scuttle", "GO.db", "tm", "pals", "ComplexHeatmap",
-  "RColorBrewer", "edgeR", "DT"
+  "RColorBrewer", "edgeR", "DT", "circlize"
 )
 invisible(suppressPackageStartupMessages(lapply(packages, FUN = library, character.only = TRUE)))
 # -----------------------------------------------------
@@ -476,6 +476,46 @@ draw(
 )
 ```
 
+```{r, fig.height = 5, fig.width = 10}
+sce <- as.SingleCellExperiment(seurat, assay = "SCT")
+sce <- suppressWarnings(
+  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
+)
+dge <- DGEList(counts(sce))
+dge <- calcNormFactors(dge)
+logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
+
+colour2 <- colorRamp2(c(0, max(logcounts(sce)) / 2, max(logcounts(sce))), c("#0077BB", "#FFFFFF", "#CC3311"))
+
+for (i in 1:25) {
+  gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
+  gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
+  genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
+  title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
+
+  mat <- logcounts(sce)[rownames(sce) %in% genes, ]
+  mat <- mat[match(genes, rownames(mat)), ]
+
+  set.seed(1)
+  draw(
+    Heatmap(
+      mat,
+      colour2,
+      cluster_rows = FALSE,
+      cluster_columns = FALSE,
+      rect_gp = gpar(col = "lightgray", lwd = 0.1),
+      row_gap = unit(2, "mm"),
+      column_gap = unit(2, "mm"),
+      column_names_side = "top",
+      row_title_rot = 0,
+      column_names_rot = 45,
+      heatmap_legend_param = list(title = "log1p Normalised Counts", title_position = "lefttop-rot")
+    ),
+    column_title = title
+  )
+}
+```
+
 ## Astrocyte
 
 ```{r}
@@ -746,6 +786,44 @@ draw(
 )
 ```
 
+```{r, fig.height = 5, fig.width = 10}
+sce <- as.SingleCellExperiment(seurat_sub, assay = "SCT")
+sce <- suppressWarnings(
+  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
+)
+dge <- DGEList(counts(sce))
+dge <- calcNormFactors(dge)
+logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
+
+for (i in 1:25) {
+  gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
+  gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
+  genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
+  title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
+
+  mat <- logcounts(sce)[rownames(sce) %in% genes, ]
+  mat <- mat[match(genes, rownames(mat)), ]
+
+  set.seed(1)
+  draw(
+    Heatmap(
+      mat,
+      colour2,
+      cluster_rows = FALSE,
+      cluster_columns = FALSE,
+      rect_gp = gpar(col = "lightgray", lwd = 0.1),
+      row_gap = unit(2, "mm"),
+      column_gap = unit(2, "mm"),
+      column_names_side = "top",
+      row_title_rot = 0,
+      column_names_rot = 45,
+      heatmap_legend_param = list(title = "log1p Normalised Counts", title_position = "lefttop-rot")
+    ),
+    column_title = title
+  )
+}
+```
+
 ## Cortical Glutamatergic
 
 ```{r}
@@ -1012,6 +1090,44 @@ draw(
   ),
   column_title = "Cortical Glutamatergic PCA"
 )
+```
+
+```{r, fig.height = 5, fig.width = 10}
+sce <- as.SingleCellExperiment(seurat_sub, assay = "SCT")
+sce <- suppressWarnings(
+  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
+)
+dge <- DGEList(counts(sce))
+dge <- calcNormFactors(dge)
+logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
+
+for (i in 1:25) {
+  gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
+  gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
+  genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
+  title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
+
+  mat <- logcounts(sce)[rownames(sce) %in% genes, ]
+  mat <- mat[match(genes, rownames(mat)), ]
+
+  set.seed(1)
+  draw(
+    Heatmap(
+      mat,
+      colour2,
+      cluster_rows = FALSE,
+      cluster_columns = FALSE,
+      rect_gp = gpar(col = "lightgray", lwd = 0.1),
+      row_gap = unit(2, "mm"),
+      column_gap = unit(2, "mm"),
+      column_names_side = "top",
+      row_title_rot = 0,
+      column_names_rot = 45,
+      heatmap_legend_param = list(title = "log1p Normalised Counts", title_position = "lefttop-rot")
+    ),
+    column_title = title
+  )
+}
 ```
 
 ## Dentate Gyrus Glutamatergic
@@ -1570,6 +1686,44 @@ draw(
 )
 ```
 
+```{r, fig.height = 5, fig.width = 10}
+sce <- as.SingleCellExperiment(seurat_sub, assay = "SCT")
+sce <- suppressWarnings(
+  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
+)
+dge <- DGEList(counts(sce))
+dge <- calcNormFactors(dge)
+logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
+
+for (i in 1:25) {
+  gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
+  gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
+  genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
+  title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
+
+  mat <- logcounts(sce)[rownames(sce) %in% genes, ]
+  mat <- mat[match(genes, rownames(mat)), ]
+
+  set.seed(1)
+  draw(
+    Heatmap(
+      mat,
+      colour2,
+      cluster_rows = FALSE,
+      cluster_columns = FALSE,
+      rect_gp = gpar(col = "lightgray", lwd = 0.1),
+      row_gap = unit(2, "mm"),
+      column_gap = unit(2, "mm"),
+      column_names_side = "top",
+      row_title_rot = 0,
+      column_names_rot = 45,
+      heatmap_legend_param = list(title = "log1p Normalised Counts", title_position = "lefttop-rot")
+    ),
+    column_title = title
+  )
+}
+```
+
 ## Hippocampal Glutamatergic
 
 ```{r}
@@ -1840,6 +1994,44 @@ draw(
 )
 ```
 
+```{r, fig.height = 5, fig.width = 10}
+sce <- as.SingleCellExperiment(seurat_sub, assay = "SCT")
+sce <- suppressWarnings(
+  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
+)
+dge <- DGEList(counts(sce))
+dge <- calcNormFactors(dge)
+logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
+
+for (i in 1:25) {
+  gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
+  gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
+  genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
+  title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
+
+  mat <- logcounts(sce)[rownames(sce) %in% genes, ]
+  mat <- mat[match(genes, rownames(mat)), ]
+
+  set.seed(1)
+  draw(
+    Heatmap(
+      mat,
+      colour2,
+      cluster_rows = FALSE,
+      cluster_columns = FALSE,
+      rect_gp = gpar(col = "lightgray", lwd = 0.1),
+      row_gap = unit(2, "mm"),
+      column_gap = unit(2, "mm"),
+      column_names_side = "top",
+      row_title_rot = 0,
+      column_names_rot = 45,
+      heatmap_legend_param = list(title = "log1p Normalised Counts", title_position = "lefttop-rot")
+    ),
+    column_title = title
+  )
+}
+```
+
 ## Microglia
 
 ```{r}
@@ -2106,6 +2298,44 @@ draw(
   ),
   column_title = "Microglia PCA"
 )
+```
+
+```{r, fig.height = 5, fig.width = 10}
+sce <- as.SingleCellExperiment(seurat_sub, assay = "SCT")
+sce <- suppressWarnings(
+  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
+)
+dge <- DGEList(counts(sce))
+dge <- calcNormFactors(dge)
+logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
+
+for (i in 1:25) {
+  gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
+  gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
+  genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
+  title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
+
+  mat <- logcounts(sce)[rownames(sce) %in% genes, ]
+  mat <- mat[match(genes, rownames(mat)), ]
+
+  set.seed(1)
+  draw(
+    Heatmap(
+      mat,
+      colour2,
+      cluster_rows = FALSE,
+      cluster_columns = FALSE,
+      rect_gp = gpar(col = "lightgray", lwd = 0.1),
+      row_gap = unit(2, "mm"),
+      column_gap = unit(2, "mm"),
+      column_names_side = "top",
+      row_title_rot = 0,
+      column_names_rot = 45,
+      heatmap_legend_param = list(title = "log1p Normalised Counts", title_position = "lefttop-rot")
+    ),
+    column_title = title
+  )
+}
 ```
 
 ## Oligodendrocyte
@@ -2376,6 +2606,44 @@ draw(
   ),
   column_title = "Oligodendrocyte PCA"
 )
+```
+
+```{r, fig.height = 5, fig.width = 10}
+sce <- as.SingleCellExperiment(seurat_sub, assay = "SCT")
+sce <- suppressWarnings(
+  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
+)
+dge <- DGEList(counts(sce))
+dge <- calcNormFactors(dge)
+logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
+
+for (i in 1:25) {
+  gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
+  gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
+  genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
+  title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
+
+  mat <- logcounts(sce)[rownames(sce) %in% genes, ]
+  mat <- mat[match(genes, rownames(mat)), ]
+
+  set.seed(1)
+  draw(
+    Heatmap(
+      mat,
+      colour2,
+      cluster_rows = FALSE,
+      cluster_columns = FALSE,
+      rect_gp = gpar(col = "lightgray", lwd = 0.1),
+      row_gap = unit(2, "mm"),
+      column_gap = unit(2, "mm"),
+      column_names_side = "top",
+      row_title_rot = 0,
+      column_names_rot = 45,
+      heatmap_legend_param = list(title = "log1p Normalised Counts", title_position = "lefttop-rot")
+    ),
+    column_title = title
+  )
+}
 ```
 
 # DGE
