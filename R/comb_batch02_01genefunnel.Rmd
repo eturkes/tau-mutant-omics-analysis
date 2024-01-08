@@ -515,7 +515,6 @@ for (i in idx) {
     Heatmap(
       mat,
       colour2,
-      cluster_rows = FALSE,
       cluster_columns = FALSE,
       rect_gp = gpar(col = "lightgray", lwd = 0.1),
       row_gap = unit(2, "mm"),
@@ -837,7 +836,6 @@ for (i in idx) {
     Heatmap(
       mat,
       colour2,
-      cluster_rows = FALSE,
       cluster_columns = FALSE,
       rect_gp = gpar(col = "lightgray", lwd = 0.1),
       row_gap = unit(2, "mm"),
@@ -1157,7 +1155,6 @@ for (i in idx) {
     Heatmap(
       mat,
       colour2,
-      cluster_rows = FALSE,
       cluster_columns = FALSE,
       rect_gp = gpar(col = "lightgray", lwd = 0.1),
       row_gap = unit(2, "mm"),
@@ -1765,7 +1762,6 @@ for (i in idx) {
     Heatmap(
       mat,
       colour2,
-      cluster_rows = FALSE,
       cluster_columns = FALSE,
       rect_gp = gpar(col = "lightgray", lwd = 0.1),
       row_gap = unit(2, "mm"),
@@ -2087,7 +2083,6 @@ for (i in idx) {
     Heatmap(
       mat,
       colour2,
-      cluster_rows = FALSE,
       cluster_columns = FALSE,
       rect_gp = gpar(col = "lightgray", lwd = 0.1),
       row_gap = unit(2, "mm"),
@@ -2407,7 +2402,6 @@ for (i in idx) {
     Heatmap(
       mat,
       colour2,
-      cluster_rows = FALSE,
       cluster_columns = FALSE,
       rect_gp = gpar(col = "lightgray", lwd = 0.1),
       row_gap = unit(2, "mm"),
@@ -2729,7 +2723,6 @@ for (i in idx) {
     Heatmap(
       mat,
       colour2,
-      cluster_rows = FALSE,
       cluster_columns = FALSE,
       rect_gp = gpar(col = "lightgray", lwd = 0.1),
       row_gap = unit(2, "mm"),
