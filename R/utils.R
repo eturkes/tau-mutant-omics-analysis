@@ -775,7 +775,14 @@ word_cloud = function(x, width = NULL){
            "nucleotide", "stem", "oligosaccharide", "mitotic",
            "thalamus", "pancreas", "saliva", "cxc",
            "fibroblast", "isotype", "isotypes", "inhibitor",
-           "loading")
+           "loading", "dietary", "eating", "excess",
+           "intake", "nutrients", "transduction", "plexuses",
+           "purinergic", "communicates", "continuous", "donors",
+           "serve", "serve", "male", "mating",
+           "acting", "indolemethanol", "consequences", "cornification",
+           "experience", "mda", "osteoblast", "cis",
+           "export", "thymocyte", "cisterna", "giant",
+           "closest")
   txt = unlist(strsplit(x, " "))
   txt = Corpus(VectorSource(txt))
   txt = tm_map(txt, PlainTextDocument)
