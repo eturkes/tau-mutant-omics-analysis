@@ -770,7 +770,12 @@ word_cloud = function(x, width = NULL){
            "serving", "partition", "filtration", "septum",
            "glomerulus", "laminal", "performs", "acidamino",
            "condensed", "dystroglycan", "spanning", "enriched",
-           "dystrophin", "pyrimidine")
+           "dystrophin", "pyrimidine", "germline", "chitooctamer",
+           "reduction", "fate", "selfrenewing", "fungal",
+           "nucleotide", "stem", "oligosaccharide", "mitotic",
+           "thalamus", "pancreas", "saliva", "cxc",
+           "fibroblast", "isotype", "isotypes", "inhibitor",
+           "loading")
   txt = unlist(strsplit(x, " "))
   txt = Corpus(VectorSource(txt))
   txt = tm_map(txt, PlainTextDocument)

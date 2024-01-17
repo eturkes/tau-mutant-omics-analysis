@@ -224,31 +224,69 @@ dge <- DGEList(counts(sce))
 dge <- calcNormFactors(dge)
 logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
 
+seurat$annotations_control <- factor(
+  c(
+    rep("MAPTKI", times = length(which(seurat$sample == "MAPTKI"))),
+    rep("Other", times = length(which(seurat$sample != "MAPTKI")))
+  )
+)
+
 rds <- file.path(cache_dir, "markers_gsva_all.rds")
 if (file.exists(rds)) {
   markers <- readRDS(rds)
 } else {
-  markers <- FindAllMarkers(seurat, only.pos = TRUE)
+  seurat@active.ident <- seurat$annotations_control
+  markers <- FindMarkers(seurat, ident.1 = "MAPTKI", ident.2 = "Other", only.pos = TRUE, verbose = FALSE)
+  markers$cluster = rep("MAPTKI", times = nrow(markers))
+  markers$gene <- rownames(markers)
+
+  seurat@active.ident <- seurat$sample
+  markers_add <- FindMarkers(seurat, ident.1 = "S305N", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
+  markers_add$cluster = rep("S305N", times = nrow(markers_add))
+  markers_add$gene <- rownames(markers_add)
+  markers <- rbind(markers, markers_add)
+
+  markers_add <- FindMarkers(seurat, ident.1 = "P301S", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
+  markers_add$cluster = rep("P301S", times = nrow(markers_add))
+  markers_add$gene <- rownames(markers_add)
+  markers <- rbind(markers, markers_add)
+
+  markers_add <- FindMarkers(seurat, ident.1 = "NLGF_MAPTKI", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
+  markers_add$cluster = rep("NLGF_MAPTKI", times = nrow(markers_add))
+  markers_add$gene <- rownames(markers_add)
+  markers <- rbind(markers, markers_add)
+
+  markers_add <- FindMarkers(seurat, ident.1 = "NLGF_S305N", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
+  markers_add$cluster = rep("NLGF_S305N", times = nrow(markers_add))
+  markers_add$gene <- rownames(markers_add)
+  markers <- rbind(markers, markers_add)
+
+  markers_add <- FindMarkers(seurat, ident.1 = "NLGF_P301S", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
+  markers_add$cluster = rep("NLGF_P301S", times = nrow(markers_add))
+  markers_add$gene <- rownames(markers_add)
+  markers <- rbind(markers, markers_add)
+
   saveRDS(markers, rds)
 }
 
 markers <- markers[markers$p_val_adj < 0.05, ]
-markers <- markers %>% distinct(gene, .keep_all = TRUE)
-rownames(markers) <- markers$gene
+# markers <- markers %>% distinct(gene, .keep_all = TRUE)
+# rownames(markers) <- markers$gene
+markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
 datatable_download_exp(markers)
-markers$number <- seq(rownames(markers))
+markers$number <- seq(markers$gene)
 
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
 module_names <- modules
-gene_sets_sub_ids <- gene_sets[names(gene_sets) %in% rownames(markers)]
-gene_sets_sub_ids <- gene_sets_sub_ids[match(rownames(markers), names(gene_sets_sub_ids)), ]
+gene_sets_sub_ids <- gene_sets[names(gene_sets) %in% markers$gene]
+gene_sets_sub_ids <- gene_sets_sub_ids[unique(match(markers$gene, names(gene_sets_sub_ids))), ]
 
 for (j in seq(length(gene_sets_sub_ids@.Data))) {
   suppressWarnings(gene_sets_sub_ids[[j]]@setName <- gene_sets_sub_ids[[j]]@shortDescription)
 }
 go_anno <- select(GO.db, names(gene_sets_sub_ids), c("GOID", "TERM", "DEFINITION"), "GOID")
 for (l in seq_along(module_names)) {
-  module_names[[l]] <- paste0(rownames(markers)[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
+  module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
 }
 top_words_tmp <- data.frame(
   gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
@@ -546,27 +584,58 @@ rds <- file.path(cache_dir, "markers_gsva_astro.rds")
 if (file.exists(rds)) {
   markers <- readRDS(rds)
 } else {
-  markers <- FindAllMarkers(seurat_sub, only.pos = TRUE)
+  seurat_sub@active.ident <- seurat_sub$annotations_control
+  markers <- FindMarkers(seurat_sub, ident.1 = "MAPTKI", ident.2 = "Other", only.pos = TRUE, verbose = FALSE)
+  markers$cluster = rep("MAPTKI", times = nrow(markers))
+  markers$gene <- rownames(markers)
+
+  seurat_sub@active.ident <- seurat_sub$sample
+  markers_add <- FindMarkers(seurat_sub, ident.1 = "S305N", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
+  markers_add$cluster = rep("S305N", times = nrow(markers_add))
+  markers_add$gene <- rownames(markers_add)
+  markers <- rbind(markers, markers_add)
+
+  markers_add <- FindMarkers(seurat_sub, ident.1 = "P301S", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
+  markers_add$cluster = rep("P301S", times = nrow(markers_add))
+  markers_add$gene <- rownames(markers_add)
+  markers <- rbind(markers, markers_add)
+
+  markers_add <- FindMarkers(seurat_sub, ident.1 = "NLGF_MAPTKI", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
+  markers_add$cluster = rep("NLGF_MAPTKI", times = nrow(markers_add))
+  markers_add$gene <- rownames(markers_add)
+  markers <- rbind(markers, markers_add)
+
+  markers_add <- FindMarkers(seurat_sub, ident.1 = "NLGF_S305N", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
+  markers_add$cluster = rep("NLGF_S305N", times = nrow(markers_add))
+  markers_add$gene <- rownames(markers_add)
+  markers <- rbind(markers, markers_add)
+
+  markers_add <- FindMarkers(seurat_sub, ident.1 = "NLGF_P301S", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
+  markers_add$cluster = rep("NLGF_P301S", times = nrow(markers_add))
+  markers_add$gene <- rownames(markers_add)
+  markers <- rbind(markers, markers_add)
+
   saveRDS(markers, rds)
 }
 
 markers <- markers[markers$p_val_adj < 0.05, ]
-markers <- markers %>% distinct(gene, .keep_all = TRUE)
-rownames(markers) <- markers$gene
+# markers <- markers %>% distinct(gene, .keep_all = TRUE)
+# rownames(markers) <- markers$gene
+markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
 datatable_download_exp(markers)
-markers$number <- seq(rownames(markers))
+markers$number <- seq(markers$gene)
 
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
 module_names <- modules
-gene_sets_sub_ids <- gene_sets[names(gene_sets) %in% rownames(markers)]
-gene_sets_sub_ids <- gene_sets_sub_ids[match(rownames(markers), names(gene_sets_sub_ids)), ]
+gene_sets_sub_ids <- gene_sets[names(gene_sets) %in% markers$gene]
+gene_sets_sub_ids <- gene_sets_sub_ids[unique(match(markers$gene, names(gene_sets_sub_ids))), ]
 
 for (j in seq(length(gene_sets_sub_ids@.Data))) {
   suppressWarnings(gene_sets_sub_ids[[j]]@setName <- gene_sets_sub_ids[[j]]@shortDescription)
 }
 go_anno <- select(GO.db, names(gene_sets_sub_ids), c("GOID", "TERM", "DEFINITION"), "GOID")
 for (l in seq_along(module_names)) {
-  module_names[[l]] <- paste0(rownames(markers)[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
+  module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
 }
 top_words_tmp <- data.frame(
   gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
@@ -867,27 +936,58 @@ rds <- file.path(cache_dir, "markers_gsva_glut.rds")
 if (file.exists(rds)) {
   markers <- readRDS(rds)
 } else {
-  markers <- FindAllMarkers(seurat_sub, only.pos = TRUE)
+  seurat_sub@active.ident <- seurat_sub$annotations_control
+  markers <- FindMarkers(seurat_sub, ident.1 = "MAPTKI", ident.2 = "Other", only.pos = TRUE, verbose = FALSE)
+  markers$cluster = rep("MAPTKI", times = nrow(markers))
+  markers$gene <- rownames(markers)
+
+  seurat_sub@active.ident <- seurat_sub$sample
+  markers_add <- FindMarkers(seurat_sub, ident.1 = "S305N", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
+  markers_add$cluster = rep("S305N", times = nrow(markers_add))
+  markers_add$gene <- rownames(markers_add)
+  markers <- rbind(markers, markers_add)
+
+  markers_add <- FindMarkers(seurat_sub, ident.1 = "P301S", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
+  markers_add$cluster = rep("P301S", times = nrow(markers_add))
+  markers_add$gene <- rownames(markers_add)
+  markers <- rbind(markers, markers_add)
+
+  markers_add <- FindMarkers(seurat_sub, ident.1 = "NLGF_MAPTKI", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
+  markers_add$cluster = rep("NLGF_MAPTKI", times = nrow(markers_add))
+  markers_add$gene <- rownames(markers_add)
+  markers <- rbind(markers, markers_add)
+
+  markers_add <- FindMarkers(seurat_sub, ident.1 = "NLGF_S305N", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
+  markers_add$cluster = rep("NLGF_S305N", times = nrow(markers_add))
+  markers_add$gene <- rownames(markers_add)
+  markers <- rbind(markers, markers_add)
+
+  markers_add <- FindMarkers(seurat_sub, ident.1 = "NLGF_P301S", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
+  markers_add$cluster = rep("NLGF_P301S", times = nrow(markers_add))
+  markers_add$gene <- rownames(markers_add)
+  markers <- rbind(markers, markers_add)
+
   saveRDS(markers, rds)
 }
 
 markers <- markers[markers$p_val_adj < 0.05, ]
-markers <- markers %>% distinct(gene, .keep_all = TRUE)
-rownames(markers) <- markers$gene
+# markers <- markers %>% distinct(gene, .keep_all = TRUE)
+# rownames(markers) <- markers$gene
+markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
 datatable_download_exp(markers)
-markers$number <- seq(rownames(markers))
+markers$number <- seq(markers$gene)
 
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
 module_names <- modules
-gene_sets_sub_ids <- gene_sets[names(gene_sets) %in% rownames(markers)]
-gene_sets_sub_ids <- gene_sets_sub_ids[match(rownames(markers), names(gene_sets_sub_ids)), ]
+gene_sets_sub_ids <- gene_sets[names(gene_sets) %in% markers$gene]
+gene_sets_sub_ids <- gene_sets_sub_ids[unique(match(markers$gene, names(gene_sets_sub_ids))), ]
 
 for (j in seq(length(gene_sets_sub_ids@.Data))) {
   suppressWarnings(gene_sets_sub_ids[[j]]@setName <- gene_sets_sub_ids[[j]]@shortDescription)
 }
 go_anno <- select(GO.db, names(gene_sets_sub_ids), c("GOID", "TERM", "DEFINITION"), "GOID")
 for (l in seq_along(module_names)) {
-  module_names[[l]] <- paste0(rownames(markers)[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
+  module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
 }
 top_words_tmp <- data.frame(
   gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
@@ -1793,27 +1893,58 @@ rds <- file.path(cache_dir, "markers_gsva_hip.rds")
 if (file.exists(rds)) {
   markers <- readRDS(rds)
 } else {
-  markers <- FindAllMarkers(seurat_sub, only.pos = TRUE)
+  seurat_sub@active.ident <- seurat_sub$annotations_control
+  markers <- FindMarkers(seurat_sub, ident.1 = "MAPTKI", ident.2 = "Other", only.pos = TRUE, verbose = FALSE)
+  markers$cluster = rep("MAPTKI", times = nrow(markers))
+  markers$gene <- rownames(markers)
+
+  seurat_sub@active.ident <- seurat_sub$sample
+  markers_add <- FindMarkers(seurat_sub, ident.1 = "S305N", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
+  markers_add$cluster = rep("S305N", times = nrow(markers_add))
+  markers_add$gene <- rownames(markers_add)
+  markers <- rbind(markers, markers_add)
+
+  markers_add <- FindMarkers(seurat_sub, ident.1 = "P301S", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
+  markers_add$cluster = rep("P301S", times = nrow(markers_add))
+  markers_add$gene <- rownames(markers_add)
+  markers <- rbind(markers, markers_add)
+
+  markers_add <- FindMarkers(seurat_sub, ident.1 = "NLGF_MAPTKI", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
+  markers_add$cluster = rep("NLGF_MAPTKI", times = nrow(markers_add))
+  markers_add$gene <- rownames(markers_add)
+  markers <- rbind(markers, markers_add)
+
+  markers_add <- FindMarkers(seurat_sub, ident.1 = "NLGF_S305N", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
+  markers_add$cluster = rep("NLGF_S305N", times = nrow(markers_add))
+  markers_add$gene <- rownames(markers_add)
+  markers <- rbind(markers, markers_add)
+
+  markers_add <- FindMarkers(seurat_sub, ident.1 = "NLGF_P301S", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
+  markers_add$cluster = rep("NLGF_P301S", times = nrow(markers_add))
+  markers_add$gene <- rownames(markers_add)
+  markers <- rbind(markers, markers_add)
+
   saveRDS(markers, rds)
 }
 
 markers <- markers[markers$p_val_adj < 0.05, ]
-markers <- markers %>% distinct(gene, .keep_all = TRUE)
-rownames(markers) <- markers$gene
+# markers <- markers %>% distinct(gene, .keep_all = TRUE)
+# rownames(markers) <- markers$gene
+markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
 datatable_download_exp(markers)
-markers$number <- seq(rownames(markers))
+markers$number <- seq(markers$gene)
 
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
 module_names <- modules
-gene_sets_sub_ids <- gene_sets[names(gene_sets) %in% rownames(markers)]
-gene_sets_sub_ids <- gene_sets_sub_ids[match(rownames(markers), names(gene_sets_sub_ids)), ]
+gene_sets_sub_ids <- gene_sets[names(gene_sets) %in% markers$gene]
+gene_sets_sub_ids <- gene_sets_sub_ids[unique(match(markers$gene, names(gene_sets_sub_ids))), ]
 
 for (j in seq(length(gene_sets_sub_ids@.Data))) {
   suppressWarnings(gene_sets_sub_ids[[j]]@setName <- gene_sets_sub_ids[[j]]@shortDescription)
 }
 go_anno <- select(GO.db, names(gene_sets_sub_ids), c("GOID", "TERM", "DEFINITION"), "GOID")
 for (l in seq_along(module_names)) {
-  module_names[[l]] <- paste0(rownames(markers)[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
+  module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
 }
 top_words_tmp <- data.frame(
   gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
@@ -2114,27 +2245,58 @@ rds <- file.path(cache_dir, "markers_gsva_micro.rds")
 if (file.exists(rds)) {
   markers <- readRDS(rds)
 } else {
-  markers <- FindAllMarkers(seurat_sub, only.pos = TRUE)
+  seurat_sub@active.ident <- seurat_sub$annotations_control
+  markers <- FindMarkers(seurat_sub, ident.1 = "MAPTKI", ident.2 = "Other", only.pos = TRUE, verbose = FALSE)
+  markers$cluster = rep("MAPTKI", times = nrow(markers))
+  markers$gene <- rownames(markers)
+
+  seurat_sub@active.ident <- seurat_sub$sample
+  markers_add <- FindMarkers(seurat_sub, ident.1 = "S305N", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
+  markers_add$cluster = rep("S305N", times = nrow(markers_add))
+  markers_add$gene <- rownames(markers_add)
+  markers <- rbind(markers, markers_add)
+
+  markers_add <- FindMarkers(seurat_sub, ident.1 = "P301S", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
+  markers_add$cluster = rep("P301S", times = nrow(markers_add))
+  markers_add$gene <- rownames(markers_add)
+  markers <- rbind(markers, markers_add)
+
+  markers_add <- FindMarkers(seurat_sub, ident.1 = "NLGF_MAPTKI", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
+  markers_add$cluster = rep("NLGF_MAPTKI", times = nrow(markers_add))
+  markers_add$gene <- rownames(markers_add)
+  markers <- rbind(markers, markers_add)
+
+  markers_add <- FindMarkers(seurat_sub, ident.1 = "NLGF_S305N", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
+  markers_add$cluster = rep("NLGF_S305N", times = nrow(markers_add))
+  markers_add$gene <- rownames(markers_add)
+  markers <- rbind(markers, markers_add)
+
+  markers_add <- FindMarkers(seurat_sub, ident.1 = "NLGF_P301S", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
+  markers_add$cluster = rep("NLGF_P301S", times = nrow(markers_add))
+  markers_add$gene <- rownames(markers_add)
+  markers <- rbind(markers, markers_add)
+
   saveRDS(markers, rds)
 }
 
 markers <- markers[markers$p_val_adj < 0.05, ]
-markers <- markers %>% distinct(gene, .keep_all = TRUE)
-rownames(markers) <- markers$gene
+# markers <- markers %>% distinct(gene, .keep_all = TRUE)
+# rownames(markers) <- markers$gene
+markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
 datatable_download_exp(markers)
-markers$number <- seq(rownames(markers))
+markers$number <- seq(markers$gene)
 
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
 module_names <- modules
-gene_sets_sub_ids <- gene_sets[names(gene_sets) %in% rownames(markers)]
-gene_sets_sub_ids <- gene_sets_sub_ids[match(rownames(markers), names(gene_sets_sub_ids)), ]
+gene_sets_sub_ids <- gene_sets[names(gene_sets) %in% markers$gene]
+gene_sets_sub_ids <- gene_sets_sub_ids[unique(match(markers$gene, names(gene_sets_sub_ids))), ]
 
 for (j in seq(length(gene_sets_sub_ids@.Data))) {
   suppressWarnings(gene_sets_sub_ids[[j]]@setName <- gene_sets_sub_ids[[j]]@shortDescription)
 }
 go_anno <- select(GO.db, names(gene_sets_sub_ids), c("GOID", "TERM", "DEFINITION"), "GOID")
 for (l in seq_along(module_names)) {
-  module_names[[l]] <- paste0(rownames(markers)[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
+  module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
 }
 top_words_tmp <- data.frame(
   gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
