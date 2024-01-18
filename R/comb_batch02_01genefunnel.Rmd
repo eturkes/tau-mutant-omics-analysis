@@ -65,8 +65,8 @@ The toggle at the start of the document controls the visibility of all chunks.
 library(conflicted)
 conflicts_prefer(AnnotationDbi::select, edgeR::cpm, DT::JS, .quiet = TRUE)
 packages <- c(
-  "GSEABase", "Seurat", "ggplot2", "dplyr", "ggrepel", "scuttle", "GO.db", "tm", "pals", "ComplexHeatmap",
-  "RColorBrewer", "edgeR", "DT", "circlize"
+  "GSEABase", "Seurat", "ggplot2", "dplyr", "ggrepel", "scuttle", "GO.db", "tm", "pals", "ComplexHeatmap", "edgeR",
+  "DT", "circlize"
 )
 invisible(suppressPackageStartupMessages(lapply(packages, FUN = library, character.only = TRUE)))
 # -----------------------------------------------------
@@ -93,8 +93,6 @@ cache_dir <- file.path("..", "cache", genotype, paste0("0", batch), paste0("0", 
 if (!dir.exists(cache_dir)) {
   dir.create(cache_dir, recursive = TRUE)
 }
-
-colour <- colorRampPalette(rev(brewer.pal(9, "RdBu")))(100)
 # -----------------
 
 # Useful data.
