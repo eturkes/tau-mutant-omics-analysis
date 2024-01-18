@@ -162,6 +162,8 @@ if (file.exists(rds)) {
   colnames(gsva) <- colnames(seurat)
   min <- abs(min(gsva))
   gsva <- gsva + min
+  # min <- max(gsva) * 0.75
+  # gsva <- gsva[rowSums(gsva > min) >= 1, ]
   seurat[["GSVA"]] <- CreateAssay5Object(counts = gsva, data = log1p(gsva))
 
   rm(counts_mat, data_mat, files, gsva)
@@ -216,11 +218,9 @@ red_dim_plot(seurat, x = "GSVA_umap1", y = "GSVA_umap2", color = "sample", type 
 ```{r}
 sce <- as.SingleCellExperiment(seurat, assay = "GSVA")
 sce <- suppressWarnings(
-  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
+  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "median")
 )
-dge <- DGEList(counts(sce))
-dge <- calcNormFactors(dge)
-logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
+logcounts(sce, withDimnames = FALSE) <- log1p(counts(sce))
 
 seurat$annotations_control <- factor(
   c(
@@ -260,6 +260,11 @@ if (file.exists(rds)) {
 markers <- markers[markers$p_val_adj < 0.05, ]
 # markers <- markers %>% distinct(gene, .keep_all = TRUE)
 # rownames(markers) <- markers$gene
+
+min <- quantile(counts(sce))[4]
+keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
+markers <- markers[rownames(markers) %in% keep, ]
+
 markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
 datatable_download_exp(markers)
 markers$number <- seq(markers$gene)
@@ -337,19 +342,16 @@ row_anno <-  HeatmapAnnotation(
   which = "row"
 )
 
-mat <- logcounts(sce)
+colour <- colorRamp2(c(0, max(counts(sce)) / 2, max(counts(sce))), c("#0077BB", "#FFFFFF", "#CC3311"))
+
+mat <- counts(sce)
 mat <- mat[rownames(mat) %in% markers$gene, ]
 mat <- mat[match(markers$gene, rownames(mat)), ]
 
 set.seed(1)
 draw(
   Heatmap(
-    t(
-      apply(
-        mat, 1,
-        function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1)
-      )
-    ),
+    mat,
     colour,
     cluster_rows = FALSE,
     cluster_columns = FALSE,
@@ -363,7 +365,7 @@ draw(
     row_title = top_words,
     row_title_rot = 0,
     column_names_rot = 45,
-    heatmap_legend_param = list(title = "Scaled ssGSEA Score", title_position = "lefttop-rot")
+    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
   ),
   column_title = "All Cell-types"
 )
@@ -379,6 +381,10 @@ markers <- markers[ , 1:2]
 q1 <- quantile(markers[ , 1])[4]
 markers <- markers[markers[ , 1] > q1, ]
 markers <- abs(markers)
+
+min <- quantile(counts(sce))[4]
+keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
+markers <- markers[rownames(markers) %in% keep, ]
 
 markers$total <- markers[ , 1]
 markers <- markers[order(markers$total, decreasing = TRUE), ]
@@ -468,19 +474,14 @@ row_anno <-  HeatmapAnnotation(
   which = "row"
 )
 
-mat <- logcounts(sce)
+mat <- counts(sce)
 mat <- mat[rownames(mat) %in% markers$gene, ]
 mat <- mat[match(markers$gene, rownames(mat)), ]
 
 set.seed(1)
 draw(
   Heatmap(
-    t(
-      apply(
-        mat, 1,
-        function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1)
-      )
-    ),
+    mat,
     colour,
     cluster_rows = FALSE,
     cluster_columns = FALSE,
@@ -494,7 +495,7 @@ draw(
     row_title = top_words,
     row_title_rot = 0,
     column_names_rot = 45,
-    heatmap_legend_param = list(title = "Scaled ssGSEA Score", title_position = "lefttop-rot")
+    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
   ),
   column_title = "All Cell-types PC 1"
 )
@@ -546,7 +547,7 @@ for (i in idx) {
       column_names_side = "top",
       row_title_rot = 0,
       column_names_rot = 45,
-      heatmap_legend_param = list(title = "log1p Normalised Counts", title_position = "lefttop-rot")
+      heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
     ),
     column_title = title
   )
@@ -560,11 +561,16 @@ seurat_sub <- seurat[ , which(seurat$annotations_short == "Astrocyte")]
 
 sce <- as.SingleCellExperiment(seurat_sub, assay = "GSVA")
 sce <- suppressWarnings(
-  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
+  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "median")
 )
-dge <- DGEList(counts(sce))
-dge <- calcNormFactors(dge)
-logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
+logcounts(sce, withDimnames = FALSE) <- log1p(counts(sce))
+
+seurat_sub$annotations_control <- factor(
+  c(
+    rep("MAPTKI", times = length(which(seurat_sub$sample == "MAPTKI"))),
+    rep("Other", times = length(which(seurat_sub$sample != "MAPTKI")))
+  )
+)
 
 rds <- file.path(cache_dir, "markers_gsva_astro.rds")
 if (file.exists(rds)) {
@@ -597,6 +603,11 @@ if (file.exists(rds)) {
 markers <- markers[markers$p_val_adj < 0.05, ]
 # markers <- markers %>% distinct(gene, .keep_all = TRUE)
 # rownames(markers) <- markers$gene
+
+min <- quantile(counts(sce))[4]
+keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
+markers <- markers[rownames(markers) %in% keep, ]
+
 markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
 datatable_download_exp(markers)
 markers$number <- seq(markers$gene)
@@ -674,19 +685,14 @@ row_anno <-  HeatmapAnnotation(
   which = "row"
 )
 
-mat <- logcounts(sce)
+mat <- counts(sce)
 mat <- mat[rownames(mat) %in% markers$gene, ]
 mat <- mat[match(markers$gene, rownames(mat)), ]
 
 set.seed(1)
 draw(
   Heatmap(
-    t(
-      apply(
-        mat, 1,
-        function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1)
-      )
-    ),
+    mat,
     colour,
     cluster_rows = FALSE,
     cluster_columns = FALSE,
@@ -700,7 +706,7 @@ draw(
     row_title = top_words,
     row_title_rot = 0,
     column_names_rot = 45,
-    heatmap_legend_param = list(title = "Scaled ssGSEA Score", title_position = "lefttop-rot")
+    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
   ),
   column_title = "Astrocyte"
 )
@@ -721,6 +727,10 @@ markers <- markers[ , 1:2]
 q1 <- quantile(markers[ , 1])[2]
 markers <- markers[markers[ , 1] < q1, ]
 markers <- abs(markers)
+
+min <- quantile(counts(sce))[4]
+keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
+markers <- markers[rownames(markers) %in% keep, ]
 
 markers$total <- markers[ , 1]
 markers <- markers[order(markers$total, decreasing = TRUE), ]
@@ -810,19 +820,14 @@ row_anno <-  HeatmapAnnotation(
   which = "row"
 )
 
-mat <- logcounts(sce)
+mat <- counts(sce)
 mat <- mat[rownames(mat) %in% markers$gene, ]
 mat <- mat[match(markers$gene, rownames(mat)), ]
 
 set.seed(1)
 draw(
   Heatmap(
-    t(
-      apply(
-        mat, 1,
-        function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1)
-      )
-    ),
+    mat,
     colour,
     cluster_rows = FALSE,
     cluster_columns = FALSE,
@@ -836,7 +841,7 @@ draw(
     row_title = top_words,
     row_title_rot = 0,
     column_names_rot = 45,
-    heatmap_legend_param = list(title = "Scaled ssGSEA Score", title_position = "lefttop-rot")
+    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
   ),
   column_title = "Astrocyte PC 1"
 )
@@ -886,7 +891,7 @@ for (i in idx) {
       column_names_side = "top",
       row_title_rot = 0,
       column_names_rot = 45,
-      heatmap_legend_param = list(title = "log1p Normalised Counts", title_position = "lefttop-rot")
+      heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
     ),
     column_title = title
   )
@@ -900,11 +905,16 @@ seurat_sub <- seurat[ , which(seurat$annotations_short == "Cortical Glutamatergi
 
 sce <- as.SingleCellExperiment(seurat_sub, assay = "GSVA")
 sce <- suppressWarnings(
-  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
+  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "median")
 )
-dge <- DGEList(counts(sce))
-dge <- calcNormFactors(dge)
-logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
+logcounts(sce, withDimnames = FALSE) <- log1p(counts(sce))
+
+seurat_sub$annotations_control <- factor(
+  c(
+    rep("MAPTKI", times = length(which(seurat_sub$sample == "MAPTKI"))),
+    rep("Other", times = length(which(seurat_sub$sample != "MAPTKI")))
+  )
+)
 
 rds <- file.path(cache_dir, "markers_gsva_glut.rds")
 if (file.exists(rds)) {
@@ -937,6 +947,11 @@ if (file.exists(rds)) {
 markers <- markers[markers$p_val_adj < 0.05, ]
 # markers <- markers %>% distinct(gene, .keep_all = TRUE)
 # rownames(markers) <- markers$gene
+
+min <- quantile(counts(sce))[4]
+keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
+markers <- markers[rownames(markers) %in% keep, ]
+
 markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
 datatable_download_exp(markers)
 markers$number <- seq(markers$gene)
@@ -1014,19 +1029,14 @@ row_anno <-  HeatmapAnnotation(
   which = "row"
 )
 
-mat <- logcounts(sce)
+mat <- counts(sce)
 mat <- mat[rownames(mat) %in% markers$gene, ]
 mat <- mat[match(markers$gene, rownames(mat)), ]
 
 set.seed(1)
 draw(
   Heatmap(
-    t(
-      apply(
-        mat, 1,
-        function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1)
-      )
-    ),
+    mat,
     colour,
     cluster_rows = FALSE,
     cluster_columns = FALSE,
@@ -1040,7 +1050,7 @@ draw(
     row_title = top_words,
     row_title_rot = 0,
     column_names_rot = 45,
-    heatmap_legend_param = list(title = "Scaled ssGSEA Score", title_position = "lefttop-rot")
+    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
   ),
   column_title = "Cortical Glutamatergic"
 )
@@ -1062,6 +1072,10 @@ q1 <- quantile(markers[ , 1])[2]
 markers <- markers[markers[ , 1] < q1, ]
 markers <- abs(markers)
 
+min <- quantile(counts(sce))[4]
+keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
+markers <- markers[rownames(markers) %in% keep, ]
+
 markers$total <- markers[ , 1]
 markers <- markers[order(markers$total, decreasing = TRUE), ]
 markers$gene <- rownames(markers)
@@ -1070,7 +1084,7 @@ markers$cluster <- rep("0", times = nrow(markers))
 markers$number <- seq(rownames(markers))
 ```
 
-```{r}
+```{r, fig.width = 20}
 FeaturePlot(
   seurat_sub, features = rownames(markers)[1:4], reduction = "GSVA_pca",
   order = TRUE, cols = c("lightgrey", "red")
@@ -1150,19 +1164,14 @@ row_anno <-  HeatmapAnnotation(
   which = "row"
 )
 
-mat <- logcounts(sce)
+mat <- counts(sce)
 mat <- mat[rownames(mat) %in% markers$gene, ]
 mat <- mat[match(markers$gene, rownames(mat)), ]
 
 set.seed(1)
 draw(
   Heatmap(
-    t(
-      apply(
-        mat, 1,
-        function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1)
-      )
-    ),
+    mat,
     colour,
     cluster_rows = FALSE,
     cluster_columns = FALSE,
@@ -1176,7 +1185,7 @@ draw(
     row_title = top_words,
     row_title_rot = 0,
     column_names_rot = 45,
-    heatmap_legend_param = list(title = "Scaled ssGSEA Score", title_position = "lefttop-rot")
+    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
   ),
   column_title = "Cortical Glutamatergic PC 1"
 )
@@ -1226,7 +1235,7 @@ for (i in idx) {
       column_names_side = "top",
       row_title_rot = 0,
       column_names_rot = 45,
-      heatmap_legend_param = list(title = "log1p Normalised Counts", title_position = "lefttop-rot")
+      heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
     ),
     column_title = title
   )
@@ -1240,11 +1249,16 @@ seurat_sub <- seurat[ , which(seurat$annotations_short == "Endothelial")]
 
 sce <- as.SingleCellExperiment(seurat_sub, assay = "GSVA")
 sce <- suppressWarnings(
-  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
+  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "median")
 )
-dge <- DGEList(counts(sce))
-dge <- calcNormFactors(dge)
-logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
+logcounts(sce, withDimnames = FALSE) <- log1p(counts(sce))
+
+seurat_sub$annotations_control <- factor(
+  c(
+    rep("MAPTKI", times = length(which(seurat_sub$sample == "MAPTKI"))),
+    rep("Other", times = length(which(seurat_sub$sample != "MAPTKI")))
+  )
+)
 
 rds <- file.path(cache_dir, "markers_gsva_endo.rds")
 if (file.exists(rds)) {
@@ -1277,6 +1291,11 @@ if (file.exists(rds)) {
 markers <- markers[markers$p_val_adj < 0.05, ]
 # markers <- markers %>% distinct(gene, .keep_all = TRUE)
 # rownames(markers) <- markers$gene
+
+min <- quantile(counts(sce))[4]
+keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
+markers <- markers[rownames(markers) %in% keep, ]
+
 markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
 datatable_download_exp(markers)
 markers$number <- seq(markers$gene)
@@ -1354,19 +1373,14 @@ row_anno <-  HeatmapAnnotation(
   which = "row"
 )
 
-mat <- logcounts(sce)
+mat <- counts(sce)
 mat <- mat[rownames(mat) %in% markers$gene, ]
 mat <- mat[match(markers$gene, rownames(mat)), ]
 
 set.seed(1)
 draw(
   Heatmap(
-    t(
-      apply(
-        mat, 1,
-        function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1)
-      )
-    ),
+    mat,
     colour,
     cluster_rows = FALSE,
     cluster_columns = FALSE,
@@ -1380,7 +1394,7 @@ draw(
     row_title = top_words,
     row_title_rot = 0,
     column_names_rot = 45,
-    heatmap_legend_param = list(title = "Scaled ssGSEA Score", title_position = "lefttop-rot")
+    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
   ),
   column_title = "Endothelial"
 )
@@ -1404,11 +1418,16 @@ seurat_sub <- seurat[ , which(seurat$annotations_short == "GABAergic")]
 
 sce <- as.SingleCellExperiment(seurat_sub, assay = "GSVA")
 sce <- suppressWarnings(
-  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
+  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "median")
 )
-dge <- DGEList(counts(sce))
-dge <- calcNormFactors(dge)
-logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
+logcounts(sce, withDimnames = FALSE) <- log1p(counts(sce))
+
+seurat_sub$annotations_control <- factor(
+  c(
+    rep("MAPTKI", times = length(which(seurat_sub$sample == "MAPTKI"))),
+    rep("Other", times = length(which(seurat_sub$sample != "MAPTKI")))
+  )
+)
 
 rds <- file.path(cache_dir, "markers_gsva_gaba.rds")
 if (file.exists(rds)) {
@@ -1441,6 +1460,11 @@ if (file.exists(rds)) {
 markers <- markers[markers$p_val_adj < 0.05, ]
 # markers <- markers %>% distinct(gene, .keep_all = TRUE)
 # rownames(markers) <- markers$gene
+
+min <- quantile(counts(sce))[4]
+keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
+markers <- markers[rownames(markers) %in% keep, ]
+
 markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
 datatable_download_exp(markers)
 markers$number <- seq(markers$gene)
@@ -1518,19 +1542,14 @@ row_anno <-  HeatmapAnnotation(
   which = "row"
 )
 
-mat <- logcounts(sce)
+mat <- counts(sce)
 mat <- mat[rownames(mat) %in% markers$gene, ]
 mat <- mat[match(markers$gene, rownames(mat)), ]
 
 set.seed(1)
 draw(
   Heatmap(
-    t(
-      apply(
-        mat, 1,
-        function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1)
-      )
-    ),
+    mat,
     colour,
     cluster_rows = FALSE,
     cluster_columns = FALSE,
@@ -1544,7 +1563,7 @@ draw(
     row_title = top_words,
     row_title_rot = 0,
     column_names_rot = 45,
-    heatmap_legend_param = list(title = "Scaled ssGSEA Score", title_position = "lefttop-rot")
+    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
   ),
   column_title = "GABAergic"
 )
@@ -1560,11 +1579,15 @@ seurat_sub$GSVA_pca2 <- add_df[ , 2]
 
 red_dim_plot(seurat_sub, x = "GSVA_pca1", y = "GSVA_pca2", color = "sample", type = "cat")
 
-markers <- as.data.frame(Loadings(seurat, reduction = "GSVA_pca"))
+markers <- as.data.frame(Loadings(seurat_sub, reduction = "GSVA_pca"))
 markers <- markers[ , 1:2]
 q1 <- quantile(markers[ , 1])[4]
 markers <- markers[markers[ , 1] > q1, ]
 markers <- abs(markers)
+
+min <- quantile(counts(sce))[4]
+keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
+markers <- markers[rownames(markers) %in% keep, ]
 
 markers$total <- markers[ , 1]
 markers <- markers[order(markers$total, decreasing = TRUE), ]
@@ -1574,7 +1597,7 @@ markers$cluster <- rep("0", times = nrow(markers))
 markers$number <- seq(rownames(markers))
 ```
 
-```{r, fig.width = 10}
+```{r, fig.width = 20}
 FeaturePlot(
   seurat_sub, features = rownames(markers)[1:4], reduction = "GSVA_pca",
   order = TRUE, cols = c("lightgrey", "red")
@@ -1654,19 +1677,14 @@ row_anno <-  HeatmapAnnotation(
   which = "row"
 )
 
-mat <- logcounts(sce)
+mat <- counts(sce)
 mat <- mat[rownames(mat) %in% markers$gene, ]
 mat <- mat[match(markers$gene, rownames(mat)), ]
 
 set.seed(1)
 draw(
   Heatmap(
-    t(
-      apply(
-        mat, 1,
-        function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1)
-      )
-    ),
+    mat,
     colour,
     cluster_rows = FALSE,
     cluster_columns = FALSE,
@@ -1680,7 +1698,7 @@ draw(
     row_title = top_words,
     row_title_rot = 0,
     column_names_rot = 45,
-    heatmap_legend_param = list(title = "Scaled ssGSEA Score", title_position = "lefttop-rot")
+    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
   ),
   column_title = "GABAergic PC 1"
 )
@@ -1730,7 +1748,7 @@ for (i in idx) {
       column_names_side = "top",
       row_title_rot = 0,
       column_names_rot = 45,
-      heatmap_legend_param = list(title = "log1p Normalised Counts", title_position = "lefttop-rot")
+      heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
     ),
     column_title = title
   )
@@ -1744,11 +1762,16 @@ seurat_sub <- seurat[ , which(seurat$annotations_short == "Hippocampal Glutamate
 
 sce <- as.SingleCellExperiment(seurat_sub, assay = "GSVA")
 sce <- suppressWarnings(
-  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
+  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "median")
 )
-dge <- DGEList(counts(sce))
-dge <- calcNormFactors(dge)
-logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
+logcounts(sce, withDimnames = FALSE) <- log1p(counts(sce))
+
+seurat_sub$annotations_control <- factor(
+  c(
+    rep("MAPTKI", times = length(which(seurat_sub$sample == "MAPTKI"))),
+    rep("Other", times = length(which(seurat_sub$sample != "MAPTKI")))
+  )
+)
 
 rds <- file.path(cache_dir, "markers_gsva_hip.rds")
 if (file.exists(rds)) {
@@ -1781,6 +1804,11 @@ if (file.exists(rds)) {
 markers <- markers[markers$p_val_adj < 0.05, ]
 # markers <- markers %>% distinct(gene, .keep_all = TRUE)
 # rownames(markers) <- markers$gene
+
+min <- quantile(counts(sce))[4]
+keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
+markers <- markers[rownames(markers) %in% keep, ]
+
 markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
 datatable_download_exp(markers)
 markers$number <- seq(markers$gene)
@@ -1858,19 +1886,14 @@ row_anno <-  HeatmapAnnotation(
   which = "row"
 )
 
-mat <- logcounts(sce)
+mat <- counts(sce)
 mat <- mat[rownames(mat) %in% markers$gene, ]
 mat <- mat[match(markers$gene, rownames(mat)), ]
 
 set.seed(1)
 draw(
   Heatmap(
-    t(
-      apply(
-        mat, 1,
-        function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1)
-      )
-    ),
+    mat,
     colour,
     cluster_rows = FALSE,
     cluster_columns = FALSE,
@@ -1884,7 +1907,7 @@ draw(
     row_title = top_words,
     row_title_rot = 0,
     column_names_rot = 45,
-    heatmap_legend_param = list(title = "Scaled ssGSEA Score", title_position = "lefttop-rot")
+    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
   ),
   column_title = "Hippocampal Glutamatergic"
 )
@@ -1900,11 +1923,15 @@ seurat_sub$GSVA_pca2 <- add_df[ , 2]
 
 red_dim_plot(seurat_sub, x = "GSVA_pca1", y = "GSVA_pca2", color = "sample", type = "cat")
 
-markers <- as.data.frame(Loadings(seurat, reduction = "GSVA_pca"))
+markers <- as.data.frame(Loadings(seurat_sub, reduction = "GSVA_pca"))
 markers <- markers[ , 1:2]
-q1 <- quantile(markers[ , 1])[4]
-markers <- markers[markers[ , 1] > q1, ]
+q1 <- quantile(markers[ , 1])[2]
+markers <- markers[markers[ , 1] < q1, ]
 markers <- abs(markers)
+
+min <- quantile(counts(sce))[4]
+keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
+markers <- markers[rownames(markers) %in% keep, ]
 
 markers$total <- markers[ , 1]
 markers <- markers[order(markers$total, decreasing = TRUE), ]
@@ -1914,7 +1941,7 @@ markers$cluster <- rep("0", times = nrow(markers))
 markers$number <- seq(rownames(markers))
 ```
 
-```{r, fig.width = 12.5}
+```{r, fig.width = 20}
 FeaturePlot(
   seurat_sub, features = rownames(markers)[1:4], reduction = "GSVA_pca",
   order = TRUE, cols = c("lightgrey", "red")
@@ -1994,19 +2021,14 @@ row_anno <-  HeatmapAnnotation(
   which = "row"
 )
 
-mat <- logcounts(sce)
+mat <- counts(sce)
 mat <- mat[rownames(mat) %in% markers$gene, ]
 mat <- mat[match(markers$gene, rownames(mat)), ]
 
 set.seed(1)
 draw(
   Heatmap(
-    t(
-      apply(
-        mat, 1,
-        function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1)
-      )
-    ),
+    mat,
     colour,
     cluster_rows = FALSE,
     cluster_columns = FALSE,
@@ -2020,7 +2042,7 @@ draw(
     row_title = top_words,
     row_title_rot = 0,
     column_names_rot = 45,
-    heatmap_legend_param = list(title = "Scaled ssGSEA Score", title_position = "lefttop-rot")
+    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
   ),
   column_title = "Hippocampal Glutamatergic PC 1"
 )
@@ -2070,7 +2092,7 @@ for (i in idx) {
       column_names_side = "top",
       row_title_rot = 0,
       column_names_rot = 45,
-      heatmap_legend_param = list(title = "log1p Normalised Counts", title_position = "lefttop-rot")
+      heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
     ),
     column_title = title
   )
@@ -2084,11 +2106,16 @@ seurat_sub <- seurat[ , which(seurat$annotations_short == "Microglia")]
 
 sce <- as.SingleCellExperiment(seurat_sub, assay = "GSVA")
 sce <- suppressWarnings(
-  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
+  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "median")
 )
-dge <- DGEList(counts(sce))
-dge <- calcNormFactors(dge)
-logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
+logcounts(sce, withDimnames = FALSE) <- log1p(counts(sce))
+
+seurat_sub$annotations_control <- factor(
+  c(
+    rep("MAPTKI", times = length(which(seurat_sub$sample == "MAPTKI"))),
+    rep("Other", times = length(which(seurat_sub$sample != "MAPTKI")))
+  )
+)
 
 rds <- file.path(cache_dir, "markers_gsva_micro.rds")
 if (file.exists(rds)) {
@@ -2121,6 +2148,11 @@ if (file.exists(rds)) {
 markers <- markers[markers$p_val_adj < 0.05, ]
 # markers <- markers %>% distinct(gene, .keep_all = TRUE)
 # rownames(markers) <- markers$gene
+
+min <- quantile(counts(sce))[4]
+keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
+markers <- markers[rownames(markers) %in% keep, ]
+
 markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
 datatable_download_exp(markers)
 markers$number <- seq(markers$gene)
@@ -2198,19 +2230,14 @@ row_anno <-  HeatmapAnnotation(
   which = "row"
 )
 
-mat <- logcounts(sce)
+mat <- counts(sce)
 mat <- mat[rownames(mat) %in% markers$gene, ]
 mat <- mat[match(markers$gene, rownames(mat)), ]
 
 set.seed(1)
 draw(
   Heatmap(
-    t(
-      apply(
-        mat, 1,
-        function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1)
-      )
-    ),
+    mat,
     colour,
     cluster_rows = FALSE,
     cluster_columns = FALSE,
@@ -2224,7 +2251,7 @@ draw(
     row_title = top_words,
     row_title_rot = 0,
     column_names_rot = 45,
-    heatmap_legend_param = list(title = "Scaled ssGSEA Score", title_position = "lefttop-rot")
+    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
   ),
   column_title = "Microglia"
 )
@@ -2240,11 +2267,15 @@ seurat_sub$GSVA_pca2 <- add_df[ , 2]
 
 red_dim_plot(seurat_sub, x = "GSVA_pca1", y = "GSVA_pca2", color = "sample", type = "cat")
 
-markers <- as.data.frame(Loadings(seurat, reduction = "GSVA_pca"))
+markers <- as.data.frame(Loadings(seurat_sub, reduction = "GSVA_pca"))
 markers <- markers[ , 1:2]
-q1 <- quantile(markers[ , 1])[4]
-markers <- markers[markers[ , 1] > q1, ]
+q1 <- quantile(markers[ , 1])[2]
+markers <- markers[markers[ , 1] < q1, ]
 markers <- abs(markers)
+
+min <- quantile(counts(sce))[4]
+keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
+markers <- markers[rownames(markers) %in% keep, ]
 
 markers$total <- markers[ , 1]
 markers <- markers[order(markers$total, decreasing = TRUE), ]
@@ -2254,7 +2285,7 @@ markers$cluster <- rep("0", times = nrow(markers))
 markers$number <- seq(rownames(markers))
 ```
 
-```{r}
+```{r, fig.width = 20}
 FeaturePlot(
   seurat_sub, features = rownames(markers)[1:4], reduction = "GSVA_pca",
   order = TRUE, cols = c("lightgrey", "red")
@@ -2334,19 +2365,14 @@ row_anno <-  HeatmapAnnotation(
   which = "row"
 )
 
-mat <- logcounts(sce)
+mat <- counts(sce)
 mat <- mat[rownames(mat) %in% markers$gene, ]
 mat <- mat[match(markers$gene, rownames(mat)), ]
 
 set.seed(1)
 draw(
   Heatmap(
-    t(
-      apply(
-        mat, 1,
-        function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1)
-      )
-    ),
+    mat,
     colour,
     cluster_rows = FALSE,
     cluster_columns = FALSE,
@@ -2360,7 +2386,7 @@ draw(
     row_title = top_words,
     row_title_rot = 0,
     column_names_rot = 45,
-    heatmap_legend_param = list(title = "Scaled ssGSEA Score", title_position = "lefttop-rot")
+    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
   ),
   column_title = "Microglia PC 1"
 )
@@ -2410,7 +2436,7 @@ for (i in idx) {
       column_names_side = "top",
       row_title_rot = 0,
       column_names_rot = 45,
-      heatmap_legend_param = list(title = "log1p Normalised Counts", title_position = "lefttop-rot")
+      heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
     ),
     column_title = title
   )
@@ -2424,11 +2450,16 @@ seurat_sub <- seurat[ , which(seurat$annotations_short == "Oligodendrocyte")]
 
 sce <- as.SingleCellExperiment(seurat_sub, assay = "GSVA")
 sce <- suppressWarnings(
-  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
+  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "median")
 )
-dge <- DGEList(counts(sce))
-dge <- calcNormFactors(dge)
-logcounts(sce, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
+logcounts(sce, withDimnames = FALSE) <- log1p(counts(sce))
+
+seurat_sub$annotations_control <- factor(
+  c(
+    rep("MAPTKI", times = length(which(seurat_sub$sample == "MAPTKI"))),
+    rep("Other", times = length(which(seurat_sub$sample != "MAPTKI")))
+  )
+)
 
 rds <- file.path(cache_dir, "markers_gsva_oligo.rds")
 if (file.exists(rds)) {
@@ -2461,6 +2492,11 @@ if (file.exists(rds)) {
 markers <- markers[markers$p_val_adj < 0.05, ]
 # markers <- markers %>% distinct(gene, .keep_all = TRUE)
 # rownames(markers) <- markers$gene
+
+min <- quantile(counts(sce))[4]
+keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
+markers <- markers[rownames(markers) %in% keep, ]
+
 markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
 datatable_download_exp(markers)
 markers$number <- seq(markers$gene)
@@ -2538,19 +2574,14 @@ row_anno <-  HeatmapAnnotation(
   which = "row"
 )
 
-mat <- logcounts(sce)
+mat <- counts(sce)
 mat <- mat[rownames(mat) %in% markers$gene, ]
 mat <- mat[match(markers$gene, rownames(mat)), ]
 
 set.seed(1)
 draw(
   Heatmap(
-    t(
-      apply(
-        mat, 1,
-        function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1)
-      )
-    ),
+    mat,
     colour,
     cluster_rows = FALSE,
     cluster_columns = FALSE,
@@ -2564,7 +2595,7 @@ draw(
     row_title = top_words,
     row_title_rot = 0,
     column_names_rot = 45,
-    heatmap_legend_param = list(title = "Scaled ssGSEA Score", title_position = "lefttop-rot")
+    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
   ),
   column_title = "Oligodendrocyte"
 )
@@ -2580,11 +2611,15 @@ seurat_sub$GSVA_pca2 <- add_df[ , 2]
 
 red_dim_plot(seurat_sub, x = "GSVA_pca1", y = "GSVA_pca2", color = "sample", type = "cat")
 
-markers <- as.data.frame(Loadings(seurat, reduction = "GSVA_pca"))
+markers <- as.data.frame(Loadings(seurat_sub, reduction = "GSVA_pca"))
 markers <- markers[ , 1:2]
-q1 <- quantile(markers[ , 1])[4]
-markers <- markers[markers[ , 1] > q1, ]
+q1 <- quantile(markers[ , 1])[2]
+markers <- markers[markers[ , 1] < q1, ]
 markers <- abs(markers)
+
+min <- quantile(counts(sce))[4]
+keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
+markers <- markers[rownames(markers) %in% keep, ]
 
 markers$total <- markers[ , 1]
 markers <- markers[order(markers$total, decreasing = TRUE), ]
@@ -2594,7 +2629,7 @@ markers$cluster <- rep("0", times = nrow(markers))
 markers$number <- seq(rownames(markers))
 ```
 
-```{r, fig.width = 10}
+```{r, fig.width = 20}
 FeaturePlot(
   seurat_sub, features = rownames(markers)[1:4], reduction = "GSVA_pca",
   order = TRUE, cols = c("lightgrey", "red")
@@ -2674,19 +2709,14 @@ row_anno <-  HeatmapAnnotation(
   which = "row"
 )
 
-mat <- logcounts(sce)
+mat <- counts(sce)
 mat <- mat[rownames(mat) %in% markers$gene, ]
 mat <- mat[match(markers$gene, rownames(mat)), ]
 
 set.seed(1)
 draw(
   Heatmap(
-    t(
-      apply(
-        mat, 1,
-        function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1)
-      )
-    ),
+    mat,
     colour,
     cluster_rows = FALSE,
     cluster_columns = FALSE,
@@ -2700,7 +2730,7 @@ draw(
     row_title = top_words,
     row_title_rot = 0,
     column_names_rot = 45,
-    heatmap_legend_param = list(title = "Scaled ssGSEA Score", title_position = "lefttop-rot")
+    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
   ),
   column_title = "Oligodendrocyte PC 1"
 )
@@ -2750,7 +2780,7 @@ for (i in idx) {
       column_names_side = "top",
       row_title_rot = 0,
       column_names_rot = 45,
-      heatmap_legend_param = list(title = "log1p Normalised Counts", title_position = "lefttop-rot")
+      heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
     ),
     column_title = title
   )

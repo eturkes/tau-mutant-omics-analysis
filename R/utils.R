@@ -782,7 +782,27 @@ word_cloud = function(x, width = NULL){
            "acting", "indolemethanol", "consequences", "cornification",
            "experience", "mda", "osteoblast", "cis",
            "export", "thymocyte", "cisterna", "giant",
-           "closest")
+           "closest", "tightly", "cysteine", "dna",
+           "cerebrospinal", "acylcoa", "epithelial", "nitrogenous",
+           "choroid", "nacylsphingosine", "epithelialmesenchymal", "callosum",
+           "clear", "nacyltransferase", "atpproducing", "contralateral",
+           "csf", "sphingosine", "midpiece", "fourth",
+           "restricted", "plexus", "cardiac", "sheath",
+           "spaces", "myofibril", "invagination", "spinal",
+           "ttubule", "subarachnoid", "ventricles", "extracellular",
+           "integrin", "transmembrane", "actively", "arylesterase",
+           "messenger", "phenol", "ribonucleoprotein", "blood",
+           "phenyl", "cytoplasmic", "monomers", "cortex",
+           "adp", "celladhesion", "aroused", "basophils",
+           "localization", "integrins", "amp", "enlarging",
+           "bluishblack", "implicated", "erectile", "tip",
+           "erection", "hardening", "inflow", "intercourse",
+           "penile", "penis", "rising", "sexually",
+           "factin", "dgalactopyranosylbetanacetyldglucosamine", "nitric", "fucose",
+           "peptidylcysteine", "galactosylgalactosylxylose", "peptidylsnitrosyllcysteine", "snitrosylation",
+           "sulphur", "intermediates", "epithelium", "pigmentation",
+           "apob", "absorbs", "melanincontaining", "reflected",
+           "scattered", "hormones", "corticotropes", "regeneration")
   txt = unlist(strsplit(x, " "))
   txt = Corpus(VectorSource(txt))
   txt = tm_map(txt, PlainTextDocument)
