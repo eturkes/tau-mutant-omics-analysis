@@ -802,7 +802,18 @@ word_cloud = function(x, width = NULL){
            "peptidylcysteine", "galactosylgalactosylxylose", "peptidylsnitrosyllcysteine", "snitrosylation",
            "sulphur", "intermediates", "epithelium", "pigmentation",
            "apob", "absorbs", "melanincontaining", "reflected",
-           "scattered", "hormones", "corticotropes", "regeneration")
+           "scattered", "regeneration", "commissure", "pregnancy",
+           "granule", "highdensity", "autocrine", "aorta",
+           "birth", "passage", "breakage", "potential",
+           "arch", "arteriosus", "artery", "pharyngeal",
+           "bypass", "ductus", "fetus", "longer",
+           "permit", "pulmonary", "shunt", "titin",
+           "rna", "monoester", "motor", "optimum",
+           "orthophosphoric", "antigens", "bilayer", "neuron",
+           "fiber", "humans", "sclerotome", "somite",
+           "vertebra", "viral", "arterial", "acidification",
+           "sulfate", "aminocarbamimidamidopentanoic", "thymus", "pericyte",
+           "waste", "granules")
   txt = unlist(strsplit(x, " "))
   txt = Corpus(VectorSource(txt))
   txt = tm_map(txt, PlainTextDocument)
