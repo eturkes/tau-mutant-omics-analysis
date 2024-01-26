@@ -524,16 +524,15 @@ for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
 }
 idx <- table(idx)
 idx <- idx[order(idx, decreasing = TRUE)]
-if (length(idx) < 25) {
-  idx <- as.numeric(names(idx)[seq_along(idx)])
-} else {
-  idx <- as.numeric(names(idx)[1:25])
-}
+idx <- idx[idx > 1]
+idx <- as.numeric(names(idx)[seq_along(idx)])
 
+genes_all <- c()
 for (i in idx) {
   gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
   gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
   genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
+  genes_all <- c(genes_all, genes)
   title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
 
   mat <- logcounts(sce2)[rownames(sce2) %in% genes, ]
@@ -556,6 +555,30 @@ for (i in idx) {
     column_title = title
   )
 }
+
+genes <- table(genes_all)
+genes <- genes[order(genes, decreasing = TRUE)]
+genes <- genes[genes > 1]
+
+mat <- logcounts(sce2)[rownames(sce2) %in% names(genes), ]
+mat <- mat[match(names(genes), rownames(mat)), ]
+
+set.seed(1)
+draw(
+  Heatmap(
+    mat,
+    colour2,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
+    rect_gp = gpar(col = "lightgray", lwd = 0.1),
+    row_gap = unit(2, "mm"),
+    column_gap = unit(2, "mm"),
+    column_names_side = "top",
+    row_title_rot = 0,
+    column_names_rot = 45,
+    heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
+  )
+)
 ```
 
 ```{r}
@@ -691,16 +714,15 @@ for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
 }
 idx <- table(idx)
 idx <- idx[order(idx, decreasing = TRUE)]
-if (length(idx) < 25) {
-  idx <- as.numeric(names(idx)[seq_along(idx)])
-} else {
-  idx <- as.numeric(names(idx)[1:25])
-}
+idx <- idx[idx > 1]
+idx <- as.numeric(names(idx)[seq_along(idx)])
 
+genes_all <- c()
 for (i in idx) {
   gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
   gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
   genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
+  genes_all <- c(genes_all, genes)
   title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
 
   mat <- logcounts(sce2)[rownames(sce2) %in% genes, ]
@@ -723,6 +745,30 @@ for (i in idx) {
     column_title = title
   )
 }
+
+genes <- table(genes_all)
+genes <- genes[order(genes, decreasing = TRUE)]
+genes <- genes[genes > 1]
+
+mat <- logcounts(sce2)[rownames(sce2) %in% names(genes), ]
+mat <- mat[match(names(genes), rownames(mat)), ]
+
+set.seed(1)
+draw(
+  Heatmap(
+    mat,
+    colour2,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
+    rect_gp = gpar(col = "lightgray", lwd = 0.1),
+    row_gap = unit(2, "mm"),
+    column_gap = unit(2, "mm"),
+    column_names_side = "top",
+    row_title_rot = 0,
+    column_names_rot = 45,
+    heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
+  )
+)
 ```
 
 ## Astrocyte
@@ -1019,7 +1065,7 @@ draw(
 ```
 
 ```{r, fig.height = 5, fig.width = 12.5}
-sce2 <- as.SingleCellExperiment(seurat_sub_orig, assay = "SCT")
+sce2 <- as.SingleCellExperiment(seurat, assay = "SCT")
 sce2 <- suppressWarnings(
   aggregateAcrossCells(sce2, colData(sce2)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
 )
@@ -1035,16 +1081,15 @@ for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
 }
 idx <- table(idx)
 idx <- idx[order(idx, decreasing = TRUE)]
-if (length(idx) < 25) {
-  idx <- as.numeric(names(idx)[seq_along(idx)])
-} else {
-  idx <- as.numeric(names(idx)[1:25])
-}
+idx <- idx[idx > 1]
+idx <- as.numeric(names(idx)[seq_along(idx)])
 
+genes_all <- c()
 for (i in idx) {
   gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
   gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
   genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
+  genes_all <- c(genes_all, genes)
   title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
 
   mat <- logcounts(sce2)[rownames(sce2) %in% genes, ]
@@ -1067,6 +1112,30 @@ for (i in idx) {
     column_title = title
   )
 }
+
+genes <- table(genes_all)
+genes <- genes[order(genes, decreasing = TRUE)]
+genes <- genes[genes > 1]
+
+mat <- logcounts(sce2)[rownames(sce2) %in% names(genes), ]
+mat <- mat[match(names(genes), rownames(mat)), ]
+
+set.seed(1)
+draw(
+  Heatmap(
+    mat,
+    colour2,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
+    rect_gp = gpar(col = "lightgray", lwd = 0.1),
+    row_gap = unit(2, "mm"),
+    column_gap = unit(2, "mm"),
+    column_names_side = "top",
+    row_title_rot = 0,
+    column_names_rot = 45,
+    heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
+  )
+)
 ```
 
 ```{r}
@@ -1202,16 +1271,15 @@ for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
 }
 idx <- table(idx)
 idx <- idx[order(idx, decreasing = TRUE)]
-if (length(idx) < 25) {
-  idx <- as.numeric(names(idx)[seq_along(idx)])
-} else {
-  idx <- as.numeric(names(idx)[1:25])
-}
+idx <- idx[idx > 1]
+idx <- as.numeric(names(idx)[seq_along(idx)])
 
+genes_all <- c()
 for (i in idx) {
   gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
   gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
   genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
+  genes_all <- c(genes_all, genes)
   title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
 
   mat <- logcounts(sce2)[rownames(sce2) %in% genes, ]
@@ -1234,6 +1302,30 @@ for (i in idx) {
     column_title = title
   )
 }
+
+genes <- table(genes_all)
+genes <- genes[order(genes, decreasing = TRUE)]
+genes <- genes[genes > 1]
+
+mat <- logcounts(sce2)[rownames(sce2) %in% names(genes), ]
+mat <- mat[match(names(genes), rownames(mat)), ]
+
+set.seed(1)
+draw(
+  Heatmap(
+    mat,
+    colour2,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
+    rect_gp = gpar(col = "lightgray", lwd = 0.1),
+    row_gap = unit(2, "mm"),
+    column_gap = unit(2, "mm"),
+    column_names_side = "top",
+    row_title_rot = 0,
+    column_names_rot = 45,
+    heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
+  )
+)
 ```
 
 ## Cortical Glutamatergic
@@ -1530,7 +1622,7 @@ draw(
 ```
 
 ```{r, fig.height = 5, fig.width = 12.5}
-sce2 <- as.SingleCellExperiment(seurat_sub_orig, assay = "SCT")
+sce2 <- as.SingleCellExperiment(seurat, assay = "SCT")
 sce2 <- suppressWarnings(
   aggregateAcrossCells(sce2, colData(sce2)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
 )
@@ -1546,16 +1638,15 @@ for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
 }
 idx <- table(idx)
 idx <- idx[order(idx, decreasing = TRUE)]
-if (length(idx) < 25) {
-  idx <- as.numeric(names(idx)[seq_along(idx)])
-} else {
-  idx <- as.numeric(names(idx)[1:25])
-}
+idx <- idx[idx > 1]
+idx <- as.numeric(names(idx)[seq_along(idx)])
 
+genes_all <- c()
 for (i in idx) {
   gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
   gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
   genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
+  genes_all <- c(genes_all, genes)
   title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
 
   mat <- logcounts(sce2)[rownames(sce2) %in% genes, ]
@@ -1578,6 +1669,30 @@ for (i in idx) {
     column_title = title
   )
 }
+
+genes <- table(genes_all)
+genes <- genes[order(genes, decreasing = TRUE)]
+genes <- genes[genes > 1]
+
+mat <- logcounts(sce2)[rownames(sce2) %in% names(genes), ]
+mat <- mat[match(names(genes), rownames(mat)), ]
+
+set.seed(1)
+draw(
+  Heatmap(
+    mat,
+    colour2,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
+    rect_gp = gpar(col = "lightgray", lwd = 0.1),
+    row_gap = unit(2, "mm"),
+    column_gap = unit(2, "mm"),
+    column_names_side = "top",
+    row_title_rot = 0,
+    column_names_rot = 45,
+    heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
+  )
+)
 ```
 
 ```{r}
@@ -1705,6 +1820,14 @@ draw(
 ```
 
 ```{r, fig.height = 5, fig.width = 12.5}
+sce2 <- as.SingleCellExperiment(seurat, assay = "SCT")
+sce2 <- suppressWarnings(
+  aggregateAcrossCells(sce2, colData(sce2)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
+)
+dge <- DGEList(counts(sce2))
+dge <- calcNormFactors(dge)
+logcounts(sce2, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
+
 idx <- c()
 for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
   idx <- c(
@@ -1713,16 +1836,15 @@ for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
 }
 idx <- table(idx)
 idx <- idx[order(idx, decreasing = TRUE)]
-if (length(idx) < 25) {
-  idx <- as.numeric(names(idx)[seq_along(idx)])
-} else {
-  idx <- as.numeric(names(idx)[1:25])
-}
+idx <- idx[idx > 1]
+idx <- as.numeric(names(idx)[seq_along(idx)])
 
+genes_all <- c()
 for (i in idx) {
   gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
   gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
   genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
+  genes_all <- c(genes_all, genes)
   title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
 
   mat <- logcounts(sce2)[rownames(sce2) %in% genes, ]
@@ -1745,6 +1867,30 @@ for (i in idx) {
     column_title = title
   )
 }
+
+genes <- table(genes_all)
+genes <- genes[order(genes, decreasing = TRUE)]
+genes <- genes[genes > 1]
+
+mat <- logcounts(sce2)[rownames(sce2) %in% names(genes), ]
+mat <- mat[match(names(genes), rownames(mat)), ]
+
+set.seed(1)
+draw(
+  Heatmap(
+    mat,
+    colour2,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
+    rect_gp = gpar(col = "lightgray", lwd = 0.1),
+    row_gap = unit(2, "mm"),
+    column_gap = unit(2, "mm"),
+    column_names_side = "top",
+    row_title_rot = 0,
+    column_names_rot = 45,
+    heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
+  )
+)
 ```
 
 ## Endothelial
@@ -2228,16 +2374,15 @@ for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
 }
 idx <- table(idx)
 idx <- idx[order(idx, decreasing = TRUE)]
-if (length(idx) < 25) {
-  idx <- as.numeric(names(idx)[seq_along(idx)])
-} else {
-  idx <- as.numeric(names(idx)[1:25])
-}
+idx <- idx[idx > 1]
+idx <- as.numeric(names(idx)[seq_along(idx)])
 
+genes_all <- c()
 for (i in idx) {
   gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
   gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
   genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
+  genes_all <- c(genes_all, genes)
   title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
 
   mat <- logcounts(sce2)[rownames(sce2) %in% genes, ]
@@ -2260,6 +2405,30 @@ for (i in idx) {
     column_title = title
   )
 }
+
+genes <- table(genes_all)
+genes <- genes[order(genes, decreasing = TRUE)]
+genes <- genes[genes > 1]
+
+mat <- logcounts(sce2)[rownames(sce2) %in% names(genes), ]
+mat <- mat[match(names(genes), rownames(mat)), ]
+
+set.seed(1)
+draw(
+  Heatmap(
+    mat,
+    colour2,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
+    rect_gp = gpar(col = "lightgray", lwd = 0.1),
+    row_gap = unit(2, "mm"),
+    column_gap = unit(2, "mm"),
+    column_names_side = "top",
+    row_title_rot = 0,
+    column_names_rot = 45,
+    heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
+  )
+)
 ```
 
 ```{r}
@@ -2395,16 +2564,15 @@ for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
 }
 idx <- table(idx)
 idx <- idx[order(idx, decreasing = TRUE)]
-if (length(idx) < 25) {
-  idx <- as.numeric(names(idx)[seq_along(idx)])
-} else {
-  idx <- as.numeric(names(idx)[1:25])
-}
+idx <- idx[idx > 1]
+idx <- as.numeric(names(idx)[seq_along(idx)])
 
+genes_all <- c()
 for (i in idx) {
   gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
   gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
   genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
+  genes_all <- c(genes_all, genes)
   title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
 
   mat <- logcounts(sce2)[rownames(sce2) %in% genes, ]
@@ -2427,6 +2595,30 @@ for (i in idx) {
     column_title = title
   )
 }
+
+genes <- table(genes_all)
+genes <- genes[order(genes, decreasing = TRUE)]
+genes <- genes[genes > 1]
+
+mat <- logcounts(sce2)[rownames(sce2) %in% names(genes), ]
+mat <- mat[match(names(genes), rownames(mat)), ]
+
+set.seed(1)
+draw(
+  Heatmap(
+    mat,
+    colour2,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
+    rect_gp = gpar(col = "lightgray", lwd = 0.1),
+    row_gap = unit(2, "mm"),
+    column_gap = unit(2, "mm"),
+    column_names_side = "top",
+    row_title_rot = 0,
+    column_names_rot = 45,
+    heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
+  )
+)
 ```
 
 ## Hippocampal Glutamatergic
@@ -2739,16 +2931,15 @@ for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
 }
 idx <- table(idx)
 idx <- idx[order(idx, decreasing = TRUE)]
-if (length(idx) < 25) {
-  idx <- as.numeric(names(idx)[seq_along(idx)])
-} else {
-  idx <- as.numeric(names(idx)[1:25])
-}
+idx <- idx[idx > 1]
+idx <- as.numeric(names(idx)[seq_along(idx)])
 
+genes_all <- c()
 for (i in idx) {
   gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
   gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
   genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
+  genes_all <- c(genes_all, genes)
   title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
 
   mat <- logcounts(sce2)[rownames(sce2) %in% genes, ]
@@ -2771,6 +2962,30 @@ for (i in idx) {
     column_title = title
   )
 }
+
+genes <- table(genes_all)
+genes <- genes[order(genes, decreasing = TRUE)]
+genes <- genes[genes > 1]
+
+mat <- logcounts(sce2)[rownames(sce2) %in% names(genes), ]
+mat <- mat[match(names(genes), rownames(mat)), ]
+
+set.seed(1)
+draw(
+  Heatmap(
+    mat,
+    colour2,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
+    rect_gp = gpar(col = "lightgray", lwd = 0.1),
+    row_gap = unit(2, "mm"),
+    column_gap = unit(2, "mm"),
+    column_names_side = "top",
+    row_title_rot = 0,
+    column_names_rot = 45,
+    heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
+  )
+)
 ```
 
 ```{r}
@@ -2906,16 +3121,15 @@ for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
 }
 idx <- table(idx)
 idx <- idx[order(idx, decreasing = TRUE)]
-if (length(idx) < 25) {
-  idx <- as.numeric(names(idx)[seq_along(idx)])
-} else {
-  idx <- as.numeric(names(idx)[1:25])
-}
+idx <- idx[idx > 1]
+idx <- as.numeric(names(idx)[seq_along(idx)])
 
+genes_all <- c()
 for (i in idx) {
   gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
   gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
   genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
+  genes_all <- c(genes_all, genes)
   title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
 
   mat <- logcounts(sce2)[rownames(sce2) %in% genes, ]
@@ -2938,6 +3152,30 @@ for (i in idx) {
     column_title = title
   )
 }
+
+genes <- table(genes_all)
+genes <- genes[order(genes, decreasing = TRUE)]
+genes <- genes[genes > 1]
+
+mat <- logcounts(sce2)[rownames(sce2) %in% names(genes), ]
+mat <- mat[match(names(genes), rownames(mat)), ]
+
+set.seed(1)
+draw(
+  Heatmap(
+    mat,
+    colour2,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
+    rect_gp = gpar(col = "lightgray", lwd = 0.1),
+    row_gap = unit(2, "mm"),
+    column_gap = unit(2, "mm"),
+    column_names_side = "top",
+    row_title_rot = 0,
+    column_names_rot = 45,
+    heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
+  )
+)
 ```
 
 ## Microglia
@@ -3250,16 +3488,15 @@ for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
 }
 idx <- table(idx)
 idx <- idx[order(idx, decreasing = TRUE)]
-if (length(idx) < 25) {
-  idx <- as.numeric(names(idx)[seq_along(idx)])
-} else {
-  idx <- as.numeric(names(idx)[1:25])
-}
+idx <- idx[idx > 1]
+idx <- as.numeric(names(idx)[seq_along(idx)])
 
+genes_all <- c()
 for (i in idx) {
   gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
   gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
   genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
+  genes_all <- c(genes_all, genes)
   title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
 
   mat <- logcounts(sce2)[rownames(sce2) %in% genes, ]
@@ -3282,6 +3519,30 @@ for (i in idx) {
     column_title = title
   )
 }
+
+genes <- table(genes_all)
+genes <- genes[order(genes, decreasing = TRUE)]
+genes <- genes[genes > 1]
+
+mat <- logcounts(sce2)[rownames(sce2) %in% names(genes), ]
+mat <- mat[match(names(genes), rownames(mat)), ]
+
+set.seed(1)
+draw(
+  Heatmap(
+    mat,
+    colour2,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
+    rect_gp = gpar(col = "lightgray", lwd = 0.1),
+    row_gap = unit(2, "mm"),
+    column_gap = unit(2, "mm"),
+    column_names_side = "top",
+    row_title_rot = 0,
+    column_names_rot = 45,
+    heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
+  )
+)
 ```
 
 ```{r}
@@ -3417,16 +3678,15 @@ for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
 }
 idx <- table(idx)
 idx <- idx[order(idx, decreasing = TRUE)]
-if (length(idx) < 25) {
-  idx <- as.numeric(names(idx)[seq_along(idx)])
-} else {
-  idx <- as.numeric(names(idx)[1:25])
-}
+idx <- idx[idx > 1]
+idx <- as.numeric(names(idx)[seq_along(idx)])
 
+genes_all <- c()
 for (i in idx) {
   gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
   gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
   genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
+  genes_all <- c(genes_all, genes)
   title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
 
   mat <- logcounts(sce2)[rownames(sce2) %in% genes, ]
@@ -3449,6 +3709,30 @@ for (i in idx) {
     column_title = title
   )
 }
+
+genes <- table(genes_all)
+genes <- genes[order(genes, decreasing = TRUE)]
+genes <- genes[genes > 1]
+
+mat <- logcounts(sce2)[rownames(sce2) %in% names(genes), ]
+mat <- mat[match(names(genes), rownames(mat)), ]
+
+set.seed(1)
+draw(
+  Heatmap(
+    mat,
+    colour2,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
+    rect_gp = gpar(col = "lightgray", lwd = 0.1),
+    row_gap = unit(2, "mm"),
+    column_gap = unit(2, "mm"),
+    column_names_side = "top",
+    row_title_rot = 0,
+    column_names_rot = 45,
+    heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
+  )
+)
 ```
 
 ## Oligodendrocyte
@@ -3761,16 +4045,15 @@ for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
 }
 idx <- table(idx)
 idx <- idx[order(idx, decreasing = TRUE)]
-if (length(idx) < 25) {
-  idx <- as.numeric(names(idx)[seq_along(idx)])
-} else {
-  idx <- as.numeric(names(idx)[1:25])
-}
+idx <- idx[idx > 1]
+idx <- as.numeric(names(idx)[seq_along(idx)])
 
+genes_all <- c()
 for (i in idx) {
   gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
   gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
   genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
+  genes_all <- c(genes_all, genes)
   title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
 
   mat <- logcounts(sce2)[rownames(sce2) %in% genes, ]
@@ -3793,6 +4076,30 @@ for (i in idx) {
     column_title = title
   )
 }
+
+# genes <- table(genes_all)
+# genes <- genes[order(genes, decreasing = TRUE)]
+# genes <- genes[genes > 1]
+# 
+# mat <- logcounts(sce2)[rownames(sce2) %in% names(genes), ]
+# mat <- mat[match(names(genes), rownames(mat)), ]
+# 
+# set.seed(1)
+# draw(
+#   Heatmap(
+#     mat,
+#     colour2,
+#     cluster_columns = FALSE,
+#     cluster_rows = FALSE,
+#     rect_gp = gpar(col = "lightgray", lwd = 0.1),
+#     row_gap = unit(2, "mm"),
+#     column_gap = unit(2, "mm"),
+#     column_names_side = "top",
+#     row_title_rot = 0,
+#     column_names_rot = 45,
+#     heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
+#   )
+# )
 ```
 
 ```{r}
@@ -3928,16 +4235,15 @@ for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
 }
 idx <- table(idx)
 idx <- idx[order(idx, decreasing = TRUE)]
-if (length(idx) < 25) {
-  idx <- as.numeric(names(idx)[seq_along(idx)])
-} else {
-  idx <- as.numeric(names(idx)[1:25])
-}
+idx <- idx[idx > 1]
+idx <- as.numeric(names(idx)[seq_along(idx)])
 
+genes_all <- c()
 for (i in idx) {
   gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
   gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
   genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
+  genes_all <- c(genes_all, genes)
   title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
 
   mat <- logcounts(sce2)[rownames(sce2) %in% genes, ]
@@ -3960,6 +4266,30 @@ for (i in idx) {
     column_title = title
   )
 }
+
+genes <- table(genes_all)
+genes <- genes[order(genes, decreasing = TRUE)]
+genes <- genes[genes > 1]
+
+mat <- logcounts(sce2)[rownames(sce2) %in% names(genes), ]
+mat <- mat[match(names(genes), rownames(mat)), ]
+
+set.seed(1)
+draw(
+  Heatmap(
+    mat,
+    colour2,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
+    rect_gp = gpar(col = "lightgray", lwd = 0.1),
+    row_gap = unit(2, "mm"),
+    column_gap = unit(2, "mm"),
+    column_names_side = "top",
+    row_title_rot = 0,
+    column_names_rot = 45,
+    heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
+  )
+)
 ```
 
 # References
