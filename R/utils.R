@@ -813,7 +813,18 @@ word_cloud = function(x, width = NULL){
            "fiber", "humans", "sclerotome", "somite",
            "vertebra", "viral", "arterial", "acidification",
            "sulfate", "aminocarbamimidamidopentanoic", "thymus", "pericyte",
-           "waste", "granules")
+           "waste", "granules", "ankyrin", "vessel",
+           "alkaloid", "neurons", "adiponectin", "glial",
+           "integrity", "aminoacylase", "betahairpinloop", "case",
+           "coca", "adiponectinactivated", "areas", "ensheathes",
+           "nacyllamino", "degree", "cavities", "cocaine",
+           "maintainance", "folds", "corneal", "crystalline",
+           "crest", "helices", "leaves", "helixloophelix",
+           "obtained", "lshaped", "modules", "tandemly",
+           "repeating", "repeated", "repeats", "stack",
+           "flows", "laminar", "layers", "luminal",
+           "moving", "object", "shear", "solid",
+           "antibiotic", "prior", "arteries", "coronary")
   txt = unlist(strsplit(x, " "))
   txt = Corpus(VectorSource(txt))
   txt = tm_map(txt, PlainTextDocument)
