@@ -345,8 +345,9 @@ max
 
 seurat <- RenameIdents(
   object = seurat, "0" = "Cortical Glutamatergic 01", "1" = "Oligodendrocyte", "2" = "Microglia", "3" = "Astrocyte",
-  "4" = "GABAergic", "5" = "Cortical Glutamatergic 02", "6" = "Hippocampal Glutamatergic", "7" = "DG Glutamatergic",
-  "8" = "OPC", "9" = "Endothelial", "10" = "Unknown 01", "11" = "Cortical Glutamatergic 03", "12" = "Unknown 02"
+  "4" = "GABAergic", "5" = "Cortical Glutamatergic 02", "6" = "Hippocampal Glutamatergic",
+  "7" = "Dentate Gyrus Glutamatergic", "8" = "OPC", "9" = "Endothelial", "10" = "Unknown 01",
+  "11" = "Cortical Glutamatergic 03", "12" = "Unknown 02"
 )
 seurat@active.ident <- factor(unfactor(seurat@active.ident))
 seurat$annotations <- seurat@active.ident
@@ -355,8 +356,9 @@ red_dim_plot(seurat, x = "umap1", y = "umap2", color = "annotations", type = "ca
 seurat@active.ident <- seurat$seurat_clusters
 seurat <- RenameIdents(
   object = seurat, "0" = "Cortical Glutamatergic", "1" = "Oligodendrocyte", "2" = "Microglia", "3" = "Astrocyte",
-  "4" = "GABAergic", "5" = "Cortical Glutamatergic", "6" = "Hippocampal Glutamatergic", "7" = "DG Glutamatergic",
-  "8" = "OPC", "9" = "Endothelial", "10" = "Unknown 01", "11" = "Cortical Glutamatergic", "12" = "Unknown 02"
+  "4" = "GABAergic", "5" = "Cortical Glutamatergic", "6" = "Hippocampal Glutamatergic",
+  "7" = "Dentate Gyrus Glutamatergic", "8" = "OPC", "9" = "Endothelial", "10" = "Unknown 01",
+  "11" = "Cortical Glutamatergic", "12" = "Unknown 02"
 )
 seurat@active.ident <- factor(unfactor(seurat@active.ident))
 seurat$annotations_short <- seurat@active.ident

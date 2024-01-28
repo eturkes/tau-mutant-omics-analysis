@@ -345,7 +345,7 @@ max
 
 seurat <- RenameIdents(
   object = seurat, "0" = "Cortical Glutamatergic 01", "1" = "Cortical Glutamatergic 02", "2" = "Oligodendrocyte",
-  "3" = "Astrocyte", "4" = "GABAergic", "5" = "DG Glutamatergic", "6" = "Hippocampal Glutamatergic",
+  "3" = "Astrocyte", "4" = "GABAergic", "5" = "Dentate Gyrus Glutamatergic", "6" = "Hippocampal Glutamatergic",
   "7" = "Cortical Glutamatergic 03", "8" = "Endothelial", "9" = "Microglia", "10" = "Unknown 01", "11" = "OPC",
   "12" = "Unknown 02"
 )
