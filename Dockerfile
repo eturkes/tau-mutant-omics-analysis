@@ -40,6 +40,7 @@ RUN apt-get update \
         -e "install.packages('tm')" \
         -e "install.packages('qgraph')" \
         -e "install.packages('fastmatch')" \
+        -e "install.packages('moments')" \
         -e "install.packages('BiocManager')" \
         -e "install.packages('remotes')" \
         -e "BiocManager::install('SingleCellExperiment')" \
