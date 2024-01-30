@@ -438,9 +438,82 @@ row_anno <-  HeatmapAnnotation(
 mat <- gse_zscore
 mat <- mat[rownames(mat) %in% markers$gene, ]
 mat <- mat[match(markers$gene, rownames(mat)), ]
+
+top_gse <- vector("list", length = length(modules))
+for (j in seq_along(top_gse)) {
+  idx <- c()
+  for (i in seq_along(unlist(strsplit(top_words[j], split = " ")))) {
+    idx <- c(
+      idx, grep(paste0("\\b", unlist(strsplit(top_words[j], split = " "))[i], "\\b"), x = unlist(top_words_list[[j]]))
+    )
+  }
+  top_gse[[j]] <- rownames(markers)[idx]
+}
+
+min <- min(counts(sce))
+keep <- rownames(counts(sce)[rowSums(counts(sce) > min) >= 1, ])
+sce_sub <- sce[keep, ]
+d <- density(counts(sce_sub))
+plot(d)
+
+sct_zscores <- t(scale(t(counts(sce_sub))))
+d <- density(sct_zscores)
+plot(d)
+
+top_genes <- vector("list", length = length(modules))
+for (i in seq_along(top_genes)) {
+  genes <- c()
+  for (gse_names in top_gse[[i]]) {
+    genes <- c(genes, geneIds(gene_sets[names(gene_sets) %in% gse_names])[[1]])
+  }
+  genes <- table(genes) / length(top_gse[[i]])
+
+  sct_zscores_sub <- sct_zscores[rownames(sct_zscores) %in% names(genes), i]
+  genes <- genes[names(genes) %in% names(sct_zscores_sub)]
+  sct_zscores_sub <- sct_zscores_sub[match(names(genes), names(sct_zscores_sub))]
+
+  comb <- genes * (sct_zscores_sub + 1)
+  # comb <- sct_zscores_sub
+  comb <- comb[order(comb, decreasing = TRUE)]
+
+  sct_zscores_sub <- sct_zscores_sub[match(names(comb), names(sct_zscores_sub))]
+  genes <- genes[match(names(comb), names(genes))]
+
+  top_genes[[i]] <- c(comb[1], sct_zscores_sub[1], genes[1], comb[2], sct_zscores_sub[2], genes[2])
+  names(top_genes[[i]]) <- c(
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[1]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[4]), ]$external_gene_name, times = 3
+    )
+  )
+}
+names(top_genes) <- colnames(mat)
 ```
 
 ```{r, fig.height = 4, fig.width = 6}
+panel_fun <- function(index, nm) {
+  pushViewport(viewport())
+  grid.rect(
+    x = 0, y = 0.75, width = top_genes[[nm]][3],
+    height = 0.5, just = "left", gp = gpar(fill = colour(top_genes[[nm]][2]))
+  )
+  # grid.rect(
+  #   x = 0, y = 0.25, width = top_genes[[nm]][6],
+  #   height = 0.5, just = "left", gp = gpar(fill = colour(top_genes[[nm]][5]))
+  # )
+  grid.text(y = 0.65, names(top_genes[[nm]])[1], gp = gpar(fontsize = 7), x = 1, just = "right")
+  # grid.text(y = 0.25, names(top_genes[[nm]])[4], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.xaxis(gp = gpar(fontsize = 4), main = FALSE)
+  popViewport()
+}
+right_anno <- rowAnnotation(
+  foo = anno_link(
+    align_to = optimal_k, which = "row", panel_fun = panel_fun, link_width = unit(0, "mm"), gap = unit(1, "mm")
+  )
+)
+
 set.seed(1)
 draw(
   Heatmap(
@@ -451,136 +524,24 @@ draw(
     cluster_rows = FALSE,
     row_split = optimal_k,
     left_annotation = row_anno,
+    right_annotation = right_anno,
     rect_gp = gpar(col = "lightgray", lwd = 0.01),
+    border = TRUE,
     row_gap = unit(1, "mm"),
     column_gap = unit(1, "mm"),
-    column_names_side = "bottom",
+    column_names_side = "top",
     row_title = top_words,
     column_names_gp = gpar(fontsize = 9),
     row_title_gp = gpar(fontsize = 9),
     row_title_rot = 0,
     column_names_rot = 45,
     heatmap_legend_param = list(
-      title = "GSE Z-Score", direction = "horizontal", title_position = "topcenter", legend_width = unit(2.5, "cm"),
-      title_gp = gpar(fontsize = 7), labels_gp = gpar(fontsize = 6), grid_height = unit(0.3, "cm")
+      title = "Z-Score", direction = "horizontal", title_position = "topcenter",
+      legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7), labels_gp = gpar(fontsize = 6),
+      grid_height = unit(0.3, "cm"), at = c(-3, -2, -1, 0, 1, 2, 3)
     )
   ),
   heatmap_legend_side = "top"
-)
-```
-
-```{r}
-markers <- data.frame(cluster = character(), gene = character())
-for (i in seq(ncol(gse_zscore))) {
-  gene <- rownames(gse_zscore)[gse_zscore[ , i] > quantile(gse_zscore[ , i], probs = 0.99)]
-  avg_log2FC <- gse_zscore[gene, i]
-  add <- data.frame(cluster = rep(colnames(gse_zscore)[i], times = length(gene)), gene = gene, avg_log2FC = avg_log2FC)
-  markers <- rbind(markers, add)
-}
-markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
-datatable_download_exp(markers)
-markers$number <- seq(markers$gene)
-
-modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
-module_names <- modules
-
-go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
-for (l in seq_along(module_names)) {
-  module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
-}
-# for (l in seq_along(module_names)) {
-#   module_names[[l]] <- markers$gene[module_names[[l]]]
-# }
-top_words_tmp <- data.frame(
-  gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
-)
-top_words_list <- vector("list", length = length(unique(top_words_tmp$module)))
-top_words <- c()
-
-for (i in seq_along(top_words_list)) {
-  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
-  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
-  for (j in seq_along(top_words_list[[i]])) {
-    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
-  }
-  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
-  remove <- which(tmp == "")
-  if (length(remove) > 0) {
-    tmp <- tmp[-which(tmp == "")]
-  }
-  tmp <- table(tmp)
-  for (j in seq_along(tmp)) {
-    log2FC <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
-    tmp[j] <- sum(markers$avg_log2FC[which(markers$cluster == levels(markers$cluster)[i])[log2FC]])
-  }
-  tmp <- tmp[order(tmp, decreasing = TRUE)]
-  dup <- which(duplicated(tmp))
-  if (length(dup) > 0) {
-    tmp <- tmp[-dup]
-  }
-  tmp <- names(tmp)
-  if (length(tmp) >= 5) {
-    tmp <- tmp[1:5]
-    tmp <- paste(paste0(tmp, "\n"), collapse = "")
-    tmp <- substr(tmp, 1, nchar(tmp) - 1)
-  } else if (length(tmp > 0)) {
-    add <- 5 - length(tmp)
-    tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
-    tmp2 <- tmp2[tmp2 %notin% tmp]
-    tmp <- c(tmp, tmp2[1:add])
-    if (any(is.na(tmp))) {
-      tmp <- tmp[-which(is.na(tmp))]
-    }
-    tmp <- paste(paste0(tmp, "\n"), collapse = "")
-    tmp <- substr(tmp, 1, nchar(tmp) - 1)
-  } else {
-    tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 5))
-  }
-  top_words <- c(top_words, tmp)
-}
-
-optimal_k <- unlist(lapply(seq_along(modules), function(i) {rep(names(modules)[i], length(modules[[i]]))}))
-optimal_k <- factor(optimal_k, levels = unique(optimal_k))
-module_colours <- cols25(length(unique(optimal_k)))
-
-row_anno <-  HeatmapAnnotation(
-  top_words = anno_block(
-    gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
-    labels_rot = 0, labels_gp = gpar(fontsize = 12)
-  ),
-  which = "row"
-)
-
-mat <- gse_zscore
-mat <- mat[rownames(mat) %in% markers$gene, ]
-mat <- mat[match(markers$gene, rownames(mat)), ]
-
-rownames(mat)[
-  which(rownames(mat) == "oxidoreductase activity, acting on paired donors, with incorporation or reduction of molecular oxygen, another compound as one donor, and incorporation of one atom of oxygen")
-] <- "oxidoreductase activity, acting on paired donors..."
-```
-
-```{r, fig.height = 25, fig.width = 15}
-set.seed(1)
-draw(
-  Heatmap(
-    mat,
-    col = colour,
-    cluster_columns = FALSE,
-    cluster_rows = FALSE,
-    row_split = optimal_k,
-    left_annotation = row_anno,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
-    column_names_side = "top",
-    row_names_gp = gpar(fontsize = 11),
-    row_title = top_words,
-    row_title_rot = 0,
-    column_names_rot = 45,
-    row_names_max_width = max_text_width(rownames(mat), gpar(fontsize = 11)),
-    heatmap_legend_param = list(title = "GSE Z-Score", title_position = "lefttop-rot")
-  ),
 )
 ```
 
