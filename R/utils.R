@@ -824,7 +824,8 @@ word_cloud = function(x, width = NULL){
            "repeating", "repeated", "repeats", "stack",
            "flows", "laminar", "layers", "luminal",
            "moving", "object", "shear", "solid",
-           "antibiotic", "prior", "arteries", "coronary")
+           "antibiotic", "prior", "arteries", "coronary",
+           "mechanical", "short")
   txt = unlist(strsplit(x, " "))
   txt = Corpus(VectorSource(txt))
   txt = tm_map(txt, PlainTextDocument)

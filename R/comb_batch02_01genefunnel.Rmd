@@ -105,30 +105,25 @@ gene_sets <- readRDS(file.path("..", "cache", "filtered_gene_sets.rds"))
 # Merging
 
 ```{r}
-rds <- file.path(cache_dir, "seurat_merged.rds")
+rds <- file.path(cache_dir, "gse_merged.rds")
 if (file.exists(rds)) {
   seurat <- readRDS(rds)
 } else {
 
   file_list <- list.files(file.path(cache_dir, "..", "..", ".."), recursive = TRUE)
-  file_list <- file_list[grep("seurat_cleaned.rds", x = file_list)]
+  file_list <- file_list[grep("gse.rds", x = file_list)]
   file_list <- c(file_list[1], file_list[5], file_list[2], file_list[3])
   files <- vector("list", length = length(file_list))
   for (i in seq_along(files)) {
     files[[i]] <- readRDS(file.path(cache_dir, "..", "..", "..", file_list[i]))
   }
 
+  genes <- Reduce(intersect, files)
   for (i in seq_along(files)) {
-    counts_mat <- GetAssayData(files[[i]], layer = "counts")
-    counts_mat <- counts_mat[match(gene_anno$ensembl_gene_id, rownames(counts_mat)), ]
-    rownames(counts_mat) <- gene_anno$external_gene_name
-
-    data_mat <- GetAssayData(files[[i]], layer = "data")
-    data_mat <- data_mat[match(gene_anno$ensembl_gene_id, rownames(data_mat)), ]
-    rownames(data_mat) <- gene_anno$external_gene_name
-
-    files[i] <- CreateSeuratObject(counts = counts_mat, data = data_mat, assay = "SCT", meta.data = files[[i]][[]])
+    files[[i]] <- files[[i]][rownames(files[[i]]) %in% genes, ]
+    colnames(files[[i]]) <- paste(colnames(files[[i]], file_list[i]), sep = "_")
   }
+  
 
   seurat <- Reduce(function(...) merge(...), x = files)
   seurat@meta.data[grep("SCT", colnames(seurat@meta.data))] <- NULL

@@ -66,7 +66,7 @@ library(conflicted)
 conflicts_prefer(AnnotationDbi::select, DT::JS, .quiet = TRUE)
 packages <- c(
   "GSEABase", "GSVA", "Seurat", "biomaRt", "parallelly", "dplyr", "scuttle", "GO.db", "tm", "pals", "ComplexHeatmap",
-  "RColorBrewer", "DT"
+  "DT", "circlize", "moments"
 )
 invisible(suppressPackageStartupMessages(lapply(packages, FUN = library, character.only = TRUE)))
 # -----------------------------------------------------
@@ -88,8 +88,6 @@ source("utils.R")
 genotype <- "NLGF_S305N"
 batch <- 2
 step <- 2
-
-colour <- colorRampPalette(rev(brewer.pal(9, "RdBu")))(100)
 
 cache_dir <- file.path("..", "cache", genotype, paste0("0", batch), paste0("0", step))
 if (!dir.exists(cache_dir)) {
@@ -227,11 +225,11 @@ if (file.exists(rds) & file.exists(rds2)) {
   set.seed(1)
   col <- sample(seq(ncol(counts_null_mat)), size = length(add), replace = TRUE)
   for (i in seq_along(add)) {
-    counts_null_mat[i, col[i]] <- 1
-    data_null_mat[i, col[i]] <- log1p(1)
+    counts_null_mat[i, col[i]] <- 0
+    data_null_mat[i, col[i]] <- log1p(0)
   }
 
-  counts_mat <- rbind(data_mat, counts_null_mat)
+  counts_mat <- rbind(counts_mat, counts_null_mat)
   data_mat <- rbind(data_mat, data_null_mat)
   seurat <- CreateSeuratObject(counts = counts_mat, data = data_mat, assay = "SCT", meta.data = seurat[[]])
   gene_anno <- gene_anno[match(rownames(seurat), gene_anno$ensembl_gene_id), ]
@@ -242,26 +240,6 @@ if (file.exists(rds) & file.exists(rds2)) {
 }
 # ----------------------------------------------------------
 
-# Run GSVA on using ssGSEA algorithm.
-# -----------------------------------
-rds <- file.path(cache_dir, "gsva.rds")
-if (file.exists(rds)) {
-  gsva <- readRDS(rds)
-} else {
-  gsva <- gsva(
-    as.matrix(GetAssayData(seurat)), gene_sets, method = "ssgsea", parallel.sz = availableCores(), ssgsea.norm = FALSE
-  )
-  saveRDS(gsva, rds)
-}
-# -----------------------------------
-```
-
-# Analysis
-
-```{r}
-seurat[["GSVA"]] <- CreateAssay5Object(counts = gsva, data = log1p(gsva))
-DefaultAssay(seurat) <- "GSVA"
-
 remove <- grep("Unknown", x = seurat$annotations_short)
 if (length(remove) > 0) {
   seurat <- seurat[ , -remove]
@@ -270,36 +248,118 @@ if (length(remove) > 0) {
 seurat$annotations_short <- factor(
   seurat$annotations_short,
   levels = c(
-      "Astrocyte", "OPC", "Endothelial", "Microglia", "Oligodendrocyte", "Dentate Gyrus Glutamatergic",
-      "Hippocampal Glutamatergic", "Cortical Glutamatergic", "GABAergic"
+      "Dentate Gyrus Glutamatergic", "Hippocampal Glutamatergic", "Cortical Glutamatergic", "GABAergic", "Endothelial",
+      "Astrocyte", "OPC", "Oligodendrocyte", "Microglia"
   )
 )
-seurat@active.ident <- seurat$annotations_short
 
-umap <- as.matrix(data.frame(UMAP_1 = seurat$umap1, UMAP_2 = seurat$umap2))
-seurat[["umap"]] <- CreateDimReducObject(embeddings = umap, key = "UMAP_", assay = "GSVA")
-
-sce <- as.SingleCellExperiment(seurat, assay = "GSVA")
+sce <- as.SingleCellExperiment(seurat, assay = "SCT")
 sce <- suppressWarnings(
-  aggregateAcrossCells(sce, colData(sce)[ , "annotations_short"], use_exprs_values = "counts", statistics = "mean")
+  aggregateAcrossCells(sce, colData(sce)[ , "annotations_short"], use_exprs_values = "counts", statistics = "sum")
 )
 
-min <- quantile(counts(sce))[4]
-keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
-seurat_sub <- subset(seurat, features = which(rownames(seurat) %in% keep))
-
-rds <- file.path(cache_dir, "markers_short.rds")
+rds <- file.path(cache_dir, "gse.rds")
 if (file.exists(rds)) {
-  markers <- readRDS(rds)
+  gse <- readRDS(rds)
 } else {
-  markers <- FindAllMarkers(seurat_sub, only.pos = TRUE)
-  saveRDS(markers, rds)
+  gse <- matrix(NA, nrow = length(gene_sets) + 1, ncol = 1)
+  total <- colSums(counts(sce))
+  for (j in seq(ncol(sce))) {
+    tmp <- matrix(NA, nrow = 1, ncol = 1)
+    for (i in seq_along(gene_sets)) {
+      idx <- which(rownames(sce) %in% geneIds(gene_sets[[i]]))
+      aggr <- counts(sce)[idx, j]
+      skew <- skewness(aggr)
+      if (is.na(skew)) {
+        aggr <- sum(aggr) / total[j]
+      } else if (skew >= 0) {
+        aggr <- (sum(aggr) / total[j]) / (abs(skew) + 1)
+      } else if (skew < 0) {
+        aggr <- (sum(aggr) / total[j]) * (abs(skew) + 1)
+      }
+      tmp <- rbind(tmp, aggr)
+    }
+    gse <- cbind(gse, tmp)
+  }
+  gse <- gse[-1, -1]
+  rownames(gse) <- names(gene_sets)
+  saveRDS(gse, rds)
 }
 
-markers <- markers[markers$p_val_adj < 0.05, ]
-# markers <- markers %>% distinct(gene, .keep_all = TRUE)
-# rownames(markers) <- markers$gene
+d <- density(gse)
+plot(d)
 
+min <- min(gse)
+keep <- rownames(gse[rowSums(gse > min) >= 1, ])
+gse_sub <- gse[keep, ]
+d <- density(gse_sub)
+plot(d)
+
+gse_zscore <- t(scale(t(gse_sub)))
+d <- density(gse_zscore)
+plot(d)
+
+colour <- colorRamp2(c(-3, 0, 3), c("#0077BB", "#FFFFFF", "#CC3311"))
+
+set.seed(1)
+draw(
+  Heatmap(
+    gse_zscore,
+    col = colour,
+    show_row_names = FALSE,
+    cluster_columns = FALSE,
+    column_names_side = "top",
+    column_names_rot = 45
+  )
+)
+
+min <- -2
+keep <- rownames(gse_zscore[rowSums(gse_zscore >= abs(min)) | rowSums(gse_zscore <= min) >= 1, ])
+gse_zscore_sub <- gse_zscore[keep, ]
+d <- density(gse_zscore_sub)
+plot(d)
+
+set.seed(1)
+draw(
+  Heatmap(
+    gse_zscore_sub,
+    col = colour,
+    show_row_names = FALSE,
+    cluster_columns = FALSE,
+    column_names_side = "top",
+    column_names_rot = 45
+  )
+)
+
+min <- -2.5
+keep <- rownames(gse_zscore[rowSums(gse_zscore >= abs(min)) | rowSums(gse_zscore <= min) >= 1, ])
+gse_zscore_sub <- gse_zscore[keep, ]
+d <- density(gse_zscore_sub)
+plot(d)
+
+set.seed(1)
+draw(
+  Heatmap(
+    gse_zscore_sub,
+    col = colour,
+    show_row_names = FALSE,
+    cluster_columns = FALSE,
+    column_names_side = "top",
+    column_names_rot = 45
+  )
+)
+```
+
+# Analysis
+
+```{r}
+markers <- data.frame(cluster = character(), gene = character())
+for (i in seq(ncol(gse_zscore))) {
+  gene <- rownames(gse_zscore)[gse_zscore[ , i] > quantile(gse_zscore[ , i], probs = 0.95)]
+  avg_log2FC <- gse_zscore[gene, i]
+  add <- data.frame(cluster = rep(colnames(gse_zscore)[i], times = length(gene)), gene = gene, avg_log2FC = avg_log2FC)
+  markers <- rbind(markers, add)
+}
 markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
 datatable_download_exp(markers)
 markers$number <- seq(markers$gene)
@@ -370,41 +430,118 @@ module_colours <- cols25(length(unique(optimal_k)))
 row_anno <-  HeatmapAnnotation(
   top_words = anno_block(
     gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
-    labels_rot = 0, labels_gp = gpar(fontsize = 12)
+    labels_rot = 0, labels_gp = gpar(fontsize = 9)
   ),
   which = "row"
 )
 
-mat <- counts(sce)
+mat <- gse_zscore
 mat <- mat[rownames(mat) %in% markers$gene, ]
 mat <- mat[match(markers$gene, rownames(mat)), ]
+
+top_gse <- vector("list", length = length(modules))
+for (j in seq_along(top_gse)) {
+  idx <- c()
+  for (i in seq_along(unlist(strsplit(top_words[j], split = " ")))) {
+    idx <- c(
+      idx, grep(paste0("\\b", unlist(strsplit(top_words[j], split = " "))[i], "\\b"), x = unlist(top_words_list[[j]]))
+    )
+  }
+  top_gse[[j]] <- rownames(markers)[idx]
+}
+
+min <- min(counts(sce))
+keep <- rownames(counts(sce)[rowSums(counts(sce) > min) >= 1, ])
+sce_sub <- sce[keep, ]
+d <- density(counts(sce_sub))
+plot(d)
+
+sct_zscores <- t(scale(t(counts(sce_sub))))
+d <- density(sct_zscores)
+plot(d)
+
+top_genes <- vector("list", length = length(modules))
+for (i in seq_along(top_genes)) {
+  genes <- c()
+  for (gse_names in top_gse[[i]]) {
+    genes <- c(genes, geneIds(gene_sets[names(gene_sets) %in% gse_names])[[1]])
+  }
+  genes <- table(genes) / length(top_gse[[i]])
+
+  sct_zscores_sub <- sct_zscores[rownames(sct_zscores) %in% names(genes), i]
+  genes <- genes[names(genes) %in% names(sct_zscores_sub)]
+  sct_zscores_sub <- sct_zscores_sub[match(names(genes), names(sct_zscores_sub))]
+
+  comb <- genes * (sct_zscores_sub + 1)
+  # comb <- sct_zscores_sub
+  comb <- comb[order(comb, decreasing = TRUE)]
+
+  sct_zscores_sub <- sct_zscores_sub[match(names(comb), names(sct_zscores_sub))]
+  genes <- genes[match(names(comb), names(genes))]
+
+  top_genes[[i]] <- c(comb[1], sct_zscores_sub[1], genes[1], comb[2], sct_zscores_sub[2], genes[2])
+  names(top_genes[[i]]) <- c(
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[1]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[4]), ]$external_gene_name, times = 3
+    )
+  )
+}
+names(top_genes) <- colnames(mat)
 ```
 
-```{r, fig.height = 7, fig.width = 7}
+```{r, fig.height = 4, fig.width = 6}
+panel_fun <- function(index, nm) {
+  pushViewport(viewport())
+  grid.rect(
+    x = 0, y = 0.75, width = top_genes[[nm]][3],
+    height = 0.5, just = "left", gp = gpar(fill = colour(top_genes[[nm]][2]))
+  )
+  # grid.rect(
+  #   x = 0, y = 0.25, width = top_genes[[nm]][6],
+  #   height = 0.5, just = "left", gp = gpar(fill = colour(top_genes[[nm]][5]))
+  # )
+  grid.text(y = 0.65, names(top_genes[[nm]])[1], gp = gpar(fontsize = 7), x = 1, just = "right")
+  # grid.text(y = 0.25, names(top_genes[[nm]])[4], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.xaxis(gp = gpar(fontsize = 4), main = FALSE)
+  popViewport()
+}
+right_anno <- rowAnnotation(
+  foo = anno_link(
+    align_to = optimal_k, which = "row", panel_fun = panel_fun, link_width = unit(0, "mm"), gap = unit(1, "mm")
+  )
+)
+
 set.seed(1)
 draw(
   Heatmap(
-    t(
-      apply(
-        mat, 1,
-        function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1)
-      )
-    ),
-    colour,
+    mat,
+    col = colour,
     show_row_names = FALSE,
     cluster_columns = FALSE,
     cluster_rows = FALSE,
     row_split = optimal_k,
     left_annotation = row_anno,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
+    right_annotation = right_anno,
+    rect_gp = gpar(col = "lightgray", lwd = 0.01),
+    border = TRUE,
+    row_gap = unit(1, "mm"),
+    column_gap = unit(1, "mm"),
     column_names_side = "top",
     row_title = top_words,
+    column_names_gp = gpar(fontsize = 9),
+    row_title_gp = gpar(fontsize = 9),
     row_title_rot = 0,
     column_names_rot = 45,
-    heatmap_legend_param = list(title = "Scaled ssGSEA Score", title_position = "lefttop-rot")
-  )
+    heatmap_legend_param = list(
+      title = "Z-Score", direction = "horizontal", title_position = "topcenter",
+      legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7), labels_gp = gpar(fontsize = 6),
+      grid_height = unit(0.3, "cm"), at = c(-3, -2, -1, 0, 1, 2, 3)
+    )
+  ),
+  heatmap_legend_side = "top"
 )
 ```
 
