@@ -89,6 +89,8 @@ genotype <- "MAPTKI"
 batch <- 2
 step <- 2
 
+colour <- colorRamp2(c(-3, 0, 3), c("#0077BB", "#FFFFFF", "#CC3311"))
+
 cache_dir <- file.path("..", "cache", genotype, paste0("0", batch), paste0("0", step))
 if (!dir.exists(cache_dir)) {
   dir.create(cache_dir, recursive = TRUE)
@@ -106,8 +108,10 @@ if (file.exists(rds)) {
   gene_sets <- readRDS(rds)
 } else {
 
-  gene_sets <- getGmt(file.path("..", "data", "gene-sets", "gprofiler_mmusculus.ENSG", "mmusculus.GO.comb.ENSG.gmt"))
-  keep <- filterGeneSets(gene_sets, min.sz = 5, max.sz = 25)
+  gene_sets <- getGmt(
+    file.path("..", "data", "gene-sets", "gprofiler_mmusculus.ENSG_2023.09.20", "mmusculus.GO.comb.ENSG.gmt")
+  )
+  keep <- filterGeneSets(gene_sets, min.sz = 4, max.sz = Inf)
   gene_sets <- gene_sets[names(gene_sets) %in% names(keep)]
 
   for (i in seq(length(gene_sets@.Data))) {
@@ -121,42 +125,42 @@ if (file.exists(rds)) {
     gene_sets <- gene_sets[-remove]
   }
 
-  remove <- grep("positive regulation of", names(gene_sets))
-  if (length(remove) > 0) {
-    gene_sets <- gene_sets[-remove]
-  }
-  remove <- grep("negative regulation of", names(gene_sets))
-  if (length(remove) > 0) {
-    gene_sets <- gene_sets[-remove]
-  }
+  # remove <- grep("positive regulation of", names(gene_sets))
+  # if (length(remove) > 0) {
+  #   gene_sets <- gene_sets[-remove]
+  # }
+  # remove <- grep("negative regulation of", names(gene_sets))
+  # if (length(remove) > 0) {
+  #   gene_sets <- gene_sets[-remove]
+  # }
   remove <- grep("regulation of", names(gene_sets))
   if (length(remove) > 0) {
     gene_sets <- gene_sets[-remove]
   }
-  remove <- grep("downregulation of", names(gene_sets))
-  if (length(remove) > 0) {
-    gene_sets <- gene_sets[-remove]
-  }
-  remove <- grep("inhibition of", names(gene_sets))
-  if (length(remove) > 0) {
-    gene_sets <- gene_sets[-remove]
-  }
-  remove <- grep("termination of", names(gene_sets))
-  if (length(remove) > 0) {
-    gene_sets <- gene_sets[-remove]
-  }
-  remove <- grep("activation of", names(gene_sets))
-  if (length(remove) > 0) {
-    gene_sets <- gene_sets[-remove]
-  }
-  remove <- grep("maintenance of", names(gene_sets))
-  if (length(remove) > 0) {
-    gene_sets <- gene_sets[-remove]
-  }
-  remove <- grep("upregulation of", names(gene_sets))
-  if (length(remove) > 0) {
-    gene_sets <- gene_sets[-remove]
-  }
+  # remove <- grep("downregulation of", names(gene_sets))
+  # if (length(remove) > 0) {
+  #   gene_sets <- gene_sets[-remove]
+  # }
+  # remove <- grep("inhibition of", names(gene_sets))
+  # if (length(remove) > 0) {
+  #   gene_sets <- gene_sets[-remove]
+  # }
+  # remove <- grep("termination of", names(gene_sets))
+  # if (length(remove) > 0) {
+  #   gene_sets <- gene_sets[-remove]
+  # }
+  # remove <- grep("activation of", names(gene_sets))
+  # if (length(remove) > 0) {
+  #   gene_sets <- gene_sets[-remove]
+  # }
+  # remove <- grep("maintenance of", names(gene_sets))
+  # if (length(remove) > 0) {
+  #   gene_sets <- gene_sets[-remove]
+  # }
+  # remove <- grep("upregulation of", names(gene_sets))
+  # if (length(remove) > 0) {
+  #   gene_sets <- gene_sets[-remove]
+  # }
 
   overlap <- computeGeneSetsOverlapMax(gene_sets, uniqGenes = unique(unlist(geneIds(gene_sets))))
   tmp <- rowSums(overlap)
@@ -184,6 +188,8 @@ if (file.exists(rds) & file.exists(rds2)) {
 } else {
 
   seurat <- readRDS(file.path(cache_dir, "..", "01", "seurat_annotated.rds"))
+  DefaultAssay(seurat) <- "RNA"
+  seurat[["SCT"]] <- NULL
 
   mart <- useEnsembl("ensembl", "mmusculus_gene_ensembl")
   attributes <- c("external_gene_name", "ensembl_gene_id")
@@ -199,6 +205,26 @@ if (file.exists(rds) & file.exists(rds2)) {
       for (j in seq(nrow(gene_anno))) {
         if (dup$ensembl_gene_id[i] == gene_anno$ensembl_gene_id[j]) {
           gene_anno$external_gene_name[j] <- paste0(gene_anno$external_gene_name[j], "-alt")
+        }
+      }
+    }
+  }
+  dup <- gene_anno[duplicated(gene_anno$external_gene_name), ]
+  if (nrow(dup) > 0) {
+    for (i in seq(nrow(dup))) {
+      for (j in seq(nrow(gene_anno))) {
+        if (dup$ensembl_gene_id[i] == gene_anno$ensembl_gene_id[j]) {
+          gene_anno$external_gene_name[j] <- paste0(gene_anno$external_gene_name[j], "-alt2")
+        }
+      }
+    }
+  }
+  dup <- gene_anno[duplicated(gene_anno$external_gene_name), ]
+  if (nrow(dup) > 0) {
+    for (i in seq(nrow(dup))) {
+      for (j in seq(nrow(gene_anno))) {
+        if (dup$ensembl_gene_id[i] == gene_anno$ensembl_gene_id[j]) {
+          gene_anno$external_gene_name[j] <- paste0(gene_anno$external_gene_name[j], "-alt3")
         }
       }
     }
@@ -231,8 +257,10 @@ if (file.exists(rds) & file.exists(rds2)) {
 
   counts_mat <- rbind(counts_mat, counts_null_mat)
   data_mat <- rbind(data_mat, data_null_mat)
-  seurat <- CreateSeuratObject(counts = counts_mat, data = data_mat, assay = "SCT", meta.data = seurat[[]])
+  seurat <- CreateSeuratObject(counts = counts_mat, data = data_mat, assay = "RNA", meta.data = seurat[[]])
   gene_anno <- gene_anno[match(rownames(seurat), gene_anno$ensembl_gene_id), ]
+
+  seurat <- SCTransform(seurat, vst.flavor = "v2", min_cells = 0, verbose = FALSE)
 
   rm(counts_mat, data_mat, counts_null_mat, data_null_mat, mart)
   saveRDS(seurat, rds)
@@ -253,10 +281,20 @@ seurat$annotations_short <- factor(
   )
 )
 
-sce <- as.SingleCellExperiment(seurat, assay = "SCT")
-sce <- suppressWarnings(
-  aggregateAcrossCells(sce, colData(sce)[ , "annotations_short"], use_exprs_values = "counts", statistics = "sum")
-)
+mat <- GetAssayData(seurat, layer = "counts")
+mat[is.na(mat)] <- 0
+seurat <- SetAssayData(seurat, layer = "counts", new.data = mat)
+
+rds <- file.path(cache_dir, "sce.rds")
+if (file.exists(rds)) {
+  sce <- readRDS(rds)
+} else {
+  sce <- as.SingleCellExperiment(seurat, assay = "SCT")
+  sce <- suppressWarnings(
+    aggregateAcrossCells(sce, colData(sce)[ , "annotations_short"], use_exprs_values = "counts", statistics = "sum")
+  )
+  saveRDS(sce, file = rds)
+}
 
 rds <- file.path(cache_dir, "gse.rds")
 if (file.exists(rds)) {
@@ -267,17 +305,23 @@ if (file.exists(rds)) {
   for (j in seq(ncol(sce))) {
     tmp <- matrix(NA, nrow = 1, ncol = 1)
     for (i in seq_along(gene_sets)) {
+      # if (i == 881) {
+      #   stop()
+      # }
       idx <- which(rownames(sce) %in% geneIds(gene_sets[[i]]))
       aggr <- counts(sce)[idx, j]
-      skew <- skewness(aggr)
-      if (is.na(skew)) {
-        aggr <- sum(aggr) / total[j]
-      } else if (skew >= 0) {
-        aggr <- (sum(aggr) / total[j]) / (abs(skew) + 1)
-      } else if (skew < 0) {
-        aggr <- (sum(aggr) / total[j]) * (abs(skew) + 1)
+      var <- exp(-var(aggr) / 100000)
+      if (is.na(var)) {
+        var <- 1
       }
-      tmp <- rbind(tmp, aggr)
+      # aggr <- sum(aggr) / total[j]
+      aggr <- sum(aggr) / length(geneIds(gene_sets[[i]]))
+      score <- aggr * var
+      print(c(j, i, aggr[[1]], var, score[[1]]))
+      if (var == 0) {
+        stop()
+      }
+      tmp <- rbind(tmp, score)
     }
     gse <- cbind(gse, tmp)
   }
@@ -286,68 +330,19 @@ if (file.exists(rds)) {
   saveRDS(gse, rds)
 }
 
-d <- density(gse)
-plot(d)
+plot(density(gse))
 
-min <- min(gse)
-keep <- rownames(gse[rowSums(gse > min) >= 1, ])
+keep <- rownames(gse[rowSums(gse > min(gse)) >= 1, ])
 gse_sub <- gse[keep, ]
-d <- density(gse_sub)
-plot(d)
+plot(density(gse_sub))
 
 gse_zscore <- t(scale(t(gse_sub)))
-d <- density(gse_zscore)
-plot(d)
+plot(density(gse_zscore))
 
-colour <- colorRamp2(c(-3, 0, 3), c("#0077BB", "#FFFFFF", "#CC3311"))
-
-set.seed(1)
-draw(
-  Heatmap(
-    gse_zscore,
-    col = colour,
-    show_row_names = FALSE,
-    cluster_columns = FALSE,
-    column_names_side = "top",
-    column_names_rot = 45
-  )
-)
-
-min <- -2
-keep <- rownames(gse_zscore[rowSums(gse_zscore >= abs(min)) | rowSums(gse_zscore <= min) >= 1, ])
-gse_zscore_sub <- gse_zscore[keep, ]
-d <- density(gse_zscore_sub)
-plot(d)
-
-set.seed(1)
-draw(
-  Heatmap(
-    gse_zscore_sub,
-    col = colour,
-    show_row_names = FALSE,
-    cluster_columns = FALSE,
-    column_names_side = "top",
-    column_names_rot = 45
-  )
-)
-
-min <- -2.5
-keep <- rownames(gse_zscore[rowSums(gse_zscore >= abs(min)) | rowSums(gse_zscore <= min) >= 1, ])
-gse_zscore_sub <- gse_zscore[keep, ]
-d <- density(gse_zscore_sub)
-plot(d)
-
-set.seed(1)
-draw(
-  Heatmap(
-    gse_zscore_sub,
-    col = colour,
-    show_row_names = FALSE,
-    cluster_columns = FALSE,
-    column_names_side = "top",
-    column_names_rot = 45
-  )
-)
+rds <- file.path(cache_dir, "gse_zscore.rds")
+if (!file.exists(rds)) {
+  saveRDS(gse_zscore, file = rds)
+}
 ```
 
 # Analysis
@@ -355,7 +350,7 @@ draw(
 ```{r}
 markers <- data.frame(cluster = character(), gene = character())
 for (i in seq(ncol(gse_zscore))) {
-  gene <- rownames(gse_zscore)[gse_zscore[ , i] > quantile(gse_zscore[ , i], probs = 0.95)]
+  gene <- rownames(gse_zscore)[gse_zscore[ , i] > 1.96]
   avg_log2FC <- gse_zscore[gene, i]
   add <- data.frame(cluster = rep(colnames(gse_zscore)[i], times = length(gene)), gene = gene, avg_log2FC = avg_log2FC)
   markers <- rbind(markers, add)
@@ -447,18 +442,21 @@ for (j in seq_along(top_gse)) {
       idx, grep(paste0("\\b", unlist(strsplit(top_words[j], split = " "))[i], "\\b"), x = unlist(top_words_list[[j]]))
     )
   }
-  top_gse[[j]] <- rownames(markers)[idx]
+  top_gse[[j]] <- markers$gene[idx]
 }
 
 min <- min(counts(sce))
 keep <- rownames(counts(sce)[rowSums(counts(sce) > min) >= 1, ])
 sce_sub <- sce[keep, ]
-d <- density(counts(sce_sub))
-plot(d)
+plot(density(counts(sce_sub)))
 
-sct_zscores <- t(scale(t(counts(sce_sub))))
-d <- density(sct_zscores)
-plot(d)
+sce_zscore <- t(scale(t(counts(sce_sub))))
+plot(density(sce_zscore))
+
+rds <- file.path(cache_dir, "sce_zscore.rds")
+if (!file.exists(rds)) {
+  saveRDS(sce_zscore, file = rds)
+}
 
 top_genes <- vector("list", length = length(modules))
 for (i in seq_along(top_genes)) {
@@ -468,18 +466,20 @@ for (i in seq_along(top_genes)) {
   }
   genes <- table(genes) / length(top_gse[[i]])
 
-  sct_zscores_sub <- sct_zscores[rownames(sct_zscores) %in% names(genes), i]
-  genes <- genes[names(genes) %in% names(sct_zscores_sub)]
-  sct_zscores_sub <- sct_zscores_sub[match(names(genes), names(sct_zscores_sub))]
+  sce_zscore_sub <- sce_zscore[rownames(sce_zscore) %in% names(genes), i]
+  sce_zscore_sub <- sce_zscore_sub[sce_zscore_sub > 0]
+  genes <- genes[names(genes) %in% names(sce_zscore_sub)]
+  sce_zscore_sub <- sce_zscore_sub[match(names(genes), names(sce_zscore_sub))]
 
-  comb <- genes * (sct_zscores_sub + 1)
-  # comb <- sct_zscores_sub
+  comb <- genes * sce_zscore_sub
+  # comb <- sce_zscore_sub
+  # comb <- genes
   comb <- comb[order(comb, decreasing = TRUE)]
 
-  sct_zscores_sub <- sct_zscores_sub[match(names(comb), names(sct_zscores_sub))]
+  sce_zscore_sub <- sce_zscore_sub[match(names(comb), names(sce_zscore_sub))]
   genes <- genes[match(names(comb), names(genes))]
 
-  top_genes[[i]] <- c(comb[1], sct_zscores_sub[1], genes[1], comb[2], sct_zscores_sub[2], genes[2])
+  top_genes[[i]] <- c(comb[1], sce_zscore_sub[1], genes[1], comb[2], sce_zscore_sub[2], genes[2])
   names(top_genes[[i]]) <- c(
     rep(
       gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[1]), ]$external_gene_name, times = 3
