@@ -185,7 +185,14 @@ cluster_pipeline <- function(
       # Warning in theta.ml(y = y, mu = fit$fitted): iteration limit reached
       # ---------------------------------------------------------------------------------
       parallel_plan(seurat, parallel_override)
-      if (conserve_memory == TRUE) {
+      if (conserve_memory == TRUE & !is.null(min_cells)) {
+      seurat <- suppressWarnings(
+        SCTransform(
+            seurat, vars.to.regress = vars_to_regress, vst.flavor = "v2",
+            conserve.memory = TRUE, min_cells = min_cells, verbose = FALSE
+          )
+        )
+      } else if (conserve_memory == TRUE) {
         seurat <- suppressWarnings(
           SCTransform(
             seurat, vars.to.regress = vars_to_regress, vst.flavor = "v2",
@@ -209,7 +216,7 @@ cluster_pipeline <- function(
 
       # Perform PCA.
       # ------------
-      seurat <- RunPCA(seurat, features = rownames(seurat), verbose = FALSE)
+      seurat <- RunPCA(seurat, verbose = FALSE)
       add_df <- data.frame(Embeddings(seurat)[ , 1:2])
       names(add_df) <- paste0("pca", seq(ncol(add_df)))
       seurat$pca1 <- add_df$pca1
@@ -345,7 +352,7 @@ parallel_plan <- function(object, parallel_override = NULL) {
     # Get free memory.
     # ----------------
     gc()
-    mem <- as.numeric(unlist(strsplit(system("free -b", TRUE)[2], " "))[16])
+    mem <- as.numeric(unlist(strsplit(system("free -b", TRUE)[2], " "))[15])
     # ----------------
 
     # Distribute free memory (minus 10 GiB) across available cores.
@@ -825,7 +832,38 @@ word_cloud = function(x, width = NULL){
            "flows", "laminar", "layers", "luminal",
            "moving", "object", "shear", "solid",
            "antibiotic", "prior", "arteries", "coronary",
-           "mechanical", "short")
+           "mechanical", "short", "important", "serves",
+           "turn", "reflecting", "apposed", "iii",
+           "denantiomer", "aqueous", "acidic", "nonidentical",
+           "trimer", "collagens", "macromolecular", "adpdribose",
+           "phosphoenolpyruvate", "transition", "trimerization", "add",
+           "carriermediated", "glycosidic", "biochemical", "aminomercaptopropanoic",
+           "polyadpdribose", "glutamylcysteinylglycine", "polymer", "polymeric",
+           "alphatype", "phexglyleumetnh", "deoxygalactose", "ameloblast",
+           "acceleration", "tachykinin", "dfucose", "enamel",
+           "enantiomers", "lfucose", "extend", "lysophosphatidic",
+           "pombe", "monoacylglycerol", "mediate", "prerequisite",
+           "cellmatrix", "inside", "epididymis", "pic",
+           "trophectoderm", "aminobutyrate", "symbiont", "embryogenesis",
+           "trophectodermal", "establish", "catalyzes", "somites",
+           "dimer", "hydratase", "multimeric", "octamer",
+           "phosphodglycerate", "phosphopyruvate", "regulator", "diphenol",
+           "appears", "adequately", "rods", "circulating",
+           "added", "diphenols", "broader", "aldose",
+           "cleared", "duplex", "complexed", "aminoterminal",
+           "factors", "lipoylation", "apposition", "disulfide",
+           "carboxyterminal", "intraciliary", "chch", "accepting",
+           "held", "glycine", "bridging", "podocyte",
+           "branched", "acetylcoa", "iga", "methionine",
+           "peptidyllysine", "neurocranium", "chromate", "boundary",
+           "peptidylnlipoylllysine", "chromo", "hydrolase", "bisphosphatidylglycerol",
+           "distantly", "skull", "distance", "functioning",
+           "alteration", "shadow", "chloride", "aptype",
+           "properties", "energyindependent", "cardiolipin", "lengthened",
+           "approximately", "alkaline", "morphologically", "delamination",
+           "evidence", "budding", "armadillo", "alphaamylase",
+           "facilitated", "compared", "armrepeat", "bicarbonate",
+           "sheet", "chymotrypsinogen", "splitting")
   txt = unlist(strsplit(x, " "))
   txt = Corpus(VectorSource(txt))
   txt = tm_map(txt, PlainTextDocument)
