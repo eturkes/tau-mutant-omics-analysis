@@ -63,7 +63,7 @@ The toggle at the start of the document controls the visibility of all chunks.
 # Load required packages, suppressing startup messages.
 # -----------------------------------------------------
 library(conflicted)
-conflicts_prefer(AnnotationDbi::select, edgeR::cpm, DT::JS, .quiet = TRUE)
+conflicts_prefer(AnnotationDbi::select, edgeR::cpm, DT::JS, base::intersect, .quiet = TRUE)
 packages <- c(
   "GSEABase", "Seurat", "ggplot2", "dplyr", "ggrepel", "scuttle", "GO.db", "tm", "pals", "ComplexHeatmap", "edgeR",
   "DT", "circlize"
@@ -107,101 +107,41 @@ gene_sets <- readRDS(file.path("..", "cache", "filtered_gene_sets.rds"))
 ```{r}
 rds <- file.path(cache_dir, "gse_merged.rds")
 if (file.exists(rds)) {
-  seurat <- readRDS(rds)
+  gse <- readRDS(rds)
 } else {
-
   file_list <- list.files(file.path(cache_dir, "..", "..", ".."), recursive = TRUE)
-  file_list <- file_list[grep("gse.rds", x = file_list)]
+  file_list <- file_list[grep("pseudobulk_gse.rds", x = file_list)]
   file_list <- c(file_list[1], file_list[5], file_list[2], file_list[3])
   files <- vector("list", length = length(file_list))
   for (i in seq_along(files)) {
-    files[[i]] <- readRDS(file.path(cache_dir, "..", "..", "..", file_list[i]))
+    files[[i]] <- logcounts(readRDS(file.path(cache_dir, "..", "..", "..", file_list[i])))
+    colnames(files[[i]]) <- paste(colnames(files[[i]]), sub("\\/.*", "", file_list[i]), sep = " ")
   }
+  gse <- Reduce(cbind, x = files)
+  saveRDS(gse, file = rds)
+}
 
-  genes <- Reduce(intersect, files)
-  for (i in seq_along(files)) {
-    files[[i]] <- files[[i]][rownames(files[[i]]) %in% genes, ]
-    colnames(files[[i]]) <- paste(colnames(files[[i]], file_list[i]), sep = "_")
-  }
-  
-
-  seurat <- Reduce(function(...) merge(...), x = files)
-  seurat@meta.data[grep("SCT", colnames(seurat@meta.data))] <- NULL
-  seurat@meta.data[grep("orig.ident", colnames(seurat@meta.data))] <- NULL
-  seurat@meta.data[grep("pca", colnames(seurat@meta.data))] <- NULL
-  seurat@meta.data[grep("umap", colnames(seurat@meta.data))] <- NULL
-  seurat@meta.data[grep("seurat_clusters", colnames(seurat@meta.data))] <- NULL
-  seurat@meta.data[grep("allen_labels", colnames(seurat@meta.data))] <- NULL
-  seurat <- JoinLayers(seurat)
-
-  seurat$sample <- c(
-    rep(sub("\\/.*", "", file_list[1]), times = ncol(files[[1]])),
-    rep(sub("\\/.*", "", file_list[2]), times = ncol(files[[2]])),
-    rep(sub("\\/.*", "", file_list[3]), times = ncol(files[[3]])),
-    rep(sub("\\/.*", "", file_list[4]), times = ncol(files[[4]]))
-  )
-  seurat$sample <- factor(seurat$sample, levels = unique(seurat$sample))
-  seurat@active.ident <- seurat$sample
-
+rds <- file.path(cache_dir, "counts_merged.rds")
+if (file.exists(rds)) {
+  counts <- readRDS(rds)
+} else {
   file_list <- list.files(file.path(cache_dir, "..", "..", ".."), recursive = TRUE)
-  file_list <- file_list[grep("gsva.rds", x = file_list)]
+  file_list <- file_list[grep("pseudobulk_counts.rds", x = file_list)]
   file_list <- c(file_list[1], file_list[5], file_list[2], file_list[3])
   files <- vector("list", length = length(file_list))
   for (i in seq_along(files)) {
-    files[[i]] <- readRDS(file.path(cache_dir, "..", "..", "..", file_list[i]))
+    files[[i]] <- logcounts(readRDS(file.path(cache_dir, "..", "..", "..", file_list[i])))
+    colnames(files[[i]]) <- paste(colnames(files[[i]]), sub("\\/.*", "", file_list[i]), sep = " ")
   }
-
-  gsva <- Reduce(function(...) cbind(...), x = files)
-  colnames(gsva) <- colnames(seurat)
-  min <- abs(min(gsva))
-  gsva <- gsva + min
-  # min <- max(gsva) * 0.75
-  # gsva <- gsva[rowSums(gsva > min) >= 1, ]
-  seurat[["GSVA"]] <- CreateAssay5Object(counts = gsva, data = log1p(gsva))
-
-  rm(counts_mat, data_mat, files, gsva)
-  saveRDS(seurat, file = rds)
+  counts <- Reduce(cbind, x = files)
+  saveRDS(counts, file = rds)
 }
 ```
 
 # Analysis
 
 ```{r}
-rds <- file.path(cache_dir, "seurat_analysed.rds")
-if (file.exists(rds)) {
-  seurat <- readRDS(rds)
-} else {
-
-  seurat <- ScaleData(seurat, verbose = FALSE)
-
-  seurat <- RunPCA(seurat, features = rownames(seurat), reduction.name = "SCT_pca", verbose = FALSE)
-  add_df <- data.frame(Embeddings(seurat, reduction = "SCT_pca"))
-  seurat$SCT_pca1 <- add_df[ , 1]
-  seurat$SCT_pca2 <- add_df[ , 2]
-
-  seurat <- RunUMAP(seurat, dims = 1:30, reduction = "SCT_pca", reduction.name = "SCT_umap", verbose = FALSE)
-  add_df <- data.frame(Embeddings(seurat, reduction = "SCT_umap"))
-  seurat$SCT_umap1 <- add_df[ , 1]
-  seurat$SCT_umap2 <- add_df[ , 2]
-
-  DefaultAssay(seurat) <- "GSVA"
-  seurat <- ScaleData(seurat, verbose = FALSE)
-
-  seurat <- RunPCA(seurat, features = rownames(seurat), reduction.name = "GSVA_pca", verbose = FALSE)
-  add_df <- data.frame(Embeddings(seurat, reduction = "GSVA_pca"))
-  seurat$GSVA_pca1 <- add_df[ , 1]
-  seurat$GSVA_pca2 <- add_df[ , 2]
-
-  seurat <- RunUMAP(seurat, dims = 1:30, reduction = "GSVA_pca", reduction.name = "GSVA_umap", verbose = FALSE)
-  add_df <- data.frame(Embeddings(seurat, reduction = "GSVA_umap"))
-  seurat$GSVA_umap1 <- add_df[ , 1]
-  seurat$GSVA_umap2 <- add_df[ , 2]
-
-  saveRDS(seurat, file = rds)
-}
-
-red_dim_plot(seurat, x = "SCT_umap1", y = "SCT_umap2", color = "sample")
-red_dim_plot(seurat, x = "GSVA_umap1", y = "GSVA_umap2", color = "sample", type = "cat")
+colour <- colorRamp2(c(-3, 0, 3), c("#0077BB", "#FFFFFF", "#CC3311"))
 ```
 
 # GSE
@@ -209,60 +149,30 @@ red_dim_plot(seurat, x = "GSVA_umap1", y = "GSVA_umap2", color = "sample", type 
 ## All Cell-types
 
 ```{r}
-sce <- as.SingleCellExperiment(seurat, assay = "GSVA")
-sce <- suppressWarnings(
-  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "mean")
-)
+gse_zscore <- t(scale(t(gse[rownames(gse[rowSums(gse > 0) >= 1, ]), ])))
+counts_zscore <- t(scale(t(counts[rownames(counts[rowSums(counts > 0) >= 1, ]), ])))
+gse_zscore[is.na(gse_zscore)] <- 0
+counts_zscore[is.na(counts_zscore)] <- 0
 
-min <- quantile(counts(sce))[4]
-keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
-seurat_sub <- subset(seurat, features = which(rownames(seurat) %in% keep))
+markers <- data.frame(cluster = character(), gene = character())
+groups <- sub(".*\\s", "", colnames(gse_zscore))
+group_idx <- vector("list", length = length(groups))
+group_idx[[1]] <- 1:9
+group_idx[[2]] <- 10:18
+group_idx[[3]] <- 19:27
+group_idx[[4]] <- 28:36
 
-rds <- file.path(cache_dir, "markers_gsva_all.rds")
-if (file.exists(rds)) {
-  markers <- readRDS(rds)
-} else {
-
-  markers <- FindMarkers(seurat_sub, ident.1 = "P301S", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
-  markers$cluster = rep("P301S_up", times = nrow(markers))
-  markers$gene <- rownames(markers)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "MAPTKI", ident.2 = "P301S", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("P301S_down", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "NLGF_MAPTKI", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("NLGF_MAPTKI_up", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "MAPTKI", ident.2 = "NLGF_MAPTKI", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("NLGF_MAPTKI_down", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "NLGF_P301S", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("NLGF_P301S_up", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "MAPTKI", ident.2 = "NLGF_P301S", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("NLGF_P301S_down", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  saveRDS(markers, rds)
+for (i in seq_along(unique(groups))) {
+  gene <- rownames(gse_zscore)[
+    rowMeans(gse_zscore[ , group_idx[[i]]]) > quantile(rowMeans(gse_zscore[ , group_idx[[i]]]), probs = 0.95)
+  ]
+  avg_log2FC <- rowMeans(gse_zscore[gene, group_idx[[i]]])
+  add <- data.frame(
+    cluster = rep(sub(".*\\s", "", colnames(gse_zscore)[group_idx[[i]]])[1], times = length(gene)),
+    gene = gene, avg_log2FC = avg_log2FC
+  )
+  markers <- rbind(markers, add)
 }
-
-markers <- markers[markers$p_val_adj < 0.05, ]
-# markers <- markers %>% distinct(gene, .keep_all = TRUE)
-# rownames(markers) <- markers$gene
-
-# min <- quantile(counts(sce))[4]
-# keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
-# markers <- markers[markers$gene %in% keep, ]
-
 markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
 datatable_download_exp(markers)
 markers$number <- seq(markers$gene)
@@ -274,9 +184,6 @@ go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
 for (l in seq_along(module_names)) {
   module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
 }
-# for (l in seq_along(module_names)) {
-#   module_names[[l]] <- markers$gene[module_names[[l]]]
-# }
 top_words_tmp <- data.frame(
   gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
 )
@@ -307,7 +214,7 @@ for (i in seq_along(top_words_list)) {
   tmp <- names(tmp)
   if (length(tmp) >= 3) {
     tmp <- tmp[1:3]
-    tmp <- paste(paste0(tmp, " "), collapse = "")
+    tmp <- paste(paste0(tmp, "\n"), collapse = "")
     tmp <- substr(tmp, 1, nchar(tmp) - 1)
   } else if (length(tmp > 0)) {
     add <- 3 - length(tmp)
@@ -317,11 +224,10 @@ for (i in seq_along(top_words_list)) {
     if (any(is.na(tmp))) {
       tmp <- tmp[-which(is.na(tmp))]
     }
-    tmp <- paste(paste0(tmp, " "), collapse = "")
+    tmp <- paste(paste0(tmp, "\n"), collapse = "")
     tmp <- substr(tmp, 1, nchar(tmp) - 1)
   } else {
     tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 3))
-    tmp <- gsub("\n", " ", tmp)
   }
   top_words <- c(top_words, tmp)
 }
@@ -333,497 +239,162 @@ module_colours <- cols25(length(unique(optimal_k)))
 row_anno <-  HeatmapAnnotation(
   top_words = anno_block(
     gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
-    labels_rot = 0, labels_gp = gpar(fontsize = 12)
+    labels_rot = 0, labels_gp = gpar(fontsize = 9)
   ),
   which = "row"
 )
 
-colour <- colorRamp2(c(0, max(counts(sce)) / 2, max(counts(sce))), c("#0077BB", "#FFFFFF", "#CC3311"))
-
-mat <- counts(sce)
+mat <- gse_zscore
 mat <- mat[rownames(mat) %in% markers$gene, ]
 mat <- mat[match(markers$gene, rownames(mat)), ]
 
-set.seed(1)
-draw(
-  Heatmap(
-    mat,
-    colour,
-    cluster_rows = FALSE,
-    cluster_columns = FALSE,
-    show_row_names = FALSE,
-    row_split = optimal_k,
-    left_annotation = row_anno,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
-    column_names_side = "top",
-    row_title = top_words,
-    row_title_rot = 0,
-    column_names_rot = 45,
-    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
-  ),
-  column_title = "All Cell-types"
-)
-```
-
-### PCA
-
-```{r}
-seurat_sub <- RunPCA(seurat_sub, features = rownames(seurat_sub), reduction.name = "GSVA_pca", verbose = FALSE)
-add_df <- data.frame(Embeddings(seurat_sub, reduction = "GSVA_pca"))
-seurat_sub$GSVA_pca1 <- add_df[ , 1]
-seurat_sub$GSVA_pca2 <- add_df[ , 2]
-
-red_dim_plot(seurat_sub, x = "GSVA_pca1", y = "GSVA_pca2", color = "sample", type = "cat")
-
-markers <- as.data.frame(Loadings(seurat_sub, reduction = "GSVA_pca"))
-markers <- markers[ , 1:2]
-q1 <- quantile(markers[ , 1])[4]
-markers <- markers[markers[ , 1] > q1, ]
-markers <- abs(markers)
-
-# min <- quantile(counts(sce))[4]
-# keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
-# markers <- markers[rownames(markers) %in% keep, ]
-
-markers$total <- markers[ , 1]
-markers <- markers[order(markers$total, decreasing = TRUE), ]
-markers$gene <- rownames(markers)
-datatable_download(markers)
-markers$cluster <- rep("0", times = nrow(markers))
-markers$number <- seq(rownames(markers))
-```
-
-```{r, fig.width = 20}
-FeaturePlot(
-  seurat_sub, features = rownames(markers)[1:4], reduction = "GSVA_pca",
-  order = TRUE, cols = c("lightgrey", "red")
-)
-```
-
-```{r}
-modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
-module_names <- modules
-
-go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
-for (l in seq_along(module_names)) {
-  module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
-}
-# for (l in seq_along(module_names)) {
-#   module_names[[l]] <- markers$gene[module_names[[l]]]
-# }
-top_words_tmp <- data.frame(
-  gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
-)
-top_words_list <- vector("list", length = length(unique(top_words_tmp$module)))
-top_words <- c()
-
-for (i in seq_along(top_words_list)) {
-  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
-  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
-  for (j in seq_along(top_words_list[[i]])) {
-    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
+top_gse <- vector("list", length = length(modules))
+for (j in seq_along(top_gse)) {
+  idx <- c()
+  for (i in seq_along(unlist(strsplit(top_words[j], split = "\n")))) {
+    idx <- c(
+      idx, grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
+    )
   }
-  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
-  remove <- which(tmp == "")
-  if (length(remove) > 0) {
-    tmp <- tmp[-which(tmp == "")]
-  }
-  tmp <- table(tmp)
-  for (j in seq_along(tmp)) {
-    total <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
-    tmp[j] <- sum(markers$total[total])
-  }
-  tmp <- tmp[order(tmp, decreasing = TRUE)]
-  dup <- which(duplicated(tmp))
-  if (length(dup) > 0) {
-    tmp <- tmp[-dup]
-  }
-  tmp <- names(tmp)
-  if (length(tmp) >= 10) {
-    tmp <- tmp[1:10]
-    tmp <- paste(paste0(tmp, "\n"), collapse = "")
-    tmp <- substr(tmp, 1, nchar(tmp) - 1)
-  } else if (length(tmp > 0)) {
-    add <- 10 - length(tmp)
-    tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
-    tmp2 <- tmp2[tmp2 %notin% tmp]
-    tmp <- c(tmp, tmp2[1:add])
-    if (any(is.na(tmp))) {
-      tmp <- tmp[-which(is.na(tmp))]
-    }
-    tmp <- paste(paste0(tmp, "\n"), collapse = "")
-    tmp <- substr(tmp, 1, nchar(tmp) - 1)
-  } else {
-    tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 10))
-  }
-  top_words <- c(top_words, tmp)
+  top_gse[[j]] <- markers$gene[idx]
 }
 
-optimal_k <- unlist(lapply(seq_along(modules), function(i) {rep(names(modules)[i], length(modules[[i]]))}))
-optimal_k <- factor(optimal_k, levels = unique(optimal_k))
-module_colours <- cols25(length(unique(optimal_k)))
+top_genes <- vector("list", length = length(modules))
+for (i in seq_along(top_genes)) {
+  genes <- c()
+  for (gse_names in top_gse[[i]]) {
+    genes <- c(genes, geneIds(gene_sets[names(gene_sets) %in% gse_names])[[1]])
+  }
+  genes <- table(genes) / length(top_gse[[i]])
 
-row_anno <-  HeatmapAnnotation(
-  top_words = anno_block(
-    gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
-    labels_rot = 0, labels_gp = gpar(fontsize = 12)
-  ),
-  which = "row"
-)
+  counts_zscore_sub <- counts_zscore[rownames(counts_zscore) %in% names(genes), i]
+  counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0]
+  genes <- genes[names(genes) %in% names(counts_zscore_sub)]
+  counts_zscore_sub <- counts_zscore_sub[match(names(genes), names(counts_zscore_sub))]
 
-mat <- counts(sce)
-mat <- mat[rownames(mat) %in% markers$gene, ]
-mat <- mat[match(markers$gene, rownames(mat)), ]
+  comb <- genes * counts_zscore_sub
+  comb <- comb[order(comb, decreasing = TRUE)]
 
-set.seed(1)
-draw(
-  Heatmap(
-    mat,
-    colour,
-    cluster_rows = FALSE,
-    cluster_columns = FALSE,
-    show_row_names = FALSE,
-    row_split = optimal_k,
-    left_annotation = row_anno,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
-    column_names_side = "top",
-    row_title = top_words,
-    row_title_rot = 0,
-    column_names_rot = 45,
-    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
-  ),
-  column_title = "All Cell-types PC 1 Up"
-)
-```
+  counts_zscore_sub <- counts_zscore_sub[match(names(comb), names(counts_zscore_sub))]
+  genes <- genes[match(names(comb), names(genes))]
 
-```{r, fig.height = 5, fig.width = 12.5}
-sce2 <- as.SingleCellExperiment(seurat, assay = "SCT")
-sce2 <- suppressWarnings(
-  aggregateAcrossCells(sce2, colData(sce2)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
-)
-dge <- DGEList(counts(sce2))
-dge <- calcNormFactors(dge)
-logcounts(sce2, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
-
-colour2 <- colorRamp2(c(0, max(logcounts(sce2)) / 2, max(logcounts(sce2))), c("#0077BB", "#FFFFFF", "#CC3311"))
-
-idx <- c()
-for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
-  idx <- c(
-    idx, grep(paste0("\\b", unlist(strsplit(top_words, split = "\n"))[i], "\\b"), x = unlist(top_words_list[[1]]))
+  top_genes[[i]] <- c(
+    comb[1], counts_zscore_sub[1], genes[1], comb[2], counts_zscore_sub[2], genes[2],
+    comb[3], counts_zscore_sub[3], genes[3], comb[4], counts_zscore_sub[4], genes[4]
   )
-}
-idx <- table(idx)
-idx <- idx[order(idx, decreasing = TRUE)]
-idx <- idx[idx > 1]
-idx <- as.numeric(names(idx)[seq_along(idx)])
-
-genes_all <- c()
-for (i in idx) {
-  gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
-  gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
-  genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
-  genes_all <- c(genes_all, genes)
-  title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
-
-  mat <- logcounts(sce2)[rownames(sce2) %in% genes, ]
-  mat <- mat[match(genes, rownames(mat)), ]
-
-  set.seed(1)
-  draw(
-    Heatmap(
-      mat,
-      colour2,
-      cluster_columns = FALSE,
-      rect_gp = gpar(col = "lightgray", lwd = 0.1),
-      row_gap = unit(2, "mm"),
-      column_gap = unit(2, "mm"),
-      column_names_side = "top",
-      row_title_rot = 0,
-      column_names_rot = 45,
-      heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
+  names(top_genes[[i]]) <- c(
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[1]), ]$external_gene_name, times = 3
     ),
-    column_title = title
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[4]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[7]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[10]), ]$external_gene_name, times = 3
+    )
   )
 }
+names(top_genes) <- levels(markers$cluster)
+```
 
-genes <- table(genes_all)
-genes <- genes[order(genes, decreasing = TRUE)]
-genes <- genes[genes > 1]
-
-mat <- logcounts(sce2)[rownames(sce2) %in% names(genes), ]
-mat <- mat[match(names(genes), rownames(mat)), ]
+```{r, fig.height = 4, fig.width = 6}
+panel_fun <- function(index, nm) {
+  pushViewport(viewport())
+  grid.rect(
+    x = 0, y = 0.9, width = top_genes[[nm]][3],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][2]))
+  )
+  grid.rect(
+    x = 0, y = 0.7, width = top_genes[[nm]][6],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][5]))
+  )
+  grid.rect(
+    x = 0, y = 0.5, width = top_genes[[nm]][9],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][8]))
+  )
+  grid.rect(
+    x = 0, y = 0.3, width = top_genes[[nm]][12],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][11]))
+  )
+  grid.text(y = 0.9, names(top_genes[[nm]])[1], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.7, names(top_genes[[nm]])[4], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.5, names(top_genes[[nm]])[7], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.3, names(top_genes[[nm]])[10], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.xaxis(gp = gpar(fontsize = 4), main = FALSE)
+  popViewport()
+}
+right_anno <- rowAnnotation(
+  foo = anno_link(
+    align_to = optimal_k, which = "row", panel_fun = panel_fun, link_width = unit(0, "mm"), gap = unit(1, "mm")
+  )
+)
 
 set.seed(1)
 draw(
   Heatmap(
     mat,
-    colour2,
-    cluster_columns = FALSE,
-    cluster_rows = FALSE,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
-    column_names_side = "top",
-    row_title_rot = 0,
-    column_names_rot = 45,
-    heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
-  )
-)
-```
-
-```{r}
-markers <- as.data.frame(Loadings(seurat_sub, reduction = "GSVA_pca"))
-markers <- markers[ , 1:2]
-q1 <- quantile(markers[ , 1])[2]
-markers <- markers[markers[ , 1] < q1, ]
-markers <- abs(markers)
-
-# min <- quantile(counts(sce))[4]
-# keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
-# markers <- markers[rownames(markers) %in% keep, ]
-
-markers$total <- markers[ , 1]
-markers <- markers[order(markers$total, decreasing = TRUE), ]
-markers$gene <- rownames(markers)
-datatable_download(markers)
-markers$cluster <- rep("0", times = nrow(markers))
-markers$number <- seq(rownames(markers))
-```
-
-```{r, fig.width = 20}
-FeaturePlot(
-  seurat_sub, features = rownames(markers)[1:4], reduction = "GSVA_pca",
-  order = TRUE, cols = c("lightgrey", "red")
-)
-```
-
-```{r}
-modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
-module_names <- modules
-
-go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
-for (l in seq_along(module_names)) {
-  module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
-}
-# for (l in seq_along(module_names)) {
-#   module_names[[l]] <- markers$gene[module_names[[l]]]
-# }
-top_words_tmp <- data.frame(
-  gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
-)
-top_words_list <- vector("list", length = length(unique(top_words_tmp$module)))
-top_words <- c()
-
-for (i in seq_along(top_words_list)) {
-  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
-  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
-  for (j in seq_along(top_words_list[[i]])) {
-    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
-  }
-  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
-  remove <- which(tmp == "")
-  if (length(remove) > 0) {
-    tmp <- tmp[-which(tmp == "")]
-  }
-  tmp <- table(tmp)
-  for (j in seq_along(tmp)) {
-    total <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
-    tmp[j] <- sum(markers$total[total])
-  }
-  tmp <- tmp[order(tmp, decreasing = TRUE)]
-  dup <- which(duplicated(tmp))
-  if (length(dup) > 0) {
-    tmp <- tmp[-dup]
-  }
-  tmp <- names(tmp)
-  if (length(tmp) >= 10) {
-    tmp <- tmp[1:10]
-    tmp <- paste(paste0(tmp, "\n"), collapse = "")
-    tmp <- substr(tmp, 1, nchar(tmp) - 1)
-  } else if (length(tmp > 0)) {
-    add <- 10 - length(tmp)
-    tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
-    tmp2 <- tmp2[tmp2 %notin% tmp]
-    tmp <- c(tmp, tmp2[1:add])
-    if (any(is.na(tmp))) {
-      tmp <- tmp[-which(is.na(tmp))]
-    }
-    tmp <- paste(paste0(tmp, "\n"), collapse = "")
-    tmp <- substr(tmp, 1, nchar(tmp) - 1)
-  } else {
-    tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 10))
-  }
-  top_words <- c(top_words, tmp)
-}
-
-optimal_k <- unlist(lapply(seq_along(modules), function(i) {rep(names(modules)[i], length(modules[[i]]))}))
-optimal_k <- factor(optimal_k, levels = unique(optimal_k))
-module_colours <- cols25(length(unique(optimal_k)))
-
-row_anno <-  HeatmapAnnotation(
-  top_words = anno_block(
-    gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
-    labels_rot = 0, labels_gp = gpar(fontsize = 12)
-  ),
-  which = "row"
-)
-
-mat <- counts(sce)
-mat <- mat[rownames(mat) %in% markers$gene, ]
-mat <- mat[match(markers$gene, rownames(mat)), ]
-
-set.seed(1)
-draw(
-  Heatmap(
-    mat,
-    colour,
-    cluster_rows = FALSE,
-    cluster_columns = FALSE,
+    col = colour,
     show_row_names = FALSE,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
     row_split = optimal_k,
+    column_split = factor(groups, levels = unique(groups)),
+    column_title = NULL,
     left_annotation = row_anno,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
+    right_annotation = right_anno,
+    rect_gp = gpar(col = "lightgray", lwd = 0.01),
+    border = TRUE,
+    row_gap = unit(1, "mm"),
+    column_gap = unit(1, "mm"),
     column_names_side = "top",
     row_title = top_words,
+    column_names_gp = gpar(fontsize = 4),
+    row_title_gp = gpar(fontsize = 9),
     row_title_rot = 0,
     column_names_rot = 45,
-    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
+    heatmap_legend_param = list(
+      title = "Z-Score", direction = "horizontal", title_position = "topcenter",
+      legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7), labels_gp = gpar(fontsize = 6),
+      grid_height = unit(0.3, "cm"), at = c(-3, -2, -1, 0, 1, 2, 3)
+    )
   ),
-  column_title = "All Cell-types PC 1 Down"
+  heatmap_legend_side = "top"
 )
 ```
 
-```{r, fig.height = 5, fig.width = 12.5}
-idx <- c()
-for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
-  idx <- c(
-    idx, grep(paste0("\\b", unlist(strsplit(top_words, split = "\n"))[i], "\\b"), x = unlist(top_words_list[[1]]))
-  )
-}
-idx <- table(idx)
-idx <- idx[order(idx, decreasing = TRUE)]
-idx <- idx[idx > 1]
-idx <- as.numeric(names(idx)[seq_along(idx)])
-
-genes_all <- c()
-for (i in idx) {
-  gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
-  gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
-  genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
-  genes_all <- c(genes_all, genes)
-  title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
-
-  mat <- logcounts(sce2)[rownames(sce2) %in% genes, ]
-  mat <- mat[match(genes, rownames(mat)), ]
-
-  set.seed(1)
-  draw(
-    Heatmap(
-      mat,
-      colour2,
-      cluster_columns = FALSE,
-      rect_gp = gpar(col = "lightgray", lwd = 0.1),
-      row_gap = unit(2, "mm"),
-      column_gap = unit(2, "mm"),
-      column_names_side = "top",
-      row_title_rot = 0,
-      column_names_rot = 45,
-      heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
-    ),
-    column_title = title
-  )
-}
-
-genes <- table(genes_all)
-genes <- genes[order(genes, decreasing = TRUE)]
-genes <- genes[genes > 1]
-
-mat <- logcounts(sce2)[rownames(sce2) %in% names(genes), ]
-mat <- mat[match(names(genes), rownames(mat)), ]
-
-set.seed(1)
-draw(
-  Heatmap(
-    mat,
-    colour2,
-    cluster_columns = FALSE,
-    cluster_rows = FALSE,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
-    column_names_side = "top",
-    row_title_rot = 0,
-    column_names_rot = 45,
-    heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
-  )
-)
-```
-
-## Astrocyte
+## Dentate Gyrus Glutamatergic
 
 ```{r}
-seurat_sub_orig <- seurat[ , which(seurat$annotations_short == "Astrocyte")]
+keep <- grep("Dentate Gyrus Glutamatergic", x = colnames(gse))
+gse_zscore <- gse[, keep]
+counts_zscore <- counts[, keep]
+gse_zscore <- t(scale(t(gse_zscore[rownames(gse_zscore[rowSums(gse_zscore > 0) >= 1, ]), ])))
+counts_zscore <- t(scale(t(counts_zscore[rownames(counts_zscore[rowSums(counts_zscore > 0) >= 1, ]), ])))
+gse_zscore[is.na(gse_zscore)] <- 0
+counts_zscore[is.na(counts_zscore)] <- 0
 
-sce <- as.SingleCellExperiment(seurat_sub_orig, assay = "GSVA")
-sce <- suppressWarnings(
-  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "mean")
-)
+markers <- data.frame(cluster = character(), gene = character())
+groups <- sub(".*\\s", "", colnames(gse_zscore))
+group_idx <- vector("list", length = length(groups))
+group_idx[[1]] <- 1
+group_idx[[2]] <- 2
+group_idx[[3]] <- 3
+group_idx[[4]] <- 4
 
-keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
-seurat_sub <- subset(seurat_sub_orig, features = which(rownames(seurat_sub_orig) %in% keep))
-
-rds <- file.path(cache_dir, "markers_gsva_astro.rds")
-if (file.exists(rds)) {
-  markers <- readRDS(rds)
-} else {
-
-  markers <- FindMarkers(seurat_sub, ident.1 = "P301S", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
-  markers$cluster = rep("P301S_up", times = nrow(markers))
-  markers$gene <- rownames(markers)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "MAPTKI", ident.2 = "P301S", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("P301S_down", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "NLGF_MAPTKI", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("NLGF_MAPTKI_up", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "MAPTKI", ident.2 = "NLGF_MAPTKI", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("NLGF_MAPTKI_down", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "NLGF_P301S", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("NLGF_P301S_up", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "MAPTKI", ident.2 = "NLGF_P301S", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("NLGF_P301S_down", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  saveRDS(markers, rds)
+for (i in seq_along(unique(groups))) {
+  gene <- rownames(gse_zscore)[
+    gse_zscore[ , group_idx[[i]]] > quantile(gse_zscore[ , group_idx[[i]]], probs = 0.95)
+  ]
+  avg_log2FC <- gse_zscore[gene, group_idx[[i]]]
+  add <- data.frame(
+    cluster = rep(sub(".*\\s", "", colnames(gse_zscore)[group_idx[[i]]])[1], times = length(gene)),
+    gene = gene, avg_log2FC = avg_log2FC
+  )
+  markers <- rbind(markers, add)
 }
-
-markers <- markers[markers$p_val_adj < 0.05, ]
-# markers <- markers %>% distinct(gene, .keep_all = TRUE)
-# rownames(markers) <- markers$gene
-
-# min <- quantile(counts(sce))[4]
-# keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
-# markers <- markers[markers$gene %in% keep, ]
-
 markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
 datatable_download_exp(markers)
 markers$number <- seq(markers$gene)
@@ -835,9 +406,6 @@ go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
 for (l in seq_along(module_names)) {
   module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
 }
-# for (l in seq_along(module_names)) {
-#   module_names[[l]] <- markers$gene[module_names[[l]]]
-# }
 top_words_tmp <- data.frame(
   gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
 )
@@ -868,7 +436,7 @@ for (i in seq_along(top_words_list)) {
   tmp <- names(tmp)
   if (length(tmp) >= 3) {
     tmp <- tmp[1:3]
-    tmp <- paste(paste0(tmp, " "), collapse = "")
+    tmp <- paste(paste0(tmp, "\n"), collapse = "")
     tmp <- substr(tmp, 1, nchar(tmp) - 1)
   } else if (length(tmp > 0)) {
     add <- 3 - length(tmp)
@@ -878,11 +446,10 @@ for (i in seq_along(top_words_list)) {
     if (any(is.na(tmp))) {
       tmp <- tmp[-which(is.na(tmp))]
     }
-    tmp <- paste(paste0(tmp, " "), collapse = "")
+    tmp <- paste(paste0(tmp, "\n"), collapse = "")
     tmp <- substr(tmp, 1, nchar(tmp) - 1)
   } else {
     tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 3))
-    tmp <- gsub("\n", " ", tmp)
   }
   top_words <- c(top_words, tmp)
 }
@@ -894,1786 +461,163 @@ module_colours <- cols25(length(unique(optimal_k)))
 row_anno <-  HeatmapAnnotation(
   top_words = anno_block(
     gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
-    labels_rot = 0, labels_gp = gpar(fontsize = 12)
+    labels_rot = 0, labels_gp = gpar(fontsize = 9)
   ),
   which = "row"
 )
 
-mat <- counts(sce)
+mat <- gse_zscore
 mat <- mat[rownames(mat) %in% markers$gene, ]
 mat <- mat[match(markers$gene, rownames(mat)), ]
+colnames(mat) <- levels(markers$cluster)
 
-set.seed(1)
-draw(
-  Heatmap(
-    mat,
-    colour,
-    cluster_rows = FALSE,
-    cluster_columns = FALSE,
-    show_row_names = FALSE,
-    row_split = optimal_k,
-    left_annotation = row_anno,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
-    column_names_side = "top",
-    row_title = top_words,
-    row_title_rot = 0,
-    column_names_rot = 45,
-    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
-  ),
-  column_title = "Astrocyte"
-)
-```
-
-### PCA
-
-```{r}
-seurat_sub <- RunPCA(seurat_sub, features = rownames(seurat_sub), reduction.name = "GSVA_pca", verbose = FALSE)
-add_df <- data.frame(Embeddings(seurat_sub, reduction = "GSVA_pca"))
-seurat_sub$GSVA_pca1 <- add_df[ , 1]
-seurat_sub$GSVA_pca2 <- add_df[ , 2]
-
-red_dim_plot(seurat_sub, x = "GSVA_pca1", y = "GSVA_pca2", color = "sample", type = "cat")
-
-markers <- as.data.frame(Loadings(seurat_sub, reduction = "GSVA_pca"))
-markers <- markers[ , 1:2]
-q1 <- quantile(markers[ , 1])[2]
-markers <- markers[markers[ , 1] < q1, ]
-markers <- abs(markers)
-
-# min <- quantile(counts(sce))[4]
-# keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
-# markers <- markers[rownames(markers) %in% keep, ]
-
-markers$total <- markers[ , 1]
-markers <- markers[order(markers$total, decreasing = TRUE), ]
-markers$gene <- rownames(markers)
-datatable_download(markers)
-markers$cluster <- rep("0", times = nrow(markers))
-markers$number <- seq(rownames(markers))
-```
-
-```{r, fig.width = 20}
-FeaturePlot(
-  seurat_sub, features = rownames(markers)[1:4], reduction = "GSVA_pca",
-  order = TRUE, cols = c("lightgrey", "red")
-)
-```
-
-```{r}
-modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
-module_names <- modules
-
-go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
-for (l in seq_along(module_names)) {
-  module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
-}
-# for (l in seq_along(module_names)) {
-#   module_names[[l]] <- markers$gene[module_names[[l]]]
-# }
-top_words_tmp <- data.frame(
-  gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
-)
-top_words_list <- vector("list", length = length(unique(top_words_tmp$module)))
-top_words <- c()
-
-for (i in seq_along(top_words_list)) {
-  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
-  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
-  for (j in seq_along(top_words_list[[i]])) {
-    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
+top_gse <- vector("list", length = length(modules))
+for (j in seq_along(top_gse)) {
+  idx <- c()
+  for (i in seq_along(unlist(strsplit(top_words[j], split = "\n")))) {
+    idx <- c(
+      idx, grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
+    )
   }
-  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
-  remove <- which(tmp == "")
-  if (length(remove) > 0) {
-    tmp <- tmp[-which(tmp == "")]
-  }
-  tmp <- table(tmp)
-  for (j in seq_along(tmp)) {
-    total <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
-    tmp[j] <- sum(markers$total[total])
-  }
-  tmp <- tmp[order(tmp, decreasing = TRUE)]
-  dup <- which(duplicated(tmp))
-  if (length(dup) > 0) {
-    tmp <- tmp[-dup]
-  }
-  tmp <- names(tmp)
-  if (length(tmp) >= 10) {
-    tmp <- tmp[1:10]
-    tmp <- paste(paste0(tmp, "\n"), collapse = "")
-    tmp <- substr(tmp, 1, nchar(tmp) - 1)
-  } else if (length(tmp > 0)) {
-    add <- 10 - length(tmp)
-    tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
-    tmp2 <- tmp2[tmp2 %notin% tmp]
-    tmp <- c(tmp, tmp2[1:add])
-    if (any(is.na(tmp))) {
-      tmp <- tmp[-which(is.na(tmp))]
-    }
-    tmp <- paste(paste0(tmp, "\n"), collapse = "")
-    tmp <- substr(tmp, 1, nchar(tmp) - 1)
-  } else {
-    tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 10))
-  }
-  top_words <- c(top_words, tmp)
+  top_gse[[j]] <- markers$gene[idx]
 }
 
-optimal_k <- unlist(lapply(seq_along(modules), function(i) {rep(names(modules)[i], length(modules[[i]]))}))
-optimal_k <- factor(optimal_k, levels = unique(optimal_k))
-module_colours <- cols25(length(unique(optimal_k)))
+top_genes <- vector("list", length = length(modules))
+for (i in seq_along(top_genes)) {
+  genes <- c()
+  for (gse_names in top_gse[[i]]) {
+    genes <- c(genes, geneIds(gene_sets[names(gene_sets) %in% gse_names])[[1]])
+  }
+  genes <- table(genes) / length(top_gse[[i]])
 
-row_anno <-  HeatmapAnnotation(
-  top_words = anno_block(
-    gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
-    labels_rot = 0, labels_gp = gpar(fontsize = 12)
-  ),
-  which = "row"
-)
+  counts_zscore_sub <- counts_zscore[rownames(counts_zscore) %in% names(genes), i]
+  counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0]
+  genes <- genes[names(genes) %in% names(counts_zscore_sub)]
+  counts_zscore_sub <- counts_zscore_sub[match(names(genes), names(counts_zscore_sub))]
 
-mat <- counts(sce)
-mat <- mat[rownames(mat) %in% markers$gene, ]
-mat <- mat[match(markers$gene, rownames(mat)), ]
+  comb <- genes * counts_zscore_sub
+  comb <- comb[order(comb, decreasing = TRUE)]
 
-set.seed(1)
-draw(
-  Heatmap(
-    mat,
-    colour,
-    cluster_rows = FALSE,
-    cluster_columns = FALSE,
-    show_row_names = FALSE,
-    row_split = optimal_k,
-    left_annotation = row_anno,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
-    column_names_side = "top",
-    row_title = top_words,
-    row_title_rot = 0,
-    column_names_rot = 45,
-    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
-  ),
-  column_title = "Astrocyte PC 1 Up"
-)
-```
+  counts_zscore_sub <- counts_zscore_sub[match(names(comb), names(counts_zscore_sub))]
+  genes <- genes[match(names(comb), names(genes))]
 
-```{r, fig.height = 5, fig.width = 12.5}
-sce2 <- as.SingleCellExperiment(seurat, assay = "SCT")
-sce2 <- suppressWarnings(
-  aggregateAcrossCells(sce2, colData(sce2)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
-)
-dge <- DGEList(counts(sce2))
-dge <- calcNormFactors(dge)
-logcounts(sce2, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
-
-idx <- c()
-for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
-  idx <- c(
-    idx, grep(paste0("\\b", unlist(strsplit(top_words, split = "\n"))[i], "\\b"), x = unlist(top_words_list[[1]]))
+  top_genes[[i]] <- c(
+    comb[1], counts_zscore_sub[1], genes[1], comb[2], counts_zscore_sub[2], genes[2],
+    comb[3], counts_zscore_sub[3], genes[3], comb[4], counts_zscore_sub[4], genes[4]
   )
-}
-idx <- table(idx)
-idx <- idx[order(idx, decreasing = TRUE)]
-idx <- idx[idx > 1]
-idx <- as.numeric(names(idx)[seq_along(idx)])
-
-genes_all <- c()
-for (i in idx) {
-  gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
-  gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
-  genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
-  genes_all <- c(genes_all, genes)
-  title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
-
-  mat <- logcounts(sce2)[rownames(sce2) %in% genes, ]
-  mat <- mat[match(genes, rownames(mat)), ]
-
-  set.seed(1)
-  draw(
-    Heatmap(
-      mat,
-      colour2,
-      cluster_columns = FALSE,
-      rect_gp = gpar(col = "lightgray", lwd = 0.1),
-      row_gap = unit(2, "mm"),
-      column_gap = unit(2, "mm"),
-      column_names_side = "top",
-      row_title_rot = 0,
-      column_names_rot = 45,
-      heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
+  names(top_genes[[i]]) <- c(
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[1]), ]$external_gene_name, times = 3
     ),
-    column_title = title
-  )
-}
-
-genes <- table(genes_all)
-genes <- genes[order(genes, decreasing = TRUE)]
-genes <- genes[genes > 1]
-
-mat <- logcounts(sce2)[rownames(sce2) %in% names(genes), ]
-mat <- mat[match(names(genes), rownames(mat)), ]
-
-set.seed(1)
-draw(
-  Heatmap(
-    mat,
-    colour2,
-    cluster_columns = FALSE,
-    cluster_rows = FALSE,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
-    column_names_side = "top",
-    row_title_rot = 0,
-    column_names_rot = 45,
-    heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
-  )
-)
-```
-
-```{r}
-markers <- as.data.frame(Loadings(seurat_sub, reduction = "GSVA_pca"))
-markers <- markers[ , 1:2]
-q1 <- quantile(markers[ , 1])[4]
-markers <- markers[markers[ , 1] > q1, ]
-markers <- abs(markers)
-
-# min <- quantile(counts(sce))[4]
-# keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
-# markers <- markers[rownames(markers) %in% keep, ]
-
-markers$total <- markers[ , 1]
-markers <- markers[order(markers$total, decreasing = TRUE), ]
-markers$gene <- rownames(markers)
-datatable_download(markers)
-markers$cluster <- rep("0", times = nrow(markers))
-markers$number <- seq(rownames(markers))
-```
-
-```{r, fig.width = 20}
-FeaturePlot(
-  seurat_sub, features = rownames(markers)[1:4], reduction = "GSVA_pca",
-  order = TRUE, cols = c("lightgrey", "red")
-)
-```
-
-```{r}
-modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
-module_names <- modules
-
-go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
-for (l in seq_along(module_names)) {
-  module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
-}
-# for (l in seq_along(module_names)) {
-#   module_names[[l]] <- markers$gene[module_names[[l]]]
-# }
-top_words_tmp <- data.frame(
-  gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
-)
-top_words_list <- vector("list", length = length(unique(top_words_tmp$module)))
-top_words <- c()
-
-for (i in seq_along(top_words_list)) {
-  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
-  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
-  for (j in seq_along(top_words_list[[i]])) {
-    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
-  }
-  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
-  remove <- which(tmp == "")
-  if (length(remove) > 0) {
-    tmp <- tmp[-which(tmp == "")]
-  }
-  tmp <- table(tmp)
-  for (j in seq_along(tmp)) {
-    total <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
-    tmp[j] <- sum(markers$total[total])
-  }
-  tmp <- tmp[order(tmp, decreasing = TRUE)]
-  dup <- which(duplicated(tmp))
-  if (length(dup) > 0) {
-    tmp <- tmp[-dup]
-  }
-  tmp <- names(tmp)
-  if (length(tmp) >= 10) {
-    tmp <- tmp[1:10]
-    tmp <- paste(paste0(tmp, "\n"), collapse = "")
-    tmp <- substr(tmp, 1, nchar(tmp) - 1)
-  } else if (length(tmp > 0)) {
-    add <- 10 - length(tmp)
-    tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
-    tmp2 <- tmp2[tmp2 %notin% tmp]
-    tmp <- c(tmp, tmp2[1:add])
-    if (any(is.na(tmp))) {
-      tmp <- tmp[-which(is.na(tmp))]
-    }
-    tmp <- paste(paste0(tmp, "\n"), collapse = "")
-    tmp <- substr(tmp, 1, nchar(tmp) - 1)
-  } else {
-    tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 10))
-  }
-  top_words <- c(top_words, tmp)
-}
-
-optimal_k <- unlist(lapply(seq_along(modules), function(i) {rep(names(modules)[i], length(modules[[i]]))}))
-optimal_k <- factor(optimal_k, levels = unique(optimal_k))
-module_colours <- cols25(length(unique(optimal_k)))
-
-row_anno <-  HeatmapAnnotation(
-  top_words = anno_block(
-    gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
-    labels_rot = 0, labels_gp = gpar(fontsize = 12)
-  ),
-  which = "row"
-)
-
-mat <- counts(sce)
-mat <- mat[rownames(mat) %in% markers$gene, ]
-mat <- mat[match(markers$gene, rownames(mat)), ]
-
-set.seed(1)
-draw(
-  Heatmap(
-    mat,
-    colour,
-    cluster_rows = FALSE,
-    cluster_columns = FALSE,
-    show_row_names = FALSE,
-    row_split = optimal_k,
-    left_annotation = row_anno,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
-    column_names_side = "top",
-    row_title = top_words,
-    row_title_rot = 0,
-    column_names_rot = 45,
-    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
-  ),
-  column_title = "Astrocyte PC 1 Down"
-)
-```
-
-```{r, fig.height = 5, fig.width = 12.5}
-idx <- c()
-for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
-  idx <- c(
-    idx, grep(paste0("\\b", unlist(strsplit(top_words, split = "\n"))[i], "\\b"), x = unlist(top_words_list[[1]]))
-  )
-}
-idx <- table(idx)
-idx <- idx[order(idx, decreasing = TRUE)]
-idx <- idx[idx > 1]
-idx <- as.numeric(names(idx)[seq_along(idx)])
-
-genes_all <- c()
-for (i in idx) {
-  gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
-  gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
-  genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
-  genes_all <- c(genes_all, genes)
-  title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
-
-  mat <- logcounts(sce2)[rownames(sce2) %in% genes, ]
-  mat <- mat[match(genes, rownames(mat)), ]
-
-  set.seed(1)
-  draw(
-    Heatmap(
-      mat,
-      colour2,
-      cluster_columns = FALSE,
-      rect_gp = gpar(col = "lightgray", lwd = 0.1),
-      row_gap = unit(2, "mm"),
-      column_gap = unit(2, "mm"),
-      column_names_side = "top",
-      row_title_rot = 0,
-      column_names_rot = 45,
-      heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[4]), ]$external_gene_name, times = 3
     ),
-    column_title = title
-  )
-}
-
-genes <- table(genes_all)
-genes <- genes[order(genes, decreasing = TRUE)]
-genes <- genes[genes > 1]
-
-mat <- logcounts(sce2)[rownames(sce2) %in% names(genes), ]
-mat <- mat[match(names(genes), rownames(mat)), ]
-
-set.seed(1)
-draw(
-  Heatmap(
-    mat,
-    colour2,
-    cluster_columns = FALSE,
-    cluster_rows = FALSE,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
-    column_names_side = "top",
-    row_title_rot = 0,
-    column_names_rot = 45,
-    heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
-  )
-)
-```
-
-## Cortical Glutamatergic
-
-```{r}
-seurat_sub_orig <- seurat[ , which(seurat$annotations_short == "Cortical Glutamatergic")]
-
-sce <- as.SingleCellExperiment(seurat_sub_orig, assay = "GSVA")
-sce <- suppressWarnings(
-  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "mean")
-)
-
-keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
-seurat_sub <- subset(seurat_sub_orig, features = which(rownames(seurat_sub_orig) %in% keep))
-
-rds <- file.path(cache_dir, "markers_gsva_glut.rds")
-if (file.exists(rds)) {
-  markers <- readRDS(rds)
-} else {
-
-  markers <- FindMarkers(seurat_sub, ident.1 = "P301S", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
-  markers$cluster = rep("P301S_up", times = nrow(markers))
-  markers$gene <- rownames(markers)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "MAPTKI", ident.2 = "P301S", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("P301S_down", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "NLGF_MAPTKI", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("NLGF_MAPTKI_up", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "MAPTKI", ident.2 = "NLGF_MAPTKI", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("NLGF_MAPTKI_down", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "NLGF_P301S", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("NLGF_P301S_up", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "MAPTKI", ident.2 = "NLGF_P301S", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("NLGF_P301S_down", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  saveRDS(markers, rds)
-}
-
-markers <- markers[markers$p_val_adj < 0.05, ]
-# markers <- markers %>% distinct(gene, .keep_all = TRUE)
-# rownames(markers) <- markers$gene
-
-# min <- quantile(counts(sce))[4]
-# keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
-# markers <- markers[markers$gene %in% keep, ]
-
-markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
-datatable_download_exp(markers)
-markers$number <- seq(markers$gene)
-
-modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
-module_names <- modules
-
-go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
-for (l in seq_along(module_names)) {
-  module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
-}
-# for (l in seq_along(module_names)) {
-#   module_names[[l]] <- markers$gene[module_names[[l]]]
-# }
-top_words_tmp <- data.frame(
-  gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
-)
-top_words_list <- vector("list", length = length(unique(top_words_tmp$module)))
-top_words <- c()
-
-for (i in seq_along(top_words_list)) {
-  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
-  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
-  for (j in seq_along(top_words_list[[i]])) {
-    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
-  }
-  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
-  remove <- which(tmp == "")
-  if (length(remove) > 0) {
-    tmp <- tmp[-which(tmp == "")]
-  }
-  tmp <- table(tmp)
-  for (j in seq_along(tmp)) {
-    log2FC <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
-    tmp[j] <- sum(markers$avg_log2FC[which(markers$cluster == levels(markers$cluster)[i])[log2FC]])
-  }
-  tmp <- tmp[order(tmp, decreasing = TRUE)]
-  dup <- which(duplicated(tmp))
-  if (length(dup) > 0) {
-    tmp <- tmp[-dup]
-  }
-  tmp <- names(tmp)
-  if (length(tmp) >= 3) {
-    tmp <- tmp[1:3]
-    tmp <- paste(paste0(tmp, " "), collapse = "")
-    tmp <- substr(tmp, 1, nchar(tmp) - 1)
-  } else if (length(tmp > 0)) {
-    add <- 3 - length(tmp)
-    tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
-    tmp2 <- tmp2[tmp2 %notin% tmp]
-    tmp <- c(tmp, tmp2[1:add])
-    if (any(is.na(tmp))) {
-      tmp <- tmp[-which(is.na(tmp))]
-    }
-    tmp <- paste(paste0(tmp, " "), collapse = "")
-    tmp <- substr(tmp, 1, nchar(tmp) - 1)
-  } else {
-    tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 3))
-    tmp <- gsub("\n", " ", tmp)
-  }
-  top_words <- c(top_words, tmp)
-}
-
-optimal_k <- unlist(lapply(seq_along(modules), function(i) {rep(names(modules)[i], length(modules[[i]]))}))
-optimal_k <- factor(optimal_k, levels = unique(optimal_k))
-module_colours <- cols25(length(unique(optimal_k)))
-
-row_anno <-  HeatmapAnnotation(
-  top_words = anno_block(
-    gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
-    labels_rot = 0, labels_gp = gpar(fontsize = 12)
-  ),
-  which = "row"
-)
-
-mat <- counts(sce)
-mat <- mat[rownames(mat) %in% markers$gene, ]
-mat <- mat[match(markers$gene, rownames(mat)), ]
-
-set.seed(1)
-draw(
-  Heatmap(
-    mat,
-    colour,
-    cluster_rows = FALSE,
-    cluster_columns = FALSE,
-    show_row_names = FALSE,
-    row_split = optimal_k,
-    left_annotation = row_anno,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
-    column_names_side = "top",
-    row_title = top_words,
-    row_title_rot = 0,
-    column_names_rot = 45,
-    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
-  ),
-  column_title = "Cortical Glutamatergic"
-)
-```
-
-### PCA
-
-```{r}
-seurat_sub <- RunPCA(seurat_sub, features = rownames(seurat_sub), reduction.name = "GSVA_pca", verbose = FALSE)
-add_df <- data.frame(Embeddings(seurat_sub, reduction = "GSVA_pca"))
-seurat_sub$GSVA_pca1 <- add_df[ , 1]
-seurat_sub$GSVA_pca2 <- add_df[ , 2]
-
-red_dim_plot(seurat_sub, x = "GSVA_pca1", y = "GSVA_pca2", color = "sample", type = "cat")
-
-markers <- as.data.frame(Loadings(seurat_sub, reduction = "GSVA_pca"))
-markers <- markers[ , 1:2]
-q1 <- quantile(markers[ , 1])[2]
-markers <- markers[markers[ , 1] < q1, ]
-markers <- abs(markers)
-
-# min <- quantile(counts(sce))[4]
-# keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
-# markers <- markers[rownames(markers) %in% keep, ]
-
-markers$total <- markers[ , 1]
-markers <- markers[order(markers$total, decreasing = TRUE), ]
-markers$gene <- rownames(markers)
-datatable_download(markers)
-markers$cluster <- rep("0", times = nrow(markers))
-markers$number <- seq(rownames(markers))
-```
-
-```{r, fig.width = 20}
-FeaturePlot(
-  seurat_sub, features = rownames(markers)[1:4], reduction = "GSVA_pca",
-  order = TRUE, cols = c("lightgrey", "red")
-)
-```
-
-```{r}
-modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
-module_names <- modules
-
-go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
-for (l in seq_along(module_names)) {
-  module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
-}
-# for (l in seq_along(module_names)) {
-#   module_names[[l]] <- markers$gene[module_names[[l]]]
-# }
-top_words_tmp <- data.frame(
-  gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
-)
-top_words_list <- vector("list", length = length(unique(top_words_tmp$module)))
-top_words <- c()
-
-for (i in seq_along(top_words_list)) {
-  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
-  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
-  for (j in seq_along(top_words_list[[i]])) {
-    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
-  }
-  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
-  remove <- which(tmp == "")
-  if (length(remove) > 0) {
-    tmp <- tmp[-which(tmp == "")]
-  }
-  tmp <- table(tmp)
-  for (j in seq_along(tmp)) {
-    total <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
-    tmp[j] <- sum(markers$total[total])
-  }
-  tmp <- tmp[order(tmp, decreasing = TRUE)]
-  dup <- which(duplicated(tmp))
-  if (length(dup) > 0) {
-    tmp <- tmp[-dup]
-  }
-  tmp <- names(tmp)
-  if (length(tmp) >= 10) {
-    tmp <- tmp[1:10]
-    tmp <- paste(paste0(tmp, "\n"), collapse = "")
-    tmp <- substr(tmp, 1, nchar(tmp) - 1)
-  } else if (length(tmp > 0)) {
-    add <- 10 - length(tmp)
-    tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
-    tmp2 <- tmp2[tmp2 %notin% tmp]
-    tmp <- c(tmp, tmp2[1:add])
-    if (any(is.na(tmp))) {
-      tmp <- tmp[-which(is.na(tmp))]
-    }
-    tmp <- paste(paste0(tmp, "\n"), collapse = "")
-    tmp <- substr(tmp, 1, nchar(tmp) - 1)
-  } else {
-    tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 10))
-  }
-  top_words <- c(top_words, tmp)
-}
-
-optimal_k <- unlist(lapply(seq_along(modules), function(i) {rep(names(modules)[i], length(modules[[i]]))}))
-optimal_k <- factor(optimal_k, levels = unique(optimal_k))
-module_colours <- cols25(length(unique(optimal_k)))
-
-row_anno <-  HeatmapAnnotation(
-  top_words = anno_block(
-    gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
-    labels_rot = 0, labels_gp = gpar(fontsize = 12)
-  ),
-  which = "row"
-)
-
-mat <- counts(sce)
-mat <- mat[rownames(mat) %in% markers$gene, ]
-mat <- mat[match(markers$gene, rownames(mat)), ]
-
-set.seed(1)
-draw(
-  Heatmap(
-    mat,
-    colour,
-    cluster_rows = FALSE,
-    cluster_columns = FALSE,
-    show_row_names = FALSE,
-    row_split = optimal_k,
-    left_annotation = row_anno,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
-    column_names_side = "top",
-    row_title = top_words,
-    row_title_rot = 0,
-    column_names_rot = 45,
-    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
-  ),
-  column_title = "Cortical Glutamatergic PC 1 Up"
-)
-```
-
-```{r, fig.height = 5, fig.width = 12.5}
-sce2 <- as.SingleCellExperiment(seurat, assay = "SCT")
-sce2 <- suppressWarnings(
-  aggregateAcrossCells(sce2, colData(sce2)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
-)
-dge <- DGEList(counts(sce2))
-dge <- calcNormFactors(dge)
-logcounts(sce2, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
-
-idx <- c()
-for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
-  idx <- c(
-    idx, grep(paste0("\\b", unlist(strsplit(top_words, split = "\n"))[i], "\\b"), x = unlist(top_words_list[[1]]))
-  )
-}
-idx <- table(idx)
-idx <- idx[order(idx, decreasing = TRUE)]
-idx <- idx[idx > 1]
-idx <- as.numeric(names(idx)[seq_along(idx)])
-
-genes_all <- c()
-for (i in idx) {
-  gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
-  gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
-  genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
-  genes_all <- c(genes_all, genes)
-  title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
-
-  mat <- logcounts(sce2)[rownames(sce2) %in% genes, ]
-  mat <- mat[match(genes, rownames(mat)), ]
-
-  set.seed(1)
-  draw(
-    Heatmap(
-      mat,
-      colour2,
-      cluster_columns = FALSE,
-      rect_gp = gpar(col = "lightgray", lwd = 0.1),
-      row_gap = unit(2, "mm"),
-      column_gap = unit(2, "mm"),
-      column_names_side = "top",
-      row_title_rot = 0,
-      column_names_rot = 45,
-      heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[7]), ]$external_gene_name, times = 3
     ),
-    column_title = title
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[10]), ]$external_gene_name, times = 3
+    )
   )
 }
+names(top_genes) <- levels(markers$cluster)
+```
 
-genes <- table(genes_all)
-genes <- genes[order(genes, decreasing = TRUE)]
-genes <- genes[genes > 1]
-
-mat <- logcounts(sce2)[rownames(sce2) %in% names(genes), ]
-mat <- mat[match(names(genes), rownames(mat)), ]
+```{r, fig.height = 4, fig.width = 6}
+panel_fun <- function(index, nm) {
+  pushViewport(viewport())
+  grid.rect(
+    x = 0, y = 0.9, width = top_genes[[nm]][3],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][2]))
+  )
+  grid.rect(
+    x = 0, y = 0.7, width = top_genes[[nm]][6],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][5]))
+  )
+  grid.rect(
+    x = 0, y = 0.5, width = top_genes[[nm]][9],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][8]))
+  )
+  grid.rect(
+    x = 0, y = 0.3, width = top_genes[[nm]][12],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][11]))
+  )
+  grid.text(y = 0.9, names(top_genes[[nm]])[1], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.7, names(top_genes[[nm]])[4], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.5, names(top_genes[[nm]])[7], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.3, names(top_genes[[nm]])[10], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.xaxis(gp = gpar(fontsize = 4), main = FALSE)
+  popViewport()
+}
+right_anno <- rowAnnotation(
+  foo = anno_link(
+    align_to = optimal_k, which = "row", panel_fun = panel_fun, link_width = unit(0, "mm"), gap = unit(1, "mm")
+  )
+)
 
 set.seed(1)
 draw(
   Heatmap(
     mat,
-    colour2,
-    cluster_columns = FALSE,
-    cluster_rows = FALSE,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
-    column_names_side = "top",
-    row_title_rot = 0,
-    column_names_rot = 45,
-    heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
-  )
-)
-```
-
-```{r}
-markers <- as.data.frame(Loadings(seurat_sub, reduction = "GSVA_pca"))
-markers <- markers[ , 1:2]
-q1 <- quantile(markers[ , 1])[4]
-markers <- markers[markers[ , 1] > q1, ]
-markers <- abs(markers)
-
-# min <- quantile(counts(sce))[4]
-# keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
-# markers <- markers[rownames(markers) %in% keep, ]
-
-markers$total <- markers[ , 1]
-markers <- markers[order(markers$total, decreasing = TRUE), ]
-markers$gene <- rownames(markers)
-datatable_download(markers)
-markers$cluster <- rep("0", times = nrow(markers))
-markers$number <- seq(rownames(markers))
-```
-
-```{r, fig.width = 20}
-FeaturePlot(
-  seurat_sub, features = rownames(markers)[1:4], reduction = "GSVA_pca",
-  order = TRUE, cols = c("lightgrey", "red")
-)
-```
-
-```{r}
-modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
-module_names <- modules
-
-go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
-for (l in seq_along(module_names)) {
-  module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
-}
-# for (l in seq_along(module_names)) {
-#   module_names[[l]] <- markers$gene[module_names[[l]]]
-# }
-top_words_tmp <- data.frame(
-  gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
-)
-top_words_list <- vector("list", length = length(unique(top_words_tmp$module)))
-top_words <- c()
-
-for (i in seq_along(top_words_list)) {
-  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
-  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
-  for (j in seq_along(top_words_list[[i]])) {
-    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
-  }
-  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
-  remove <- which(tmp == "")
-  if (length(remove) > 0) {
-    tmp <- tmp[-which(tmp == "")]
-  }
-  tmp <- table(tmp)
-  for (j in seq_along(tmp)) {
-    total <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
-    tmp[j] <- sum(markers$total[total])
-  }
-  tmp <- tmp[order(tmp, decreasing = TRUE)]
-  dup <- which(duplicated(tmp))
-  if (length(dup) > 0) {
-    tmp <- tmp[-dup]
-  }
-  tmp <- names(tmp)
-  if (length(tmp) >= 10) {
-    tmp <- tmp[1:10]
-    tmp <- paste(paste0(tmp, "\n"), collapse = "")
-    tmp <- substr(tmp, 1, nchar(tmp) - 1)
-  } else if (length(tmp > 0)) {
-    add <- 10 - length(tmp)
-    tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
-    tmp2 <- tmp2[tmp2 %notin% tmp]
-    tmp <- c(tmp, tmp2[1:add])
-    if (any(is.na(tmp))) {
-      tmp <- tmp[-which(is.na(tmp))]
-    }
-    tmp <- paste(paste0(tmp, "\n"), collapse = "")
-    tmp <- substr(tmp, 1, nchar(tmp) - 1)
-  } else {
-    tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 10))
-  }
-  top_words <- c(top_words, tmp)
-}
-
-optimal_k <- unlist(lapply(seq_along(modules), function(i) {rep(names(modules)[i], length(modules[[i]]))}))
-optimal_k <- factor(optimal_k, levels = unique(optimal_k))
-module_colours <- cols25(length(unique(optimal_k)))
-
-row_anno <-  HeatmapAnnotation(
-  top_words = anno_block(
-    gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
-    labels_rot = 0, labels_gp = gpar(fontsize = 12)
-  ),
-  which = "row"
-)
-
-mat <- counts(sce)
-mat <- mat[rownames(mat) %in% markers$gene, ]
-mat <- mat[match(markers$gene, rownames(mat)), ]
-
-set.seed(1)
-draw(
-  Heatmap(
-    mat,
-    colour,
-    cluster_rows = FALSE,
-    cluster_columns = FALSE,
+    col = colour,
     show_row_names = FALSE,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
     row_split = optimal_k,
+    column_split = factor(groups, levels = unique(groups)),
+    column_title = "Dentate Gyrus Glutamatergic",
     left_annotation = row_anno,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
+    right_annotation = right_anno,
+    rect_gp = gpar(col = "lightgray", lwd = 0.01),
+    border = TRUE,
+    row_gap = unit(1, "mm"),
+    column_gap = unit(1, "mm"),
     column_names_side = "top",
     row_title = top_words,
+    column_names_gp = gpar(fontsize = 9),
+    row_title_gp = gpar(fontsize = 9),
     row_title_rot = 0,
     column_names_rot = 45,
-    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
+    heatmap_legend_param = list(
+      title = "Z-Score", direction = "horizontal", title_position = "topcenter",
+      legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7), labels_gp = gpar(fontsize = 6),
+      grid_height = unit(0.3, "cm"), at = c(-3, -2, -1, 0, 1, 2, 3)
+    )
   ),
-  column_title = "Cortical Glutamatergic PC 1 Down"
-)
-```
-
-```{r, fig.height = 5, fig.width = 12.5}
-sce2 <- as.SingleCellExperiment(seurat, assay = "SCT")
-sce2 <- suppressWarnings(
-  aggregateAcrossCells(sce2, colData(sce2)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
-)
-dge <- DGEList(counts(sce2))
-dge <- calcNormFactors(dge)
-logcounts(sce2, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
-
-idx <- c()
-for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
-  idx <- c(
-    idx, grep(paste0("\\b", unlist(strsplit(top_words, split = "\n"))[i], "\\b"), x = unlist(top_words_list[[1]]))
-  )
-}
-idx <- table(idx)
-idx <- idx[order(idx, decreasing = TRUE)]
-idx <- idx[idx > 1]
-idx <- as.numeric(names(idx)[seq_along(idx)])
-
-genes_all <- c()
-for (i in idx) {
-  gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
-  gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
-  genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
-  genes_all <- c(genes_all, genes)
-  title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
-
-  mat <- logcounts(sce2)[rownames(sce2) %in% genes, ]
-  mat <- mat[match(genes, rownames(mat)), ]
-
-  set.seed(1)
-  draw(
-    Heatmap(
-      mat,
-      colour2,
-      cluster_columns = FALSE,
-      rect_gp = gpar(col = "lightgray", lwd = 0.1),
-      row_gap = unit(2, "mm"),
-      column_gap = unit(2, "mm"),
-      column_names_side = "top",
-      row_title_rot = 0,
-      column_names_rot = 45,
-      heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
-    ),
-    column_title = title
-  )
-}
-
-genes <- table(genes_all)
-genes <- genes[order(genes, decreasing = TRUE)]
-genes <- genes[genes > 1]
-
-mat <- logcounts(sce2)[rownames(sce2) %in% names(genes), ]
-mat <- mat[match(names(genes), rownames(mat)), ]
-
-set.seed(1)
-draw(
-  Heatmap(
-    mat,
-    colour2,
-    cluster_columns = FALSE,
-    cluster_rows = FALSE,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
-    column_names_side = "top",
-    row_title_rot = 0,
-    column_names_rot = 45,
-    heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
-  )
-)
-```
-
-## Endothelial
-
-```{r}
-seurat_sub_orig <- seurat[ , which(seurat$annotations_short == "Endothelial")]
-
-sce <- as.SingleCellExperiment(seurat_sub_orig, assay = "GSVA")
-sce <- suppressWarnings(
-  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "mean")
-)
-
-keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
-seurat_sub <- subset(seurat_sub_orig, features = which(rownames(seurat_sub_orig) %in% keep))
-
-rds <- file.path(cache_dir, "markers_gsva_endo.rds")
-if (file.exists(rds)) {
-  markers <- readRDS(rds)
-} else {
-
-  markers <- FindMarkers(seurat_sub, ident.1 = "P301S", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
-  markers$cluster = rep("P301S_up", times = nrow(markers))
-  markers$gene <- rownames(markers)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "MAPTKI", ident.2 = "P301S", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("P301S_down", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "NLGF_MAPTKI", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("NLGF_MAPTKI_up", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "MAPTKI", ident.2 = "NLGF_MAPTKI", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("NLGF_MAPTKI_down", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "NLGF_P301S", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("NLGF_P301S_up", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "MAPTKI", ident.2 = "NLGF_P301S", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("NLGF_P301S_down", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  saveRDS(markers, rds)
-}
-
-markers <- markers[markers$p_val_adj < 0.05, ]
-# markers <- markers %>% distinct(gene, .keep_all = TRUE)
-# rownames(markers) <- markers$gene
-
-# min <- quantile(counts(sce))[4]
-# keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
-# markers <- markers[markers$gene %in% keep, ]
-
-markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
-datatable_download_exp(markers)
-markers$number <- seq(markers$gene)
-
-modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
-module_names <- modules
-
-go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
-for (l in seq_along(module_names)) {
-  module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
-}
-# for (l in seq_along(module_names)) {
-#   module_names[[l]] <- markers$gene[module_names[[l]]]
-# }
-top_words_tmp <- data.frame(
-  gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
-)
-top_words_list <- vector("list", length = length(unique(top_words_tmp$module)))
-top_words <- c()
-
-for (i in seq_along(top_words_list)) {
-  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
-  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
-  for (j in seq_along(top_words_list[[i]])) {
-    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
-  }
-  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
-  remove <- which(tmp == "")
-  if (length(remove) > 0) {
-    tmp <- tmp[-which(tmp == "")]
-  }
-  tmp <- table(tmp)
-  for (j in seq_along(tmp)) {
-    log2FC <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
-    tmp[j] <- sum(markers$avg_log2FC[which(markers$cluster == levels(markers$cluster)[i])[log2FC]])
-  }
-  tmp <- tmp[order(tmp, decreasing = TRUE)]
-  dup <- which(duplicated(tmp))
-  if (length(dup) > 0) {
-    tmp <- tmp[-dup]
-  }
-  tmp <- names(tmp)
-  if (length(tmp) >= 3) {
-    tmp <- tmp[1:3]
-    tmp <- paste(paste0(tmp, " "), collapse = "")
-    tmp <- substr(tmp, 1, nchar(tmp) - 1)
-  } else if (length(tmp > 0)) {
-    add <- 3 - length(tmp)
-    tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
-    tmp2 <- tmp2[tmp2 %notin% tmp]
-    tmp <- c(tmp, tmp2[1:add])
-    if (any(is.na(tmp))) {
-      tmp <- tmp[-which(is.na(tmp))]
-    }
-    tmp <- paste(paste0(tmp, " "), collapse = "")
-    tmp <- substr(tmp, 1, nchar(tmp) - 1)
-  } else {
-    tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 3))
-    tmp <- gsub("\n", " ", tmp)
-  }
-  top_words <- c(top_words, tmp)
-}
-
-optimal_k <- unlist(lapply(seq_along(modules), function(i) {rep(names(modules)[i], length(modules[[i]]))}))
-optimal_k <- factor(optimal_k, levels = unique(optimal_k))
-module_colours <- cols25(length(unique(optimal_k)))
-
-row_anno <-  HeatmapAnnotation(
-  top_words = anno_block(
-    gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
-    labels_rot = 0, labels_gp = gpar(fontsize = 12)
-  ),
-  which = "row"
-)
-
-mat <- counts(sce)
-mat <- mat[rownames(mat) %in% markers$gene, ]
-mat <- mat[match(markers$gene, rownames(mat)), ]
-
-set.seed(1)
-draw(
-  Heatmap(
-    mat,
-    colour,
-    cluster_rows = FALSE,
-    cluster_columns = FALSE,
-    show_row_names = FALSE,
-    row_split = optimal_k,
-    left_annotation = row_anno,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
-    column_names_side = "top",
-    row_title = top_words,
-    row_title_rot = 0,
-    column_names_rot = 45,
-    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
-  ),
-  column_title = "Endothelial"
-)
-```
-
-### PCA
-
-```{r}
-seurat_sub <- RunPCA(seurat_sub, features = rownames(seurat_sub), reduction.name = "GSVA_pca", verbose = FALSE)
-add_df <- data.frame(Embeddings(seurat_sub, reduction = "GSVA_pca"))
-seurat_sub$GSVA_pca1 <- add_df[ , 1]
-seurat_sub$GSVA_pca2 <- add_df[ , 2]
-
-red_dim_plot(seurat_sub, x = "GSVA_pca1", y = "GSVA_pca2", color = "sample", type = "cat")
-```
-
-## GABAergic
-
-```{r}
-seurat_sub_orig <- seurat[ , which(seurat$annotations_short == "GABAergic")]
-
-sce <- as.SingleCellExperiment(seurat_sub_orig, assay = "GSVA")
-sce <- suppressWarnings(
-  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "mean")
-)
-
-keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
-seurat_sub <- subset(seurat_sub_orig, features = which(rownames(seurat_sub_orig) %in% keep))
-
-rds <- file.path(cache_dir, "markers_gsva_gaba.rds")
-if (file.exists(rds)) {
-  markers <- readRDS(rds)
-} else {
-
-  markers <- FindMarkers(seurat_sub, ident.1 = "P301S", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
-  markers$cluster = rep("P301S_up", times = nrow(markers))
-  markers$gene <- rownames(markers)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "MAPTKI", ident.2 = "P301S", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("P301S_down", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "NLGF_MAPTKI", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("NLGF_MAPTKI_up", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "MAPTKI", ident.2 = "NLGF_MAPTKI", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("NLGF_MAPTKI_down", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "NLGF_P301S", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("NLGF_P301S_up", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "MAPTKI", ident.2 = "NLGF_P301S", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("NLGF_P301S_down", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  saveRDS(markers, rds)
-}
-
-markers <- markers[markers$p_val_adj < 0.05, ]
-# markers <- markers %>% distinct(gene, .keep_all = TRUE)
-# rownames(markers) <- markers$gene
-
-# min <- quantile(counts(sce))[4]
-# keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
-# markers <- markers[markers$gene %in% keep, ]
-
-markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
-datatable_download_exp(markers)
-markers$number <- seq(markers$gene)
-
-modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
-module_names <- modules
-
-go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
-for (l in seq_along(module_names)) {
-  module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
-}
-# for (l in seq_along(module_names)) {
-#   module_names[[l]] <- markers$gene[module_names[[l]]]
-# }
-top_words_tmp <- data.frame(
-  gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
-)
-top_words_list <- vector("list", length = length(unique(top_words_tmp$module)))
-top_words <- c()
-
-for (i in seq_along(top_words_list)) {
-  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
-  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
-  for (j in seq_along(top_words_list[[i]])) {
-    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
-  }
-  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
-  remove <- which(tmp == "")
-  if (length(remove) > 0) {
-    tmp <- tmp[-which(tmp == "")]
-  }
-  tmp <- table(tmp)
-  for (j in seq_along(tmp)) {
-    log2FC <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
-    tmp[j] <- sum(markers$avg_log2FC[which(markers$cluster == levels(markers$cluster)[i])[log2FC]])
-  }
-  tmp <- tmp[order(tmp, decreasing = TRUE)]
-  dup <- which(duplicated(tmp))
-  if (length(dup) > 0) {
-    tmp <- tmp[-dup]
-  }
-  tmp <- names(tmp)
-  if (length(tmp) >= 3) {
-    tmp <- tmp[1:3]
-    tmp <- paste(paste0(tmp, " "), collapse = "")
-    tmp <- substr(tmp, 1, nchar(tmp) - 1)
-  } else if (length(tmp > 0)) {
-    add <- 3 - length(tmp)
-    tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
-    tmp2 <- tmp2[tmp2 %notin% tmp]
-    tmp <- c(tmp, tmp2[1:add])
-    if (any(is.na(tmp))) {
-      tmp <- tmp[-which(is.na(tmp))]
-    }
-    tmp <- paste(paste0(tmp, " "), collapse = "")
-    tmp <- substr(tmp, 1, nchar(tmp) - 1)
-  } else {
-    tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 3))
-    tmp <- gsub("\n", " ", tmp)
-  }
-  top_words <- c(top_words, tmp)
-}
-
-optimal_k <- unlist(lapply(seq_along(modules), function(i) {rep(names(modules)[i], length(modules[[i]]))}))
-optimal_k <- factor(optimal_k, levels = unique(optimal_k))
-module_colours <- cols25(length(unique(optimal_k)))
-
-row_anno <-  HeatmapAnnotation(
-  top_words = anno_block(
-    gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
-    labels_rot = 0, labels_gp = gpar(fontsize = 12)
-  ),
-  which = "row"
-)
-
-mat <- counts(sce)
-mat <- mat[rownames(mat) %in% markers$gene, ]
-mat <- mat[match(markers$gene, rownames(mat)), ]
-
-set.seed(1)
-draw(
-  Heatmap(
-    mat,
-    colour,
-    cluster_rows = FALSE,
-    cluster_columns = FALSE,
-    show_row_names = FALSE,
-    row_split = optimal_k,
-    left_annotation = row_anno,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
-    column_names_side = "top",
-    row_title = top_words,
-    row_title_rot = 0,
-    column_names_rot = 45,
-    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
-  ),
-  column_title = "GABAergic"
-)
-```
-
-### PCA
-
-```{r}
-seurat_sub <- RunPCA(seurat_sub, features = rownames(seurat_sub), reduction.name = "GSVA_pca", verbose = FALSE)
-add_df <- data.frame(Embeddings(seurat_sub, reduction = "GSVA_pca"))
-seurat_sub$GSVA_pca1 <- add_df[ , 1]
-seurat_sub$GSVA_pca2 <- add_df[ , 2]
-
-red_dim_plot(seurat_sub, x = "GSVA_pca1", y = "GSVA_pca2", color = "sample", type = "cat")
-
-markers <- as.data.frame(Loadings(seurat_sub, reduction = "GSVA_pca"))
-markers <- markers[ , 1:2]
-q1 <- quantile(markers[ , 1])[4]
-markers <- markers[markers[ , 1] > q1, ]
-markers <- abs(markers)
-
-# min <- quantile(counts(sce))[4]
-# keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
-# markers <- markers[rownames(markers) %in% keep, ]
-
-markers$total <- markers[ , 1]
-markers <- markers[order(markers$total, decreasing = TRUE), ]
-markers$gene <- rownames(markers)
-datatable_download(markers)
-markers$cluster <- rep("0", times = nrow(markers))
-markers$number <- seq(rownames(markers))
-```
-
-```{r, fig.width = 20}
-FeaturePlot(
-  seurat_sub, features = rownames(markers)[1:4], reduction = "GSVA_pca",
-  order = TRUE, cols = c("lightgrey", "red")
-)
-```
-
-```{r}
-modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
-module_names <- modules
-
-go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
-for (l in seq_along(module_names)) {
-  module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
-}
-# for (l in seq_along(module_names)) {
-#   module_names[[l]] <- markers$gene[module_names[[l]]]
-# }
-top_words_tmp <- data.frame(
-  gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
-)
-top_words_list <- vector("list", length = length(unique(top_words_tmp$module)))
-top_words <- c()
-
-for (i in seq_along(top_words_list)) {
-  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
-  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
-  for (j in seq_along(top_words_list[[i]])) {
-    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
-  }
-  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
-  remove <- which(tmp == "")
-  if (length(remove) > 0) {
-    tmp <- tmp[-which(tmp == "")]
-  }
-  tmp <- table(tmp)
-  for (j in seq_along(tmp)) {
-    total <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
-    tmp[j] <- sum(markers$total[total])
-  }
-  tmp <- tmp[order(tmp, decreasing = TRUE)]
-  dup <- which(duplicated(tmp))
-  if (length(dup) > 0) {
-    tmp <- tmp[-dup]
-  }
-  tmp <- names(tmp)
-  if (length(tmp) >= 10) {
-    tmp <- tmp[1:10]
-    tmp <- paste(paste0(tmp, "\n"), collapse = "")
-    tmp <- substr(tmp, 1, nchar(tmp) - 1)
-  } else if (length(tmp > 0)) {
-    add <- 10 - length(tmp)
-    tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
-    tmp2 <- tmp2[tmp2 %notin% tmp]
-    tmp <- c(tmp, tmp2[1:add])
-    if (any(is.na(tmp))) {
-      tmp <- tmp[-which(is.na(tmp))]
-    }
-    tmp <- paste(paste0(tmp, "\n"), collapse = "")
-    tmp <- substr(tmp, 1, nchar(tmp) - 1)
-  } else {
-    tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 10))
-  }
-  top_words <- c(top_words, tmp)
-}
-
-optimal_k <- unlist(lapply(seq_along(modules), function(i) {rep(names(modules)[i], length(modules[[i]]))}))
-optimal_k <- factor(optimal_k, levels = unique(optimal_k))
-module_colours <- cols25(length(unique(optimal_k)))
-
-row_anno <-  HeatmapAnnotation(
-  top_words = anno_block(
-    gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
-    labels_rot = 0, labels_gp = gpar(fontsize = 12)
-  ),
-  which = "row"
-)
-
-mat <- counts(sce)
-mat <- mat[rownames(mat) %in% markers$gene, ]
-mat <- mat[match(markers$gene, rownames(mat)), ]
-
-set.seed(1)
-draw(
-  Heatmap(
-    mat,
-    colour,
-    cluster_rows = FALSE,
-    cluster_columns = FALSE,
-    show_row_names = FALSE,
-    row_split = optimal_k,
-    left_annotation = row_anno,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
-    column_names_side = "top",
-    row_title = top_words,
-    row_title_rot = 0,
-    column_names_rot = 45,
-    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
-  ),
-  column_title = "GABAergic PC 1 Up"
-)
-```
-
-```{r, fig.height = 5, fig.width = 12.5}
-sce2 <- as.SingleCellExperiment(seurat_sub_orig, assay = "SCT")
-sce2 <- suppressWarnings(
-  aggregateAcrossCells(sce2, colData(sce2)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
-)
-dge <- DGEList(counts(sce2))
-dge <- calcNormFactors(dge)
-logcounts(sce2, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
-
-idx <- c()
-for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
-  idx <- c(
-    idx, grep(paste0("\\b", unlist(strsplit(top_words, split = "\n"))[i], "\\b"), x = unlist(top_words_list[[1]]))
-  )
-}
-idx <- table(idx)
-idx <- idx[order(idx, decreasing = TRUE)]
-idx <- idx[idx > 1]
-idx <- as.numeric(names(idx)[seq_along(idx)])
-
-genes_all <- c()
-for (i in idx) {
-  gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
-  gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
-  genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
-  genes_all <- c(genes_all, genes)
-  title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
-
-  mat <- logcounts(sce2)[rownames(sce2) %in% genes, ]
-  mat <- mat[match(genes, rownames(mat)), ]
-
-  set.seed(1)
-  draw(
-    Heatmap(
-      mat,
-      colour2,
-      cluster_columns = FALSE,
-      rect_gp = gpar(col = "lightgray", lwd = 0.1),
-      row_gap = unit(2, "mm"),
-      column_gap = unit(2, "mm"),
-      column_names_side = "top",
-      row_title_rot = 0,
-      column_names_rot = 45,
-      heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
-    ),
-    column_title = title
-  )
-}
-
-genes <- table(genes_all)
-genes <- genes[order(genes, decreasing = TRUE)]
-genes <- genes[genes > 1]
-
-mat <- logcounts(sce2)[rownames(sce2) %in% names(genes), ]
-mat <- mat[match(names(genes), rownames(mat)), ]
-
-set.seed(1)
-draw(
-  Heatmap(
-    mat,
-    colour2,
-    cluster_columns = FALSE,
-    cluster_rows = FALSE,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
-    column_names_side = "top",
-    row_title_rot = 0,
-    column_names_rot = 45,
-    heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
-  )
-)
-```
-
-```{r}
-markers <- as.data.frame(Loadings(seurat_sub, reduction = "GSVA_pca"))
-markers <- markers[ , 1:2]
-q1 <- quantile(markers[ , 1])[2]
-markers <- markers[markers[ , 1] < q1, ]
-markers <- abs(markers)
-
-# min <- quantile(counts(sce))[4]
-# keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
-# markers <- markers[rownames(markers) %in% keep, ]
-
-markers$total <- markers[ , 1]
-markers <- markers[order(markers$total, decreasing = TRUE), ]
-markers$gene <- rownames(markers)
-datatable_download(markers)
-markers$cluster <- rep("0", times = nrow(markers))
-markers$number <- seq(rownames(markers))
-```
-
-```{r, fig.width = 20}
-FeaturePlot(
-  seurat_sub, features = rownames(markers)[1:4], reduction = "GSVA_pca",
-  order = TRUE, cols = c("lightgrey", "red")
-)
-```
-
-```{r}
-modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
-module_names <- modules
-
-go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
-for (l in seq_along(module_names)) {
-  module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
-}
-# for (l in seq_along(module_names)) {
-#   module_names[[l]] <- markers$gene[module_names[[l]]]
-# }
-top_words_tmp <- data.frame(
-  gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
-)
-top_words_list <- vector("list", length = length(unique(top_words_tmp$module)))
-top_words <- c()
-
-for (i in seq_along(top_words_list)) {
-  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
-  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
-  for (j in seq_along(top_words_list[[i]])) {
-    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
-  }
-  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
-  remove <- which(tmp == "")
-  if (length(remove) > 0) {
-    tmp <- tmp[-which(tmp == "")]
-  }
-  tmp <- table(tmp)
-  for (j in seq_along(tmp)) {
-    total <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
-    tmp[j] <- sum(markers$total[total])
-  }
-  tmp <- tmp[order(tmp, decreasing = TRUE)]
-  dup <- which(duplicated(tmp))
-  if (length(dup) > 0) {
-    tmp <- tmp[-dup]
-  }
-  tmp <- names(tmp)
-  if (length(tmp) >= 10) {
-    tmp <- tmp[1:10]
-    tmp <- paste(paste0(tmp, "\n"), collapse = "")
-    tmp <- substr(tmp, 1, nchar(tmp) - 1)
-  } else if (length(tmp > 0)) {
-    add <- 10 - length(tmp)
-    tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
-    tmp2 <- tmp2[tmp2 %notin% tmp]
-    tmp <- c(tmp, tmp2[1:add])
-    if (any(is.na(tmp))) {
-      tmp <- tmp[-which(is.na(tmp))]
-    }
-    tmp <- paste(paste0(tmp, "\n"), collapse = "")
-    tmp <- substr(tmp, 1, nchar(tmp) - 1)
-  } else {
-    tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 10))
-  }
-  top_words <- c(top_words, tmp)
-}
-
-optimal_k <- unlist(lapply(seq_along(modules), function(i) {rep(names(modules)[i], length(modules[[i]]))}))
-optimal_k <- factor(optimal_k, levels = unique(optimal_k))
-module_colours <- cols25(length(unique(optimal_k)))
-
-row_anno <-  HeatmapAnnotation(
-  top_words = anno_block(
-    gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
-    labels_rot = 0, labels_gp = gpar(fontsize = 12)
-  ),
-  which = "row"
-)
-
-mat <- counts(sce)
-mat <- mat[rownames(mat) %in% markers$gene, ]
-mat <- mat[match(markers$gene, rownames(mat)), ]
-
-set.seed(1)
-draw(
-  Heatmap(
-    mat,
-    colour,
-    cluster_rows = FALSE,
-    cluster_columns = FALSE,
-    show_row_names = FALSE,
-    row_split = optimal_k,
-    left_annotation = row_anno,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
-    column_names_side = "top",
-    row_title = top_words,
-    row_title_rot = 0,
-    column_names_rot = 45,
-    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
-  ),
-  column_title = "GABAergic PC 1 Down"
-)
-```
-
-```{r, fig.height = 5, fig.width = 12.5}
-idx <- c()
-for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
-  idx <- c(
-    idx, grep(paste0("\\b", unlist(strsplit(top_words, split = "\n"))[i], "\\b"), x = unlist(top_words_list[[1]]))
-  )
-}
-idx <- table(idx)
-idx <- idx[order(idx, decreasing = TRUE)]
-idx <- idx[idx > 1]
-idx <- as.numeric(names(idx)[seq_along(idx)])
-
-genes_all <- c()
-for (i in idx) {
-  gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
-  gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
-  genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
-  genes_all <- c(genes_all, genes)
-  title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
-
-  mat <- logcounts(sce2)[rownames(sce2) %in% genes, ]
-  mat <- mat[match(genes, rownames(mat)), ]
-
-  set.seed(1)
-  draw(
-    Heatmap(
-      mat,
-      colour2,
-      cluster_columns = FALSE,
-      rect_gp = gpar(col = "lightgray", lwd = 0.1),
-      row_gap = unit(2, "mm"),
-      column_gap = unit(2, "mm"),
-      column_names_side = "top",
-      row_title_rot = 0,
-      column_names_rot = 45,
-      heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
-    ),
-    column_title = title
-  )
-}
-
-genes <- table(genes_all)
-genes <- genes[order(genes, decreasing = TRUE)]
-genes <- genes[genes > 1]
-
-mat <- logcounts(sce2)[rownames(sce2) %in% names(genes), ]
-mat <- mat[match(names(genes), rownames(mat)), ]
-
-set.seed(1)
-draw(
-  Heatmap(
-    mat,
-    colour2,
-    cluster_columns = FALSE,
-    cluster_rows = FALSE,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
-    column_names_side = "top",
-    row_title_rot = 0,
-    column_names_rot = 45,
-    heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
-  )
+  heatmap_legend_side = "top"
 )
 ```
 
 ## Hippocampal Glutamatergic
 
 ```{r}
-seurat_sub_orig <- seurat[ , which(seurat$annotations_short == "Hippocampal Glutamatergic")]
+keep <- grep("Hippocampal Glutamatergic", x = colnames(gse))
+gse_zscore <- gse[, keep]
+counts_zscore <- counts[, keep]
+gse_zscore <- t(scale(t(gse_zscore[rownames(gse_zscore[rowSums(gse_zscore > 0) >= 1, ]), ])))
+counts_zscore <- t(scale(t(counts_zscore[rownames(counts_zscore[rowSums(counts_zscore > 0) >= 1, ]), ])))
+gse_zscore[is.na(gse_zscore)] <- 0
+counts_zscore[is.na(counts_zscore)] <- 0
 
-sce <- as.SingleCellExperiment(seurat_sub_orig, assay = "GSVA")
-sce <- suppressWarnings(
-  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "mean")
-)
+markers <- data.frame(cluster = character(), gene = character())
+groups <- sub(".*\\s", "", colnames(gse_zscore))
+group_idx <- vector("list", length = length(groups))
+group_idx[[1]] <- 1
+group_idx[[2]] <- 2
+group_idx[[3]] <- 3
+group_idx[[4]] <- 4
 
-keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
-seurat_sub <- subset(seurat_sub_orig, features = which(rownames(seurat_sub_orig) %in% keep))
-
-rds <- file.path(cache_dir, "markers_gsva_hip.rds")
-if (file.exists(rds)) {
-  markers <- readRDS(rds)
-} else {
-
-  markers <- FindMarkers(seurat_sub, ident.1 = "P301S", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
-  markers$cluster = rep("P301S_up", times = nrow(markers))
-  markers$gene <- rownames(markers)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "MAPTKI", ident.2 = "P301S", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("P301S_down", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "NLGF_MAPTKI", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("NLGF_MAPTKI_up", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "MAPTKI", ident.2 = "NLGF_MAPTKI", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("NLGF_MAPTKI_down", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "NLGF_P301S", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("NLGF_P301S_up", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "MAPTKI", ident.2 = "NLGF_P301S", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("NLGF_P301S_down", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  saveRDS(markers, rds)
+for (i in seq_along(unique(groups))) {
+  gene <- rownames(gse_zscore)[
+    gse_zscore[ , group_idx[[i]]] > quantile(gse_zscore[ , group_idx[[i]]], probs = 0.95)
+  ]
+  avg_log2FC <- gse_zscore[gene, group_idx[[i]]]
+  add <- data.frame(
+    cluster = rep(sub(".*\\s", "", colnames(gse_zscore)[group_idx[[i]]])[1], times = length(gene)),
+    gene = gene, avg_log2FC = avg_log2FC
+  )
+  markers <- rbind(markers, add)
 }
-
-markers <- markers[markers$p_val_adj < 0.05, ]
-# markers <- markers %>% distinct(gene, .keep_all = TRUE)
-# rownames(markers) <- markers$gene
-
-# min <- quantile(counts(sce))[4]
-# keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
-# markers <- markers[markers$gene %in% keep, ]
-
 markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
 datatable_download_exp(markers)
 markers$number <- seq(markers$gene)
@@ -2685,9 +629,6 @@ go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
 for (l in seq_along(module_names)) {
   module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
 }
-# for (l in seq_along(module_names)) {
-#   module_names[[l]] <- markers$gene[module_names[[l]]]
-# }
 top_words_tmp <- data.frame(
   gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
 )
@@ -2718,7 +659,7 @@ for (i in seq_along(top_words_list)) {
   tmp <- names(tmp)
   if (length(tmp) >= 3) {
     tmp <- tmp[1:3]
-    tmp <- paste(paste0(tmp, " "), collapse = "")
+    tmp <- paste(paste0(tmp, "\n"), collapse = "")
     tmp <- substr(tmp, 1, nchar(tmp) - 1)
   } else if (length(tmp > 0)) {
     add <- 3 - length(tmp)
@@ -2728,11 +669,10 @@ for (i in seq_along(top_words_list)) {
     if (any(is.na(tmp))) {
       tmp <- tmp[-which(is.na(tmp))]
     }
-    tmp <- paste(paste0(tmp, " "), collapse = "")
+    tmp <- paste(paste0(tmp, "\n"), collapse = "")
     tmp <- substr(tmp, 1, nchar(tmp) - 1)
   } else {
     tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 3))
-    tmp <- gsub("\n", " ", tmp)
   }
   top_words <- c(top_words, tmp)
 }
@@ -2744,493 +684,163 @@ module_colours <- cols25(length(unique(optimal_k)))
 row_anno <-  HeatmapAnnotation(
   top_words = anno_block(
     gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
-    labels_rot = 0, labels_gp = gpar(fontsize = 12)
+    labels_rot = 0, labels_gp = gpar(fontsize = 9)
   ),
   which = "row"
 )
 
-mat <- counts(sce)
+mat <- gse_zscore
 mat <- mat[rownames(mat) %in% markers$gene, ]
 mat <- mat[match(markers$gene, rownames(mat)), ]
+colnames(mat) <- levels(markers$cluster)
 
-set.seed(1)
-draw(
-  Heatmap(
-    mat,
-    colour,
-    cluster_rows = FALSE,
-    cluster_columns = FALSE,
-    show_row_names = FALSE,
-    row_split = optimal_k,
-    left_annotation = row_anno,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
-    column_names_side = "top",
-    row_title = top_words,
-    row_title_rot = 0,
-    column_names_rot = 45,
-    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
-  ),
-  column_title = "Hippocampal Glutamatergic"
-)
-```
-
-### PCA
-
-```{r}
-seurat_sub <- RunPCA(seurat_sub, features = rownames(seurat_sub), reduction.name = "GSVA_pca", verbose = FALSE)
-add_df <- data.frame(Embeddings(seurat_sub, reduction = "GSVA_pca"))
-seurat_sub$GSVA_pca1 <- add_df[ , 1]
-seurat_sub$GSVA_pca2 <- add_df[ , 2]
-
-red_dim_plot(seurat_sub, x = "GSVA_pca1", y = "GSVA_pca2", color = "sample", type = "cat")
-
-markers <- as.data.frame(Loadings(seurat_sub, reduction = "GSVA_pca"))
-markers <- markers[ , 1:2]
-q1 <- quantile(markers[ , 1])[2]
-markers <- markers[markers[ , 1] < q1, ]
-markers <- abs(markers)
-
-# min <- quantile(counts(sce))[4]
-# keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
-# markers <- markers[rownames(markers) %in% keep, ]
-
-markers$total <- markers[ , 1]
-markers <- markers[order(markers$total, decreasing = TRUE), ]
-markers$gene <- rownames(markers)
-datatable_download(markers)
-markers$cluster <- rep("0", times = nrow(markers))
-markers$number <- seq(rownames(markers))
-```
-
-```{r, fig.width = 20}
-FeaturePlot(
-  seurat_sub, features = rownames(markers)[1:4], reduction = "GSVA_pca",
-  order = TRUE, cols = c("lightgrey", "red")
-)
-```
-
-```{r}
-modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
-module_names <- modules
-
-go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
-for (l in seq_along(module_names)) {
-  module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
-}
-# for (l in seq_along(module_names)) {
-#   module_names[[l]] <- markers$gene[module_names[[l]]]
-# }
-top_words_tmp <- data.frame(
-  gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
-)
-top_words_list <- vector("list", length = length(unique(top_words_tmp$module)))
-top_words <- c()
-
-for (i in seq_along(top_words_list)) {
-  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
-  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
-  for (j in seq_along(top_words_list[[i]])) {
-    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
+top_gse <- vector("list", length = length(modules))
+for (j in seq_along(top_gse)) {
+  idx <- c()
+  for (i in seq_along(unlist(strsplit(top_words[j], split = "\n")))) {
+    idx <- c(
+      idx, grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
+    )
   }
-  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
-  remove <- which(tmp == "")
-  if (length(remove) > 0) {
-    tmp <- tmp[-which(tmp == "")]
-  }
-  tmp <- table(tmp)
-  for (j in seq_along(tmp)) {
-    total <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
-    tmp[j] <- sum(markers$total[total])
-  }
-  tmp <- tmp[order(tmp, decreasing = TRUE)]
-  dup <- which(duplicated(tmp))
-  if (length(dup) > 0) {
-    tmp <- tmp[-dup]
-  }
-  tmp <- names(tmp)
-  if (length(tmp) >= 10) {
-    tmp <- tmp[1:10]
-    tmp <- paste(paste0(tmp, "\n"), collapse = "")
-    tmp <- substr(tmp, 1, nchar(tmp) - 1)
-  } else if (length(tmp > 0)) {
-    add <- 10 - length(tmp)
-    tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
-    tmp2 <- tmp2[tmp2 %notin% tmp]
-    tmp <- c(tmp, tmp2[1:add])
-    if (any(is.na(tmp))) {
-      tmp <- tmp[-which(is.na(tmp))]
-    }
-    tmp <- paste(paste0(tmp, "\n"), collapse = "")
-    tmp <- substr(tmp, 1, nchar(tmp) - 1)
-  } else {
-    tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 10))
-  }
-  top_words <- c(top_words, tmp)
+  top_gse[[j]] <- markers$gene[idx]
 }
 
-optimal_k <- unlist(lapply(seq_along(modules), function(i) {rep(names(modules)[i], length(modules[[i]]))}))
-optimal_k <- factor(optimal_k, levels = unique(optimal_k))
-module_colours <- cols25(length(unique(optimal_k)))
+top_genes <- vector("list", length = length(modules))
+for (i in seq_along(top_genes)) {
+  genes <- c()
+  for (gse_names in top_gse[[i]]) {
+    genes <- c(genes, geneIds(gene_sets[names(gene_sets) %in% gse_names])[[1]])
+  }
+  genes <- table(genes) / length(top_gse[[i]])
 
-row_anno <-  HeatmapAnnotation(
-  top_words = anno_block(
-    gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
-    labels_rot = 0, labels_gp = gpar(fontsize = 12)
-  ),
-  which = "row"
-)
+  counts_zscore_sub <- counts_zscore[rownames(counts_zscore) %in% names(genes), i]
+  counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0]
+  genes <- genes[names(genes) %in% names(counts_zscore_sub)]
+  counts_zscore_sub <- counts_zscore_sub[match(names(genes), names(counts_zscore_sub))]
 
-mat <- counts(sce)
-mat <- mat[rownames(mat) %in% markers$gene, ]
-mat <- mat[match(markers$gene, rownames(mat)), ]
+  comb <- genes * counts_zscore_sub
+  comb <- comb[order(comb, decreasing = TRUE)]
 
-set.seed(1)
-draw(
-  Heatmap(
-    mat,
-    colour,
-    cluster_rows = FALSE,
-    cluster_columns = FALSE,
-    show_row_names = FALSE,
-    row_split = optimal_k,
-    left_annotation = row_anno,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
-    column_names_side = "top",
-    row_title = top_words,
-    row_title_rot = 0,
-    column_names_rot = 45,
-    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
-  ),
-  column_title = "Hippocampal Glutamatergic PC 1 Up"
-)
-```
+  counts_zscore_sub <- counts_zscore_sub[match(names(comb), names(counts_zscore_sub))]
+  genes <- genes[match(names(comb), names(genes))]
 
-```{r, fig.height = 5, fig.width = 12.5}
-sce2 <- as.SingleCellExperiment(seurat_sub_orig, assay = "SCT")
-sce2 <- suppressWarnings(
-  aggregateAcrossCells(sce2, colData(sce2)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
-)
-dge <- DGEList(counts(sce2))
-dge <- calcNormFactors(dge)
-logcounts(sce2, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
-
-idx <- c()
-for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
-  idx <- c(
-    idx, grep(paste0("\\b", unlist(strsplit(top_words, split = "\n"))[i], "\\b"), x = unlist(top_words_list[[1]]))
+  top_genes[[i]] <- c(
+    comb[1], counts_zscore_sub[1], genes[1], comb[2], counts_zscore_sub[2], genes[2],
+    comb[3], counts_zscore_sub[3], genes[3], comb[4], counts_zscore_sub[4], genes[4]
   )
-}
-idx <- table(idx)
-idx <- idx[order(idx, decreasing = TRUE)]
-idx <- idx[idx > 1]
-idx <- as.numeric(names(idx)[seq_along(idx)])
-
-genes_all <- c()
-for (i in idx) {
-  gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
-  gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
-  genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
-  genes_all <- c(genes_all, genes)
-  title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
-
-  mat <- logcounts(sce2)[rownames(sce2) %in% genes, ]
-  mat <- mat[match(genes, rownames(mat)), ]
-
-  set.seed(1)
-  draw(
-    Heatmap(
-      mat,
-      colour2,
-      cluster_columns = FALSE,
-      rect_gp = gpar(col = "lightgray", lwd = 0.1),
-      row_gap = unit(2, "mm"),
-      column_gap = unit(2, "mm"),
-      column_names_side = "top",
-      row_title_rot = 0,
-      column_names_rot = 45,
-      heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
+  names(top_genes[[i]]) <- c(
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[1]), ]$external_gene_name, times = 3
     ),
-    column_title = title
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[4]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[7]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[10]), ]$external_gene_name, times = 3
+    )
   )
 }
+names(top_genes) <- levels(markers$cluster)
+```
 
-genes <- table(genes_all)
-genes <- genes[order(genes, decreasing = TRUE)]
-genes <- genes[genes > 1]
-
-mat <- logcounts(sce2)[rownames(sce2) %in% names(genes), ]
-mat <- mat[match(names(genes), rownames(mat)), ]
+```{r, fig.height = 4, fig.width = 6}
+panel_fun <- function(index, nm) {
+  pushViewport(viewport())
+  grid.rect(
+    x = 0, y = 0.9, width = top_genes[[nm]][3],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][2]))
+  )
+  grid.rect(
+    x = 0, y = 0.7, width = top_genes[[nm]][6],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][5]))
+  )
+  grid.rect(
+    x = 0, y = 0.5, width = top_genes[[nm]][9],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][8]))
+  )
+  grid.rect(
+    x = 0, y = 0.3, width = top_genes[[nm]][12],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][11]))
+  )
+  grid.text(y = 0.9, names(top_genes[[nm]])[1], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.7, names(top_genes[[nm]])[4], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.5, names(top_genes[[nm]])[7], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.3, names(top_genes[[nm]])[10], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.xaxis(gp = gpar(fontsize = 4), main = FALSE)
+  popViewport()
+}
+right_anno <- rowAnnotation(
+  foo = anno_link(
+    align_to = optimal_k, which = "row", panel_fun = panel_fun, link_width = unit(0, "mm"), gap = unit(1, "mm")
+  )
+)
 
 set.seed(1)
 draw(
   Heatmap(
     mat,
-    colour2,
-    cluster_columns = FALSE,
-    cluster_rows = FALSE,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
-    column_names_side = "top",
-    row_title_rot = 0,
-    column_names_rot = 45,
-    heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
-  )
-)
-```
-
-```{r}
-markers <- as.data.frame(Loadings(seurat_sub, reduction = "GSVA_pca"))
-markers <- markers[ , 1:2]
-q1 <- quantile(markers[ , 1])[4]
-markers <- markers[markers[ , 1] > q1, ]
-markers <- abs(markers)
-
-# min <- quantile(counts(sce))[4]
-# keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
-# markers <- markers[rownames(markers) %in% keep, ]
-
-markers$total <- markers[ , 1]
-markers <- markers[order(markers$total, decreasing = TRUE), ]
-markers$gene <- rownames(markers)
-datatable_download(markers)
-markers$cluster <- rep("0", times = nrow(markers))
-markers$number <- seq(rownames(markers))
-```
-
-```{r, fig.width = 20}
-FeaturePlot(
-  seurat_sub, features = rownames(markers)[1:4], reduction = "GSVA_pca",
-  order = TRUE, cols = c("lightgrey", "red")
-)
-```
-
-```{r}
-modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
-module_names <- modules
-
-go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
-for (l in seq_along(module_names)) {
-  module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
-}
-# for (l in seq_along(module_names)) {
-#   module_names[[l]] <- markers$gene[module_names[[l]]]
-# }
-top_words_tmp <- data.frame(
-  gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
-)
-top_words_list <- vector("list", length = length(unique(top_words_tmp$module)))
-top_words <- c()
-
-for (i in seq_along(top_words_list)) {
-  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
-  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
-  for (j in seq_along(top_words_list[[i]])) {
-    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
-  }
-  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
-  remove <- which(tmp == "")
-  if (length(remove) > 0) {
-    tmp <- tmp[-which(tmp == "")]
-  }
-  tmp <- table(tmp)
-  for (j in seq_along(tmp)) {
-    total <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
-    tmp[j] <- sum(markers$total[total])
-  }
-  tmp <- tmp[order(tmp, decreasing = TRUE)]
-  dup <- which(duplicated(tmp))
-  if (length(dup) > 0) {
-    tmp <- tmp[-dup]
-  }
-  tmp <- names(tmp)
-  if (length(tmp) >= 10) {
-    tmp <- tmp[1:10]
-    tmp <- paste(paste0(tmp, "\n"), collapse = "")
-    tmp <- substr(tmp, 1, nchar(tmp) - 1)
-  } else if (length(tmp > 0)) {
-    add <- 10 - length(tmp)
-    tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
-    tmp2 <- tmp2[tmp2 %notin% tmp]
-    tmp <- c(tmp, tmp2[1:add])
-    if (any(is.na(tmp))) {
-      tmp <- tmp[-which(is.na(tmp))]
-    }
-    tmp <- paste(paste0(tmp, "\n"), collapse = "")
-    tmp <- substr(tmp, 1, nchar(tmp) - 1)
-  } else {
-    tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 10))
-  }
-  top_words <- c(top_words, tmp)
-}
-
-optimal_k <- unlist(lapply(seq_along(modules), function(i) {rep(names(modules)[i], length(modules[[i]]))}))
-optimal_k <- factor(optimal_k, levels = unique(optimal_k))
-module_colours <- cols25(length(unique(optimal_k)))
-
-row_anno <-  HeatmapAnnotation(
-  top_words = anno_block(
-    gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
-    labels_rot = 0, labels_gp = gpar(fontsize = 12)
-  ),
-  which = "row"
-)
-
-mat <- counts(sce)
-mat <- mat[rownames(mat) %in% markers$gene, ]
-mat <- mat[match(markers$gene, rownames(mat)), ]
-
-set.seed(1)
-draw(
-  Heatmap(
-    mat,
-    colour,
-    cluster_rows = FALSE,
-    cluster_columns = FALSE,
+    col = colour,
     show_row_names = FALSE,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
     row_split = optimal_k,
+    column_split = factor(groups, levels = unique(groups)),
+    column_title = "Hippocampal Glutamatergic",
     left_annotation = row_anno,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
+    right_annotation = right_anno,
+    rect_gp = gpar(col = "lightgray", lwd = 0.01),
+    border = TRUE,
+    row_gap = unit(1, "mm"),
+    column_gap = unit(1, "mm"),
     column_names_side = "top",
     row_title = top_words,
+    column_names_gp = gpar(fontsize = 9),
+    row_title_gp = gpar(fontsize = 9),
     row_title_rot = 0,
     column_names_rot = 45,
-    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
+    heatmap_legend_param = list(
+      title = "Z-Score", direction = "horizontal", title_position = "topcenter",
+      legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7), labels_gp = gpar(fontsize = 6),
+      grid_height = unit(0.3, "cm"), at = c(-3, -2, -1, 0, 1, 2, 3)
+    )
   ),
-  column_title = "Hippocampal Glutamatergic PC 1 Down"
+  heatmap_legend_side = "top"
 )
 ```
 
-```{r, fig.height = 5, fig.width = 12.5}
-idx <- c()
-for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
-  idx <- c(
-    idx, grep(paste0("\\b", unlist(strsplit(top_words, split = "\n"))[i], "\\b"), x = unlist(top_words_list[[1]]))
-  )
-}
-idx <- table(idx)
-idx <- idx[order(idx, decreasing = TRUE)]
-idx <- idx[idx > 1]
-idx <- as.numeric(names(idx)[seq_along(idx)])
-
-genes_all <- c()
-for (i in idx) {
-  gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
-  gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
-  genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
-  genes_all <- c(genes_all, genes)
-  title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
-
-  mat <- logcounts(sce2)[rownames(sce2) %in% genes, ]
-  mat <- mat[match(genes, rownames(mat)), ]
-
-  set.seed(1)
-  draw(
-    Heatmap(
-      mat,
-      colour2,
-      cluster_columns = FALSE,
-      rect_gp = gpar(col = "lightgray", lwd = 0.1),
-      row_gap = unit(2, "mm"),
-      column_gap = unit(2, "mm"),
-      column_names_side = "top",
-      row_title_rot = 0,
-      column_names_rot = 45,
-      heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
-    ),
-    column_title = title
-  )
-}
-
-genes <- table(genes_all)
-genes <- genes[order(genes, decreasing = TRUE)]
-genes <- genes[genes > 1]
-
-mat <- logcounts(sce2)[rownames(sce2) %in% names(genes), ]
-mat <- mat[match(names(genes), rownames(mat)), ]
-
-set.seed(1)
-draw(
-  Heatmap(
-    mat,
-    colour2,
-    cluster_columns = FALSE,
-    cluster_rows = FALSE,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
-    column_names_side = "top",
-    row_title_rot = 0,
-    column_names_rot = 45,
-    heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
-  )
-)
-```
-
-## Microglia
+## Cortical Glutamatergic
 
 ```{r}
-seurat_sub_orig <- seurat[ , which(seurat$annotations_short == "Microglia")]
+keep <- grep("Cortical Glutamatergic", x = colnames(gse))
+gse_zscore <- gse[, keep]
+counts_zscore <- counts[, keep]
+gse_zscore <- t(scale(t(gse_zscore[rownames(gse_zscore[rowSums(gse_zscore > 0) >= 1, ]), ])))
+counts_zscore <- t(scale(t(counts_zscore[rownames(counts_zscore[rowSums(counts_zscore > 0) >= 1, ]), ])))
+gse_zscore[is.na(gse_zscore)] <- 0
+counts_zscore[is.na(counts_zscore)] <- 0
 
-sce <- as.SingleCellExperiment(seurat_sub_orig, assay = "GSVA")
-sce <- suppressWarnings(
-  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "mean")
-)
+markers <- data.frame(cluster = character(), gene = character())
+groups <- sub(".*\\s", "", colnames(gse_zscore))
+group_idx <- vector("list", length = length(groups))
+group_idx[[1]] <- 1
+group_idx[[2]] <- 2
+group_idx[[3]] <- 3
+group_idx[[4]] <- 4
 
-keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
-seurat_sub <- subset(seurat_sub_orig, features = which(rownames(seurat_sub_orig) %in% keep))
-
-rds <- file.path(cache_dir, "markers_gsva_micro.rds")
-if (file.exists(rds)) {
-  markers <- readRDS(rds)
-} else {
-
-  markers <- FindMarkers(seurat_sub, ident.1 = "P301S", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
-  markers$cluster = rep("P301S_up", times = nrow(markers))
-  markers$gene <- rownames(markers)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "MAPTKI", ident.2 = "P301S", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("P301S_down", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "NLGF_MAPTKI", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("NLGF_MAPTKI_up", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "MAPTKI", ident.2 = "NLGF_MAPTKI", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("NLGF_MAPTKI_down", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "NLGF_P301S", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("NLGF_P301S_up", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "MAPTKI", ident.2 = "NLGF_P301S", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("NLGF_P301S_down", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  saveRDS(markers, rds)
+for (i in seq_along(unique(groups))) {
+  gene <- rownames(gse_zscore)[
+    gse_zscore[ , group_idx[[i]]] > quantile(gse_zscore[ , group_idx[[i]]], probs = 0.95)
+  ]
+  avg_log2FC <- gse_zscore[gene, group_idx[[i]]]
+  add <- data.frame(
+    cluster = rep(sub(".*\\s", "", colnames(gse_zscore)[group_idx[[i]]])[1], times = length(gene)),
+    gene = gene, avg_log2FC = avg_log2FC
+  )
+  markers <- rbind(markers, add)
 }
-
-markers <- markers[markers$p_val_adj < 0.05, ]
-# markers <- markers %>% distinct(gene, .keep_all = TRUE)
-# rownames(markers) <- markers$gene
-
-# min <- quantile(counts(sce))[4]
-# keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
-# markers <- markers[markers$gene %in% keep, ]
-
 markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
 datatable_download_exp(markers)
 markers$number <- seq(markers$gene)
@@ -3242,9 +852,6 @@ go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
 for (l in seq_along(module_names)) {
   module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
 }
-# for (l in seq_along(module_names)) {
-#   module_names[[l]] <- markers$gene[module_names[[l]]]
-# }
 top_words_tmp <- data.frame(
   gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
 )
@@ -3275,7 +882,7 @@ for (i in seq_along(top_words_list)) {
   tmp <- names(tmp)
   if (length(tmp) >= 3) {
     tmp <- tmp[1:3]
-    tmp <- paste(paste0(tmp, " "), collapse = "")
+    tmp <- paste(paste0(tmp, "\n"), collapse = "")
     tmp <- substr(tmp, 1, nchar(tmp) - 1)
   } else if (length(tmp > 0)) {
     add <- 3 - length(tmp)
@@ -3285,11 +892,10 @@ for (i in seq_along(top_words_list)) {
     if (any(is.na(tmp))) {
       tmp <- tmp[-which(is.na(tmp))]
     }
-    tmp <- paste(paste0(tmp, " "), collapse = "")
+    tmp <- paste(paste0(tmp, "\n"), collapse = "")
     tmp <- substr(tmp, 1, nchar(tmp) - 1)
   } else {
     tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 3))
-    tmp <- gsub("\n", " ", tmp)
   }
   top_words <- c(top_words, tmp)
 }
@@ -3301,74 +907,166 @@ module_colours <- cols25(length(unique(optimal_k)))
 row_anno <-  HeatmapAnnotation(
   top_words = anno_block(
     gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
-    labels_rot = 0, labels_gp = gpar(fontsize = 12)
+    labels_rot = 0, labels_gp = gpar(fontsize = 9)
   ),
   which = "row"
 )
 
-mat <- counts(sce)
+mat <- gse_zscore
 mat <- mat[rownames(mat) %in% markers$gene, ]
 mat <- mat[match(markers$gene, rownames(mat)), ]
+colnames(mat) <- levels(markers$cluster)
+
+top_gse <- vector("list", length = length(modules))
+for (j in seq_along(top_gse)) {
+  idx <- c()
+  for (i in seq_along(unlist(strsplit(top_words[j], split = "\n")))) {
+    idx <- c(
+      idx, grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
+    )
+  }
+  top_gse[[j]] <- markers$gene[idx]
+}
+
+top_genes <- vector("list", length = length(modules))
+for (i in seq_along(top_genes)) {
+  genes <- c()
+  for (gse_names in top_gse[[i]]) {
+    genes <- c(genes, geneIds(gene_sets[names(gene_sets) %in% gse_names])[[1]])
+  }
+  genes <- table(genes) / length(top_gse[[i]])
+
+  counts_zscore_sub <- counts_zscore[rownames(counts_zscore) %in% names(genes), i]
+  counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0]
+  genes <- genes[names(genes) %in% names(counts_zscore_sub)]
+  counts_zscore_sub <- counts_zscore_sub[match(names(genes), names(counts_zscore_sub))]
+
+  comb <- genes * counts_zscore_sub
+  comb <- comb[order(comb, decreasing = TRUE)]
+
+  counts_zscore_sub <- counts_zscore_sub[match(names(comb), names(counts_zscore_sub))]
+  genes <- genes[match(names(comb), names(genes))]
+
+  top_genes[[i]] <- c(
+    comb[1], counts_zscore_sub[1], genes[1], comb[2], counts_zscore_sub[2], genes[2],
+    comb[3], counts_zscore_sub[3], genes[3], comb[4], counts_zscore_sub[4], genes[4]
+  )
+  names(top_genes[[i]]) <- c(
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[1]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[4]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[7]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[10]), ]$external_gene_name, times = 3
+    )
+  )
+}
+names(top_genes) <- levels(markers$cluster)
+```
+
+```{r, fig.height = 4, fig.width = 6}
+panel_fun <- function(index, nm) {
+  pushViewport(viewport())
+  grid.rect(
+    x = 0, y = 0.9, width = top_genes[[nm]][3],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][2]))
+  )
+  grid.rect(
+    x = 0, y = 0.7, width = top_genes[[nm]][6],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][5]))
+  )
+  grid.rect(
+    x = 0, y = 0.5, width = top_genes[[nm]][9],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][8]))
+  )
+  grid.rect(
+    x = 0, y = 0.3, width = top_genes[[nm]][12],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][11]))
+  )
+  grid.text(y = 0.9, names(top_genes[[nm]])[1], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.7, names(top_genes[[nm]])[4], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.5, names(top_genes[[nm]])[7], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.3, names(top_genes[[nm]])[10], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.xaxis(gp = gpar(fontsize = 4), main = FALSE)
+  popViewport()
+}
+right_anno <- rowAnnotation(
+  foo = anno_link(
+    align_to = optimal_k, which = "row", panel_fun = panel_fun, link_width = unit(0, "mm"), gap = unit(1, "mm")
+  )
+)
 
 set.seed(1)
 draw(
   Heatmap(
     mat,
-    colour,
-    cluster_rows = FALSE,
-    cluster_columns = FALSE,
+    col = colour,
     show_row_names = FALSE,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
     row_split = optimal_k,
+    column_split = factor(groups, levels = unique(groups)),
+    column_title = "Cortical Glutamatergic",
     left_annotation = row_anno,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
+    right_annotation = right_anno,
+    rect_gp = gpar(col = "lightgray", lwd = 0.01),
+    border = TRUE,
+    row_gap = unit(1, "mm"),
+    column_gap = unit(1, "mm"),
     column_names_side = "top",
     row_title = top_words,
+    column_names_gp = gpar(fontsize = 9),
+    row_title_gp = gpar(fontsize = 9),
     row_title_rot = 0,
     column_names_rot = 45,
-    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
+    heatmap_legend_param = list(
+      title = "Z-Score", direction = "horizontal", title_position = "topcenter",
+      legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7), labels_gp = gpar(fontsize = 6),
+      grid_height = unit(0.3, "cm"), at = c(-3, -2, -1, 0, 1, 2, 3)
+    )
   ),
-  column_title = "Microglia"
+  heatmap_legend_side = "top"
 )
 ```
 
-### PCA
+## GABAergic
 
 ```{r}
-seurat_sub <- RunPCA(seurat_sub, features = rownames(seurat_sub), reduction.name = "GSVA_pca", verbose = FALSE)
-add_df <- data.frame(Embeddings(seurat_sub, reduction = "GSVA_pca"))
-seurat_sub$GSVA_pca1 <- add_df[ , 1]
-seurat_sub$GSVA_pca2 <- add_df[ , 2]
+keep <- grep("GABAergic", x = colnames(gse))
+gse_zscore <- gse[, keep]
+counts_zscore <- counts[, keep]
+gse_zscore <- t(scale(t(gse_zscore[rownames(gse_zscore[rowSums(gse_zscore > 0) >= 1, ]), ])))
+gse_zscore[is.na(gse_zscore)] <- 0
+counts_zscore[is.na(counts_zscore)] <- 0
 
-red_dim_plot(seurat_sub, x = "GSVA_pca1", y = "GSVA_pca2", color = "sample", type = "cat")
+markers <- data.frame(cluster = character(), gene = character())
+groups <- sub(".*\\s", "", colnames(gse_zscore))
+group_idx <- vector("list", length = length(groups))
+group_idx[[1]] <- 1
+group_idx[[2]] <- 2
+group_idx[[3]] <- 3
+group_idx[[4]] <- 4
 
-markers <- as.data.frame(Loadings(seurat_sub, reduction = "GSVA_pca"))
-markers <- markers[ , 1:2]
-q1 <- quantile(markers[ , 1])[4]
-markers <- markers[markers[ , 1] > q1, ]
-markers <- abs(markers)
+for (i in seq_along(unique(groups))) {
+  gene <- rownames(gse_zscore)[
+    gse_zscore[ , group_idx[[i]]] > quantile(gse_zscore[ , group_idx[[i]]], probs = 0.95)
+  ]
+  avg_log2FC <- gse_zscore[gene, group_idx[[i]]]
+  add <- data.frame(
+    cluster = rep(sub(".*\\s", "", colnames(gse_zscore)[group_idx[[i]]])[1], times = length(gene)),
+    gene = gene, avg_log2FC = avg_log2FC
+  )
+  markers <- rbind(markers, add)
+}
+markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
+datatable_download_exp(markers)
+markers$number <- seq(markers$gene)
 
-# min <- quantile(counts(sce))[4]
-# keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
-# markers <- markers[rownames(markers) %in% keep, ]
-
-markers$total <- markers[ , 1]
-markers <- markers[order(markers$total, decreasing = TRUE), ]
-markers$gene <- rownames(markers)
-datatable_download(markers)
-markers$cluster <- rep("0", times = nrow(markers))
-markers$number <- seq(rownames(markers))
-```
-
-```{r, fig.width = 20}
-FeaturePlot(
-  seurat_sub, features = rownames(markers)[1:4], reduction = "GSVA_pca",
-  order = TRUE, cols = c("lightgrey", "red")
-)
-```
-
-```{r}
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
 module_names <- modules
 
@@ -3376,9 +1074,6 @@ go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
 for (l in seq_along(module_names)) {
   module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
 }
-# for (l in seq_along(module_names)) {
-#   module_names[[l]] <- markers$gene[module_names[[l]]]
-# }
 top_words_tmp <- data.frame(
   gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
 )
@@ -3398,8 +1093,8 @@ for (i in seq_along(top_words_list)) {
   }
   tmp <- table(tmp)
   for (j in seq_along(tmp)) {
-    total <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
-    tmp[j] <- sum(markers$total[total])
+    log2FC <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
+    tmp[j] <- sum(markers$avg_log2FC[which(markers$cluster == levels(markers$cluster)[i])[log2FC]])
   }
   tmp <- tmp[order(tmp, decreasing = TRUE)]
   dup <- which(duplicated(tmp))
@@ -3407,12 +1102,12 @@ for (i in seq_along(top_words_list)) {
     tmp <- tmp[-dup]
   }
   tmp <- names(tmp)
-  if (length(tmp) >= 10) {
-    tmp <- tmp[1:10]
+  if (length(tmp) >= 3) {
+    tmp <- tmp[1:3]
     tmp <- paste(paste0(tmp, "\n"), collapse = "")
     tmp <- substr(tmp, 1, nchar(tmp) - 1)
   } else if (length(tmp > 0)) {
-    add <- 10 - length(tmp)
+    add <- 3 - length(tmp)
     tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
     tmp2 <- tmp2[tmp2 %notin% tmp]
     tmp <- c(tmp, tmp2[1:add])
@@ -3422,7 +1117,7 @@ for (i in seq_along(top_words_list)) {
     tmp <- paste(paste0(tmp, "\n"), collapse = "")
     tmp <- substr(tmp, 1, nchar(tmp) - 1)
   } else {
-    tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 10))
+    tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 3))
   }
   top_words <- c(top_words, tmp)
 }
@@ -3434,139 +1129,167 @@ module_colours <- cols25(length(unique(optimal_k)))
 row_anno <-  HeatmapAnnotation(
   top_words = anno_block(
     gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
-    labels_rot = 0, labels_gp = gpar(fontsize = 12)
+    labels_rot = 0, labels_gp = gpar(fontsize = 9)
   ),
   which = "row"
 )
 
-mat <- counts(sce)
+mat <- gse_zscore
 mat <- mat[rownames(mat) %in% markers$gene, ]
 mat <- mat[match(markers$gene, rownames(mat)), ]
+colnames(mat) <- levels(markers$cluster)
+
+top_gse <- vector("list", length = length(modules))
+for (j in seq_along(top_gse)) {
+  idx <- c()
+  for (i in seq_along(unlist(strsplit(top_words[j], split = "\n")))) {
+    idx <- c(
+      idx, grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
+    )
+  }
+  top_gse[[j]] <- markers$gene[idx]
+}
+
+top_genes <- vector("list", length = length(modules))
+for (i in seq_along(top_genes)) {
+  genes <- c()
+  for (gse_names in top_gse[[i]]) {
+    genes <- c(genes, geneIds(gene_sets[names(gene_sets) %in% gse_names])[[1]])
+  }
+  genes <- table(genes) / length(top_gse[[i]])
+
+  counts_zscore_sub <- counts_zscore[rownames(counts_zscore) %in% names(genes), i]
+  counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0]
+  genes <- genes[names(genes) %in% names(counts_zscore_sub)]
+  counts_zscore_sub <- counts_zscore_sub[match(names(genes), names(counts_zscore_sub))]
+
+  comb <- genes * counts_zscore_sub
+  comb <- comb[order(comb, decreasing = TRUE)]
+
+  counts_zscore_sub <- counts_zscore_sub[match(names(comb), names(counts_zscore_sub))]
+  genes <- genes[match(names(comb), names(genes))]
+
+  top_genes[[i]] <- c(
+    comb[1], counts_zscore_sub[1], genes[1], comb[2], counts_zscore_sub[2], genes[2],
+    comb[3], counts_zscore_sub[3], genes[3], comb[4], counts_zscore_sub[4], genes[4]
+  )
+  names(top_genes[[i]]) <- c(
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[1]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[4]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[7]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[10]), ]$external_gene_name, times = 3
+    )
+  )
+}
+names(top_genes) <- levels(markers$cluster)
+```
+
+```{r, fig.height = 4, fig.width = 6}
+panel_fun <- function(index, nm) {
+  pushViewport(viewport())
+  grid.rect(
+    x = 0, y = 0.9, width = top_genes[[nm]][3],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][2]))
+  )
+  grid.rect(
+    x = 0, y = 0.7, width = top_genes[[nm]][6],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][5]))
+  )
+  grid.rect(
+    x = 0, y = 0.5, width = top_genes[[nm]][9],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][8]))
+  )
+  grid.rect(
+    x = 0, y = 0.3, width = top_genes[[nm]][12],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][11]))
+  )
+  grid.text(y = 0.9, names(top_genes[[nm]])[1], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.7, names(top_genes[[nm]])[4], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.5, names(top_genes[[nm]])[7], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.3, names(top_genes[[nm]])[10], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.xaxis(gp = gpar(fontsize = 4), main = FALSE)
+  popViewport()
+}
+right_anno <- rowAnnotation(
+  foo = anno_link(
+    align_to = optimal_k, which = "row", panel_fun = panel_fun, link_width = unit(0, "mm"), gap = unit(1, "mm")
+  )
+)
 
 set.seed(1)
 draw(
   Heatmap(
     mat,
-    colour,
-    cluster_rows = FALSE,
-    cluster_columns = FALSE,
+    col = colour,
     show_row_names = FALSE,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
     row_split = optimal_k,
+    column_split = factor(groups, levels = unique(groups)),
+    column_title = "GABAergic",
     left_annotation = row_anno,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
+    right_annotation = right_anno,
+    rect_gp = gpar(col = "lightgray", lwd = 0.01),
+    border = TRUE,
+    row_gap = unit(1, "mm"),
+    column_gap = unit(1, "mm"),
     column_names_side = "top",
     row_title = top_words,
+    column_names_gp = gpar(fontsize = 9),
+    row_title_gp = gpar(fontsize = 9),
     row_title_rot = 0,
     column_names_rot = 45,
-    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
+    heatmap_legend_param = list(
+      title = "Z-Score", direction = "horizontal", title_position = "topcenter",
+      legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7), labels_gp = gpar(fontsize = 6),
+      grid_height = unit(0.3, "cm"), at = c(-3, -2, -1, 0, 1, 2, 3)
+    )
   ),
-  column_title = "Microglia PC 1 Up"
+  heatmap_legend_side = "top"
 )
 ```
 
-```{r, fig.height = 5, fig.width = 12.5}
-sce2 <- as.SingleCellExperiment(seurat_sub_orig, assay = "SCT")
-sce2 <- suppressWarnings(
-  aggregateAcrossCells(sce2, colData(sce2)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
-)
-dge <- DGEList(counts(sce2))
-dge <- calcNormFactors(dge)
-logcounts(sce2, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
-
-idx <- c()
-for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
-  idx <- c(
-    idx, grep(paste0("\\b", unlist(strsplit(top_words, split = "\n"))[i], "\\b"), x = unlist(top_words_list[[1]]))
-  )
-}
-idx <- table(idx)
-idx <- idx[order(idx, decreasing = TRUE)]
-idx <- idx[idx > 1]
-idx <- as.numeric(names(idx)[seq_along(idx)])
-
-genes_all <- c()
-for (i in idx) {
-  gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
-  gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
-  genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
-  genes_all <- c(genes_all, genes)
-  title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
-
-  mat <- logcounts(sce2)[rownames(sce2) %in% genes, ]
-  mat <- mat[match(genes, rownames(mat)), ]
-
-  set.seed(1)
-  draw(
-    Heatmap(
-      mat,
-      colour2,
-      cluster_columns = FALSE,
-      rect_gp = gpar(col = "lightgray", lwd = 0.1),
-      row_gap = unit(2, "mm"),
-      column_gap = unit(2, "mm"),
-      column_names_side = "top",
-      row_title_rot = 0,
-      column_names_rot = 45,
-      heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
-    ),
-    column_title = title
-  )
-}
-
-genes <- table(genes_all)
-genes <- genes[order(genes, decreasing = TRUE)]
-genes <- genes[genes > 1]
-
-mat <- logcounts(sce2)[rownames(sce2) %in% names(genes), ]
-mat <- mat[match(names(genes), rownames(mat)), ]
-
-set.seed(1)
-draw(
-  Heatmap(
-    mat,
-    colour2,
-    cluster_columns = FALSE,
-    cluster_rows = FALSE,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
-    column_names_side = "top",
-    row_title_rot = 0,
-    column_names_rot = 45,
-    heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
-  )
-)
-```
+## Endothelial
 
 ```{r}
-markers <- as.data.frame(Loadings(seurat_sub, reduction = "GSVA_pca"))
-markers <- markers[ , 1:2]
-q1 <- quantile(markers[ , 1])[2]
-markers <- markers[markers[ , 1] < q1, ]
-markers <- abs(markers)
+keep <- grep("Endothelial", x = colnames(gse))
+gse_zscore <- gse[, keep]
+counts_zscore <- counts[, keep]
+gse_zscore <- t(scale(t(gse_zscore[rownames(gse_zscore[rowSums(gse_zscore > 0) >= 1, ]), ])))
+counts_zscore <- t(scale(t(counts_zscore[rownames(counts_zscore[rowSums(counts_zscore > 0) >= 1, ]), ])))
+gse_zscore[is.na(gse_zscore)] <- 0
+counts_zscore[is.na(counts_zscore)] <- 0
 
-# min <- quantile(counts(sce))[4]
-# keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
-# markers <- markers[rownames(markers) %in% keep, ]
+markers <- data.frame(cluster = character(), gene = character())
+groups <- sub(".*\\s", "", colnames(gse_zscore))
+group_idx <- vector("list", length = length(groups))
+group_idx[[1]] <- 1
+group_idx[[2]] <- 2
+group_idx[[3]] <- 3
+group_idx[[4]] <- 4
 
-markers$total <- markers[ , 1]
-markers <- markers[order(markers$total, decreasing = TRUE), ]
-markers$gene <- rownames(markers)
-datatable_download(markers)
-markers$cluster <- rep("0", times = nrow(markers))
-markers$number <- seq(rownames(markers))
-```
+for (i in seq_along(unique(groups))) {
+  gene <- rownames(gse_zscore)[
+    gse_zscore[ , group_idx[[i]]] > quantile(gse_zscore[ , group_idx[[i]]], probs = 0.95)
+  ]
+  avg_log2FC <- gse_zscore[gene, group_idx[[i]]]
+  add <- data.frame(
+    cluster = rep(sub(".*\\s", "", colnames(gse_zscore)[group_idx[[i]]])[1], times = length(gene)),
+    gene = gene, avg_log2FC = avg_log2FC
+  )
+  markers <- rbind(markers, add)
+}
+markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
+datatable_download_exp(markers)
+markers$number <- seq(markers$gene)
 
-```{r, fig.width = 20}
-FeaturePlot(
-  seurat_sub, features = rownames(markers)[1:4], reduction = "GSVA_pca",
-  order = TRUE, cols = c("lightgrey", "red")
-)
-```
-
-```{r}
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
 module_names <- modules
 
@@ -3574,9 +1297,6 @@ go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
 for (l in seq_along(module_names)) {
   module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
 }
-# for (l in seq_along(module_names)) {
-#   module_names[[l]] <- markers$gene[module_names[[l]]]
-# }
 top_words_tmp <- data.frame(
   gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
 )
@@ -3596,8 +1316,8 @@ for (i in seq_along(top_words_list)) {
   }
   tmp <- table(tmp)
   for (j in seq_along(tmp)) {
-    total <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
-    tmp[j] <- sum(markers$total[total])
+    log2FC <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
+    tmp[j] <- sum(markers$avg_log2FC[which(markers$cluster == levels(markers$cluster)[i])[log2FC]])
   }
   tmp <- tmp[order(tmp, decreasing = TRUE)]
   dup <- which(duplicated(tmp))
@@ -3605,12 +1325,12 @@ for (i in seq_along(top_words_list)) {
     tmp <- tmp[-dup]
   }
   tmp <- names(tmp)
-  if (length(tmp) >= 10) {
-    tmp <- tmp[1:10]
+  if (length(tmp) >= 3) {
+    tmp <- tmp[1:3]
     tmp <- paste(paste0(tmp, "\n"), collapse = "")
     tmp <- substr(tmp, 1, nchar(tmp) - 1)
   } else if (length(tmp > 0)) {
-    add <- 10 - length(tmp)
+    add <- 3 - length(tmp)
     tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
     tmp2 <- tmp2[tmp2 %notin% tmp]
     tmp <- c(tmp, tmp2[1:add])
@@ -3620,7 +1340,7 @@ for (i in seq_along(top_words_list)) {
     tmp <- paste(paste0(tmp, "\n"), collapse = "")
     tmp <- substr(tmp, 1, nchar(tmp) - 1)
   } else {
-    tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 10))
+    tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 3))
   }
   top_words <- c(top_words, tmp)
 }
@@ -3632,162 +1352,609 @@ module_colours <- cols25(length(unique(optimal_k)))
 row_anno <-  HeatmapAnnotation(
   top_words = anno_block(
     gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
-    labels_rot = 0, labels_gp = gpar(fontsize = 12)
+    labels_rot = 0, labels_gp = gpar(fontsize = 9)
   ),
   which = "row"
 )
 
-mat <- counts(sce)
+mat <- gse_zscore
 mat <- mat[rownames(mat) %in% markers$gene, ]
 mat <- mat[match(markers$gene, rownames(mat)), ]
+colnames(mat) <- levels(markers$cluster)
+
+top_gse <- vector("list", length = length(modules))
+for (j in seq_along(top_gse)) {
+  idx <- c()
+  for (i in seq_along(unlist(strsplit(top_words[j], split = "\n")))) {
+    idx <- c(
+      idx, grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
+    )
+  }
+  top_gse[[j]] <- markers$gene[idx]
+}
+
+top_genes <- vector("list", length = length(modules))
+for (i in seq_along(top_genes)) {
+  genes <- c()
+  for (gse_names in top_gse[[i]]) {
+    genes <- c(genes, geneIds(gene_sets[names(gene_sets) %in% gse_names])[[1]])
+  }
+  genes <- table(genes) / length(top_gse[[i]])
+
+  counts_zscore_sub <- counts_zscore[rownames(counts_zscore) %in% names(genes), i]
+  counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0]
+  genes <- genes[names(genes) %in% names(counts_zscore_sub)]
+  counts_zscore_sub <- counts_zscore_sub[match(names(genes), names(counts_zscore_sub))]
+
+  comb <- genes * counts_zscore_sub
+  comb <- comb[order(comb, decreasing = TRUE)]
+
+  counts_zscore_sub <- counts_zscore_sub[match(names(comb), names(counts_zscore_sub))]
+  genes <- genes[match(names(comb), names(genes))]
+
+  top_genes[[i]] <- c(
+    comb[1], counts_zscore_sub[1], genes[1], comb[2], counts_zscore_sub[2], genes[2],
+    comb[3], counts_zscore_sub[3], genes[3], comb[4], counts_zscore_sub[4], genes[4]
+  )
+  names(top_genes[[i]]) <- c(
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[1]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[4]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[7]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[10]), ]$external_gene_name, times = 3
+    )
+  )
+}
+names(top_genes) <- levels(markers$cluster)
+```
+
+```{r, fig.height = 4, fig.width = 6}
+panel_fun <- function(index, nm) {
+  pushViewport(viewport())
+  grid.rect(
+    x = 0, y = 0.9, width = top_genes[[nm]][3],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][2]))
+  )
+  grid.rect(
+    x = 0, y = 0.7, width = top_genes[[nm]][6],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][5]))
+  )
+  grid.rect(
+    x = 0, y = 0.5, width = top_genes[[nm]][9],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][8]))
+  )
+  grid.rect(
+    x = 0, y = 0.3, width = top_genes[[nm]][12],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][11]))
+  )
+  grid.text(y = 0.9, names(top_genes[[nm]])[1], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.7, names(top_genes[[nm]])[4], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.5, names(top_genes[[nm]])[7], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.3, names(top_genes[[nm]])[10], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.xaxis(gp = gpar(fontsize = 4), main = FALSE)
+  popViewport()
+}
+right_anno <- rowAnnotation(
+  foo = anno_link(
+    align_to = optimal_k, which = "row", panel_fun = panel_fun, link_width = unit(0, "mm"), gap = unit(1, "mm")
+  )
+)
 
 set.seed(1)
 draw(
   Heatmap(
     mat,
-    colour,
-    cluster_rows = FALSE,
-    cluster_columns = FALSE,
+    col = colour,
     show_row_names = FALSE,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
     row_split = optimal_k,
+    column_split = factor(groups, levels = unique(groups)),
+    column_title = "Endothelial",
     left_annotation = row_anno,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
+    right_annotation = right_anno,
+    rect_gp = gpar(col = "lightgray", lwd = 0.01),
+    border = TRUE,
+    row_gap = unit(1, "mm"),
+    column_gap = unit(1, "mm"),
     column_names_side = "top",
     row_title = top_words,
+    column_names_gp = gpar(fontsize = 9),
+    row_title_gp = gpar(fontsize = 9),
     row_title_rot = 0,
     column_names_rot = 45,
-    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
+    heatmap_legend_param = list(
+      title = "Z-Score", direction = "horizontal", title_position = "topcenter",
+      legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7), labels_gp = gpar(fontsize = 6),
+      grid_height = unit(0.3, "cm"), at = c(-3, -2, -1, 0, 1, 2, 3)
+    )
   ),
-  column_title = "Microglia PC 1 Down"
+  heatmap_legend_side = "top"
 )
 ```
 
-```{r, fig.height = 5, fig.width = 12.5}
-idx <- c()
-for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
-  idx <- c(
-    idx, grep(paste0("\\b", unlist(strsplit(top_words, split = "\n"))[i], "\\b"), x = unlist(top_words_list[[1]]))
+## Astrocyte
+
+```{r}
+keep <- grep("Astrocyte", x = colnames(gse))
+gse_zscore <- gse[, keep]
+counts_zscore <- counts[, keep]
+gse_zscore <- t(scale(t(gse_zscore[rownames(gse_zscore[rowSums(gse_zscore > 0) >= 1, ]), ])))
+counts_zscore <- t(scale(t(counts_zscore[rownames(counts_zscore[rowSums(counts_zscore > 0) >= 1, ]), ])))
+gse_zscore[is.na(gse_zscore)] <- 0
+counts_zscore[is.na(counts_zscore)] <- 0
+
+markers <- data.frame(cluster = character(), gene = character())
+groups <- sub(".*\\s", "", colnames(gse_zscore))
+group_idx <- vector("list", length = length(groups))
+group_idx[[1]] <- 1
+group_idx[[2]] <- 2
+group_idx[[3]] <- 3
+group_idx[[4]] <- 4
+
+for (i in seq_along(unique(groups))) {
+  gene <- rownames(gse_zscore)[
+    gse_zscore[ , group_idx[[i]]] > quantile(gse_zscore[ , group_idx[[i]]], probs = 0.95)
+  ]
+  avg_log2FC <- gse_zscore[gene, group_idx[[i]]]
+  add <- data.frame(
+    cluster = rep(sub(".*\\s", "", colnames(gse_zscore)[group_idx[[i]]])[1], times = length(gene)),
+    gene = gene, avg_log2FC = avg_log2FC
   )
+  markers <- rbind(markers, add)
 }
-idx <- table(idx)
-idx <- idx[order(idx, decreasing = TRUE)]
-idx <- idx[idx > 1]
-idx <- as.numeric(names(idx)[seq_along(idx)])
+markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
+datatable_download_exp(markers)
+markers$number <- seq(markers$gene)
 
-genes_all <- c()
-for (i in idx) {
-  gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
-  gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
-  genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
-  genes_all <- c(genes_all, genes)
-  title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
+modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
+module_names <- modules
 
-  mat <- logcounts(sce2)[rownames(sce2) %in% genes, ]
-  mat <- mat[match(genes, rownames(mat)), ]
+go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
+for (l in seq_along(module_names)) {
+  module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
+}
+top_words_tmp <- data.frame(
+  gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
+)
+top_words_list <- vector("list", length = length(unique(top_words_tmp$module)))
+top_words <- c()
 
-  set.seed(1)
-  draw(
-    Heatmap(
-      mat,
-      colour2,
-      cluster_columns = FALSE,
-      rect_gp = gpar(col = "lightgray", lwd = 0.1),
-      row_gap = unit(2, "mm"),
-      column_gap = unit(2, "mm"),
-      column_names_side = "top",
-      row_title_rot = 0,
-      column_names_rot = 45,
-      heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
+for (i in seq_along(top_words_list)) {
+  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
+  for (j in seq_along(top_words_list[[i]])) {
+    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
+  }
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  tmp <- table(tmp)
+  for (j in seq_along(tmp)) {
+    log2FC <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
+    tmp[j] <- sum(markers$avg_log2FC[which(markers$cluster == levels(markers$cluster)[i])[log2FC]])
+  }
+  tmp <- tmp[order(tmp, decreasing = TRUE)]
+  dup <- which(duplicated(tmp))
+  if (length(dup) > 0) {
+    tmp <- tmp[-dup]
+  }
+  tmp <- names(tmp)
+  if (length(tmp) >= 3) {
+    tmp <- tmp[1:3]
+    tmp <- paste(paste0(tmp, "\n"), collapse = "")
+    tmp <- substr(tmp, 1, nchar(tmp) - 1)
+  } else if (length(tmp > 0)) {
+    add <- 3 - length(tmp)
+    tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
+    tmp2 <- tmp2[tmp2 %notin% tmp]
+    tmp <- c(tmp, tmp2[1:add])
+    if (any(is.na(tmp))) {
+      tmp <- tmp[-which(is.na(tmp))]
+    }
+    tmp <- paste(paste0(tmp, "\n"), collapse = "")
+    tmp <- substr(tmp, 1, nchar(tmp) - 1)
+  } else {
+    tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 3))
+  }
+  top_words <- c(top_words, tmp)
+}
+
+optimal_k <- unlist(lapply(seq_along(modules), function(i) {rep(names(modules)[i], length(modules[[i]]))}))
+optimal_k <- factor(optimal_k, levels = unique(optimal_k))
+module_colours <- cols25(length(unique(optimal_k)))
+
+row_anno <-  HeatmapAnnotation(
+  top_words = anno_block(
+    gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
+    labels_rot = 0, labels_gp = gpar(fontsize = 9)
+  ),
+  which = "row"
+)
+
+mat <- gse_zscore
+mat <- mat[rownames(mat) %in% markers$gene, ]
+mat <- mat[match(markers$gene, rownames(mat)), ]
+colnames(mat) <- levels(markers$cluster)
+
+top_gse <- vector("list", length = length(modules))
+for (j in seq_along(top_gse)) {
+  idx <- c()
+  for (i in seq_along(unlist(strsplit(top_words[j], split = "\n")))) {
+    idx <- c(
+      idx, grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
+    )
+  }
+  top_gse[[j]] <- markers$gene[idx]
+}
+
+top_genes <- vector("list", length = length(modules))
+for (i in seq_along(top_genes)) {
+  genes <- c()
+  for (gse_names in top_gse[[i]]) {
+    genes <- c(genes, geneIds(gene_sets[names(gene_sets) %in% gse_names])[[1]])
+  }
+  genes <- table(genes) / length(top_gse[[i]])
+
+  counts_zscore_sub <- counts_zscore[rownames(counts_zscore) %in% names(genes), i]
+  counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0]
+  genes <- genes[names(genes) %in% names(counts_zscore_sub)]
+  counts_zscore_sub <- counts_zscore_sub[match(names(genes), names(counts_zscore_sub))]
+
+  comb <- genes * counts_zscore_sub
+  comb <- comb[order(comb, decreasing = TRUE)]
+
+  counts_zscore_sub <- counts_zscore_sub[match(names(comb), names(counts_zscore_sub))]
+  genes <- genes[match(names(comb), names(genes))]
+
+  top_genes[[i]] <- c(
+    comb[1], counts_zscore_sub[1], genes[1], comb[2], counts_zscore_sub[2], genes[2],
+    comb[3], counts_zscore_sub[3], genes[3], comb[4], counts_zscore_sub[4], genes[4]
+  )
+  names(top_genes[[i]]) <- c(
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[1]), ]$external_gene_name, times = 3
     ),
-    column_title = title
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[4]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[7]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[10]), ]$external_gene_name, times = 3
+    )
   )
 }
+names(top_genes) <- levels(markers$cluster)
+```
 
-genes <- table(genes_all)
-genes <- genes[order(genes, decreasing = TRUE)]
-genes <- genes[genes > 1]
-
-mat <- logcounts(sce2)[rownames(sce2) %in% names(genes), ]
-mat <- mat[match(names(genes), rownames(mat)), ]
+```{r, fig.height = 4, fig.width = 6}
+panel_fun <- function(index, nm) {
+  pushViewport(viewport())
+  grid.rect(
+    x = 0, y = 0.9, width = top_genes[[nm]][3],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][2]))
+  )
+  grid.rect(
+    x = 0, y = 0.7, width = top_genes[[nm]][6],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][5]))
+  )
+  grid.rect(
+    x = 0, y = 0.5, width = top_genes[[nm]][9],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][8]))
+  )
+  grid.rect(
+    x = 0, y = 0.3, width = top_genes[[nm]][12],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][11]))
+  )
+  grid.text(y = 0.9, names(top_genes[[nm]])[1], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.7, names(top_genes[[nm]])[4], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.5, names(top_genes[[nm]])[7], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.3, names(top_genes[[nm]])[10], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.xaxis(gp = gpar(fontsize = 4), main = FALSE)
+  popViewport()
+}
+right_anno <- rowAnnotation(
+  foo = anno_link(
+    align_to = optimal_k, which = "row", panel_fun = panel_fun, link_width = unit(0, "mm"), gap = unit(1, "mm")
+  )
+)
 
 set.seed(1)
 draw(
   Heatmap(
     mat,
-    colour2,
+    col = colour,
+    show_row_names = FALSE,
     cluster_columns = FALSE,
     cluster_rows = FALSE,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
+    row_split = optimal_k,
+    column_split = factor(groups, levels = unique(groups)),
+    column_title = "Astrocyte",
+    left_annotation = row_anno,
+    right_annotation = right_anno,
+    rect_gp = gpar(col = "lightgray", lwd = 0.01),
+    border = TRUE,
+    row_gap = unit(1, "mm"),
+    column_gap = unit(1, "mm"),
     column_names_side = "top",
+    row_title = top_words,
+    column_names_gp = gpar(fontsize = 9),
+    row_title_gp = gpar(fontsize = 9),
     row_title_rot = 0,
     column_names_rot = 45,
-    heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
+    heatmap_legend_param = list(
+      title = "Z-Score", direction = "horizontal", title_position = "topcenter",
+      legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7), labels_gp = gpar(fontsize = 6),
+      grid_height = unit(0.3, "cm"), at = c(-3, -2, -1, 0, 1, 2, 3)
+    )
+  ),
+  heatmap_legend_side = "top"
+)
+```
+
+## OPC
+
+```{r}
+keep <- grep("OPC", x = colnames(gse))
+gse_zscore <- gse[, keep]
+counts_zscore <- counts[, keep]
+gse_zscore <- t(scale(t(gse_zscore[rownames(gse_zscore[rowSums(gse_zscore > 0) >= 1, ]), ])))
+counts_zscore <- t(scale(t(counts_zscore[rownames(counts_zscore[rowSums(counts_zscore > 0) >= 1, ]), ])))
+gse_zscore[is.na(gse_zscore)] <- 0
+counts_zscore[is.na(counts_zscore)] <- 0
+
+markers <- data.frame(cluster = character(), gene = character())
+groups <- sub(".*\\s", "", colnames(gse_zscore))
+group_idx <- vector("list", length = length(groups))
+group_idx[[1]] <- 1
+group_idx[[2]] <- 2
+group_idx[[3]] <- 3
+group_idx[[4]] <- 4
+
+for (i in seq_along(unique(groups))) {
+  gene <- rownames(gse_zscore)[
+    gse_zscore[ , group_idx[[i]]] > quantile(gse_zscore[ , group_idx[[i]]], probs = 0.95)
+  ]
+  avg_log2FC <- gse_zscore[gene, group_idx[[i]]]
+  add <- data.frame(
+    cluster = rep(sub(".*\\s", "", colnames(gse_zscore)[group_idx[[i]]])[1], times = length(gene)),
+    gene = gene, avg_log2FC = avg_log2FC
   )
+  markers <- rbind(markers, add)
+}
+markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
+datatable_download_exp(markers)
+markers$number <- seq(markers$gene)
+
+modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
+module_names <- modules
+
+go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
+for (l in seq_along(module_names)) {
+  module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
+}
+top_words_tmp <- data.frame(
+  gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
+)
+top_words_list <- vector("list", length = length(unique(top_words_tmp$module)))
+top_words <- c()
+
+for (i in seq_along(top_words_list)) {
+  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
+  for (j in seq_along(top_words_list[[i]])) {
+    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
+  }
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  tmp <- table(tmp)
+  for (j in seq_along(tmp)) {
+    log2FC <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
+    tmp[j] <- sum(markers$avg_log2FC[which(markers$cluster == levels(markers$cluster)[i])[log2FC]])
+  }
+  tmp <- tmp[order(tmp, decreasing = TRUE)]
+  dup <- which(duplicated(tmp))
+  if (length(dup) > 0) {
+    tmp <- tmp[-dup]
+  }
+  tmp <- names(tmp)
+  if (length(tmp) >= 3) {
+    tmp <- tmp[1:3]
+    tmp <- paste(paste0(tmp, "\n"), collapse = "")
+    tmp <- substr(tmp, 1, nchar(tmp) - 1)
+  } else if (length(tmp > 0)) {
+    add <- 3 - length(tmp)
+    tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
+    tmp2 <- tmp2[tmp2 %notin% tmp]
+    tmp <- c(tmp, tmp2[1:add])
+    if (any(is.na(tmp))) {
+      tmp <- tmp[-which(is.na(tmp))]
+    }
+    tmp <- paste(paste0(tmp, "\n"), collapse = "")
+    tmp <- substr(tmp, 1, nchar(tmp) - 1)
+  } else {
+    tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 3))
+  }
+  top_words <- c(top_words, tmp)
+}
+
+optimal_k <- unlist(lapply(seq_along(modules), function(i) {rep(names(modules)[i], length(modules[[i]]))}))
+optimal_k <- factor(optimal_k, levels = unique(optimal_k))
+module_colours <- cols25(length(unique(optimal_k)))
+
+row_anno <-  HeatmapAnnotation(
+  top_words = anno_block(
+    gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
+    labels_rot = 0, labels_gp = gpar(fontsize = 9)
+  ),
+  which = "row"
+)
+
+mat <- gse_zscore
+mat <- mat[rownames(mat) %in% markers$gene, ]
+mat <- mat[match(markers$gene, rownames(mat)), ]
+colnames(mat) <- levels(markers$cluster)
+
+top_gse <- vector("list", length = length(modules))
+for (j in seq_along(top_gse)) {
+  idx <- c()
+  for (i in seq_along(unlist(strsplit(top_words[j], split = "\n")))) {
+    idx <- c(
+      idx, grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
+    )
+  }
+  top_gse[[j]] <- markers$gene[idx]
+}
+
+top_genes <- vector("list", length = length(modules))
+for (i in seq_along(top_genes)) {
+  genes <- c()
+  for (gse_names in top_gse[[i]]) {
+    genes <- c(genes, geneIds(gene_sets[names(gene_sets) %in% gse_names])[[1]])
+  }
+  genes <- table(genes) / length(top_gse[[i]])
+
+  counts_zscore_sub <- counts_zscore[rownames(counts_zscore) %in% names(genes), i]
+  counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0]
+  genes <- genes[names(genes) %in% names(counts_zscore_sub)]
+  counts_zscore_sub <- counts_zscore_sub[match(names(genes), names(counts_zscore_sub))]
+
+  comb <- genes * counts_zscore_sub
+  comb <- comb[order(comb, decreasing = TRUE)]
+
+  counts_zscore_sub <- counts_zscore_sub[match(names(comb), names(counts_zscore_sub))]
+  genes <- genes[match(names(comb), names(genes))]
+
+  top_genes[[i]] <- c(
+    comb[1], counts_zscore_sub[1], genes[1], comb[2], counts_zscore_sub[2], genes[2],
+    comb[3], counts_zscore_sub[3], genes[3], comb[4], counts_zscore_sub[4], genes[4]
+  )
+  names(top_genes[[i]]) <- c(
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[1]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[4]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[7]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[10]), ]$external_gene_name, times = 3
+    )
+  )
+}
+names(top_genes) <- levels(markers$cluster)
+```
+
+```{r, fig.height = 4, fig.width = 6}
+panel_fun <- function(index, nm) {
+  pushViewport(viewport())
+  grid.rect(
+    x = 0, y = 0.9, width = top_genes[[nm]][3],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][2]))
+  )
+  grid.rect(
+    x = 0, y = 0.7, width = top_genes[[nm]][6],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][5]))
+  )
+  grid.rect(
+    x = 0, y = 0.5, width = top_genes[[nm]][9],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][8]))
+  )
+  grid.rect(
+    x = 0, y = 0.3, width = top_genes[[nm]][12],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][11]))
+  )
+  grid.text(y = 0.9, names(top_genes[[nm]])[1], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.7, names(top_genes[[nm]])[4], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.5, names(top_genes[[nm]])[7], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.3, names(top_genes[[nm]])[10], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.xaxis(gp = gpar(fontsize = 4), main = FALSE)
+  popViewport()
+}
+right_anno <- rowAnnotation(
+  foo = anno_link(
+    align_to = optimal_k, which = "row", panel_fun = panel_fun, link_width = unit(0, "mm"), gap = unit(1, "mm")
+  )
+)
+
+set.seed(1)
+draw(
+  Heatmap(
+    mat,
+    col = colour,
+    show_row_names = FALSE,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
+    row_split = optimal_k,
+    column_split = factor(groups, levels = unique(groups)),
+    column_title = "OPC",
+    left_annotation = row_anno,
+    right_annotation = right_anno,
+    rect_gp = gpar(col = "lightgray", lwd = 0.01),
+    border = TRUE,
+    row_gap = unit(1, "mm"),
+    column_gap = unit(1, "mm"),
+    column_names_side = "top",
+    row_title = top_words,
+    column_names_gp = gpar(fontsize = 9),
+    row_title_gp = gpar(fontsize = 9),
+    row_title_rot = 0,
+    column_names_rot = 45,
+    heatmap_legend_param = list(
+      title = "Z-Score", direction = "horizontal", title_position = "topcenter",
+      legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7), labels_gp = gpar(fontsize = 6),
+      grid_height = unit(0.3, "cm"), at = c(-3, -2, -1, 0, 1, 2, 3)
+    )
+  ),
+  heatmap_legend_side = "top"
 )
 ```
 
 ## Oligodendrocyte
 
 ```{r}
-seurat_sub_orig <- seurat[ , which(seurat$annotations_short == "Oligodendrocyte")]
+keep <- grep("Oligodendrocyte", x = colnames(gse))
+gse_zscore <- gse[, keep]
+counts_zscore <- counts[, keep]
+gse_zscore <- t(scale(t(gse_zscore[rownames(gse_zscore[rowSums(gse_zscore > 0) >= 1, ]), ])))
+counts_zscore <- t(scale(t(counts_zscore[rownames(counts_zscore[rowSums(counts_zscore > 0) >= 1, ]), ])))
+gse_zscore[is.na(gse_zscore)] <- 0
+counts_zscore[is.na(counts_zscore)] <- 0
 
-sce <- as.SingleCellExperiment(seurat_sub_orig, assay = "GSVA")
-sce <- suppressWarnings(
-  aggregateAcrossCells(sce, colData(sce)[ , "sample"], use_exprs_values = "counts", statistics = "mean")
-)
+markers <- data.frame(cluster = character(), gene = character())
+groups <- sub(".*\\s", "", colnames(gse_zscore))
+group_idx <- vector("list", length = length(groups))
+group_idx[[1]] <- 1
+group_idx[[2]] <- 2
+group_idx[[3]] <- 3
+group_idx[[4]] <- 4
 
-keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
-seurat_sub <- subset(seurat_sub_orig, features = which(rownames(seurat_sub_orig) %in% keep))
-
-rds <- file.path(cache_dir, "markers_gsva_oligo.rds")
-if (file.exists(rds)) {
-  markers <- readRDS(rds)
-} else {
-
-  markers <- FindMarkers(seurat_sub, ident.1 = "P301S", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
-  markers$cluster = rep("P301S_up", times = nrow(markers))
-  markers$gene <- rownames(markers)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "MAPTKI", ident.2 = "P301S", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("P301S_down", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "NLGF_MAPTKI", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("NLGF_MAPTKI_up", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "MAPTKI", ident.2 = "NLGF_MAPTKI", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("NLGF_MAPTKI_down", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "NLGF_P301S", ident.2 = "MAPTKI", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("NLGF_P301S_up", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  markers_add <- FindMarkers(seurat_sub, ident.1 = "MAPTKI", ident.2 = "NLGF_P301S", only.pos = TRUE, verbose = FALSE)
-  markers_add$cluster = rep("NLGF_P301S_down", times = nrow(markers_add))
-  markers_add$gene <- rownames(markers_add)
-  markers <- rbind(markers, markers_add)
-
-  saveRDS(markers, rds)
+for (i in seq_along(unique(groups))) {
+  gene <- rownames(gse_zscore)[
+    gse_zscore[ , group_idx[[i]]] > quantile(gse_zscore[ , group_idx[[i]]], probs = 0.95)
+  ]
+  avg_log2FC <- gse_zscore[gene, group_idx[[i]]]
+  add <- data.frame(
+    cluster = rep(sub(".*\\s", "", colnames(gse_zscore)[group_idx[[i]]])[1], times = length(gene)),
+    gene = gene, avg_log2FC = avg_log2FC
+  )
+  markers <- rbind(markers, add)
 }
-
-markers <- markers[markers$p_val_adj < 0.05, ]
-# markers <- markers %>% distinct(gene, .keep_all = TRUE)
-# rownames(markers) <- markers$gene
-
-# min <- quantile(counts(sce))[4]
-# keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
-# markers <- markers[markers$gene %in% keep, ]
-
 markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
 datatable_download_exp(markers)
 markers$number <- seq(markers$gene)
@@ -3799,9 +1966,6 @@ go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
 for (l in seq_along(module_names)) {
   module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
 }
-# for (l in seq_along(module_names)) {
-#   module_names[[l]] <- markers$gene[module_names[[l]]]
-# }
 top_words_tmp <- data.frame(
   gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
 )
@@ -3832,7 +1996,7 @@ for (i in seq_along(top_words_list)) {
   tmp <- names(tmp)
   if (length(tmp) >= 3) {
     tmp <- tmp[1:3]
-    tmp <- paste(paste0(tmp, " "), collapse = "")
+    tmp <- paste(paste0(tmp, "\n"), collapse = "")
     tmp <- substr(tmp, 1, nchar(tmp) - 1)
   } else if (length(tmp > 0)) {
     add <- 3 - length(tmp)
@@ -3842,11 +2006,10 @@ for (i in seq_along(top_words_list)) {
     if (any(is.na(tmp))) {
       tmp <- tmp[-which(is.na(tmp))]
     }
-    tmp <- paste(paste0(tmp, " "), collapse = "")
+    tmp <- paste(paste0(tmp, "\n"), collapse = "")
     tmp <- substr(tmp, 1, nchar(tmp) - 1)
   } else {
     tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 3))
-    tmp <- gsub("\n", " ", tmp)
   }
   top_words <- c(top_words, tmp)
 }
@@ -3858,74 +2021,167 @@ module_colours <- cols25(length(unique(optimal_k)))
 row_anno <-  HeatmapAnnotation(
   top_words = anno_block(
     gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
-    labels_rot = 0, labels_gp = gpar(fontsize = 12)
+    labels_rot = 0, labels_gp = gpar(fontsize = 9)
   ),
   which = "row"
 )
 
-mat <- counts(sce)
+mat <- gse_zscore
 mat <- mat[rownames(mat) %in% markers$gene, ]
 mat <- mat[match(markers$gene, rownames(mat)), ]
+colnames(mat) <- levels(markers$cluster)
+
+top_gse <- vector("list", length = length(modules))
+for (j in seq_along(top_gse)) {
+  idx <- c()
+  for (i in seq_along(unlist(strsplit(top_words[j], split = "\n")))) {
+    idx <- c(
+      idx, grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
+    )
+  }
+  top_gse[[j]] <- markers$gene[idx]
+}
+
+top_genes <- vector("list", length = length(modules))
+for (i in seq_along(top_genes)) {
+  genes <- c()
+  for (gse_names in top_gse[[i]]) {
+    genes <- c(genes, geneIds(gene_sets[names(gene_sets) %in% gse_names])[[1]])
+  }
+  genes <- table(genes) / length(top_gse[[i]])
+
+  counts_zscore_sub <- counts_zscore[rownames(counts_zscore) %in% names(genes), i]
+  counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0]
+  genes <- genes[names(genes) %in% names(counts_zscore_sub)]
+  counts_zscore_sub <- counts_zscore_sub[match(names(genes), names(counts_zscore_sub))]
+
+  comb <- genes * counts_zscore_sub
+  comb <- comb[order(comb, decreasing = TRUE)]
+
+  counts_zscore_sub <- counts_zscore_sub[match(names(comb), names(counts_zscore_sub))]
+  genes <- genes[match(names(comb), names(genes))]
+
+  top_genes[[i]] <- c(
+    comb[1], counts_zscore_sub[1], genes[1], comb[2], counts_zscore_sub[2], genes[2],
+    comb[3], counts_zscore_sub[3], genes[3], comb[4], counts_zscore_sub[4], genes[4]
+  )
+  names(top_genes[[i]]) <- c(
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[1]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[4]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[7]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[10]), ]$external_gene_name, times = 3
+    )
+  )
+}
+names(top_genes) <- levels(markers$cluster)
+```
+
+```{r, fig.height = 4, fig.width = 6}
+panel_fun <- function(index, nm) {
+  pushViewport(viewport())
+  grid.rect(
+    x = 0, y = 0.9, width = top_genes[[nm]][3],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][2]))
+  )
+  grid.rect(
+    x = 0, y = 0.7, width = top_genes[[nm]][6],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][5]))
+  )
+  grid.rect(
+    x = 0, y = 0.5, width = top_genes[[nm]][9],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][8]))
+  )
+  grid.rect(
+    x = 0, y = 0.3, width = top_genes[[nm]][12],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][11]))
+  )
+  grid.text(y = 0.9, names(top_genes[[nm]])[1], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.7, names(top_genes[[nm]])[4], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.5, names(top_genes[[nm]])[7], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.3, names(top_genes[[nm]])[10], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.xaxis(gp = gpar(fontsize = 4), main = FALSE)
+  popViewport()
+}
+right_anno <- rowAnnotation(
+  foo = anno_link(
+    align_to = optimal_k, which = "row", panel_fun = panel_fun, link_width = unit(0, "mm"), gap = unit(1, "mm")
+  )
+)
 
 set.seed(1)
 draw(
   Heatmap(
     mat,
-    colour,
-    cluster_rows = FALSE,
-    cluster_columns = FALSE,
+    col = colour,
     show_row_names = FALSE,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
     row_split = optimal_k,
+    column_split = factor(groups, levels = unique(groups)),
+    column_title = "Oligodendrocyte",
     left_annotation = row_anno,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
+    right_annotation = right_anno,
+    rect_gp = gpar(col = "lightgray", lwd = 0.01),
+    border = TRUE,
+    row_gap = unit(1, "mm"),
+    column_gap = unit(1, "mm"),
     column_names_side = "top",
     row_title = top_words,
+    column_names_gp = gpar(fontsize = 9),
+    row_title_gp = gpar(fontsize = 9),
     row_title_rot = 0,
     column_names_rot = 45,
-    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
+    heatmap_legend_param = list(
+      title = "Z-Score", direction = "horizontal", title_position = "topcenter",
+      legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7), labels_gp = gpar(fontsize = 6),
+      grid_height = unit(0.3, "cm"), at = c(-3, -2, -1, 0, 1, 2, 3)
+    )
   ),
-  column_title = "Oligodendrocyte"
+  heatmap_legend_side = "top"
 )
 ```
 
-### PCA
+## Microglia
 
 ```{r}
-seurat_sub <- RunPCA(seurat_sub, features = rownames(seurat_sub), reduction.name = "GSVA_pca", verbose = FALSE)
-add_df <- data.frame(Embeddings(seurat_sub, reduction = "GSVA_pca"))
-seurat_sub$GSVA_pca1 <- add_df[ , 1]
-seurat_sub$GSVA_pca2 <- add_df[ , 2]
+keep <- grep("Microglia", x = colnames(gse))
+gse_zscore <- gse[, keep]
+counts_zscore <- counts[, keep]
+gse_zscore <- t(scale(t(gse_zscore[rownames(gse_zscore[rowSums(gse_zscore > 0) >= 1, ]), ])))
+counts_zscore <- t(scale(t(counts_zscore[rownames(counts_zscore[rowSums(counts_zscore > 0) >= 1, ]), ])))
+gse_zscore[is.na(gse_zscore)] <- 0
+counts_zscore[is.na(counts_zscore)] <- 0
 
-red_dim_plot(seurat_sub, x = "GSVA_pca1", y = "GSVA_pca2", color = "sample", type = "cat")
+markers <- data.frame(cluster = character(), gene = character())
+groups <- sub(".*\\s", "", colnames(gse_zscore))
+group_idx <- vector("list", length = length(groups))
+group_idx[[1]] <- 1
+group_idx[[2]] <- 2
+group_idx[[3]] <- 3
+group_idx[[4]] <- 4
 
-markers <- as.data.frame(Loadings(seurat_sub, reduction = "GSVA_pca"))
-markers <- markers[ , 1:2]
-q1 <- quantile(markers[ , 1])[2]
-markers <- markers[markers[ , 1] < q1, ]
-markers <- abs(markers)
+for (i in seq_along(unique(groups))) {
+  gene <- rownames(gse_zscore)[
+    gse_zscore[ , group_idx[[i]]] > quantile(gse_zscore[ , group_idx[[i]]], probs = 0.95)
+  ]
+  avg_log2FC <- gse_zscore[gene, group_idx[[i]]]
+  add <- data.frame(
+    cluster = rep(sub(".*\\s", "", colnames(gse_zscore)[group_idx[[i]]])[1], times = length(gene)),
+    gene = gene, avg_log2FC = avg_log2FC
+  )
+  markers <- rbind(markers, add)
+}
+markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
+datatable_download_exp(markers)
+markers$number <- seq(markers$gene)
 
-# min <- quantile(counts(sce))[4]
-# keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
-# markers <- markers[rownames(markers) %in% keep, ]
-
-markers$total <- markers[ , 1]
-markers <- markers[order(markers$total, decreasing = TRUE), ]
-markers$gene <- rownames(markers)
-datatable_download(markers)
-markers$cluster <- rep("0", times = nrow(markers))
-markers$number <- seq(rownames(markers))
-```
-
-```{r, fig.width = 20}
-FeaturePlot(
-  seurat_sub, features = rownames(markers)[1:4], reduction = "GSVA_pca",
-  order = TRUE, cols = c("lightgrey", "red")
-)
-```
-
-```{r}
 modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
 module_names <- modules
 
@@ -3933,9 +2189,6 @@ go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
 for (l in seq_along(module_names)) {
   module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
 }
-# for (l in seq_along(module_names)) {
-#   module_names[[l]] <- markers$gene[module_names[[l]]]
-# }
 top_words_tmp <- data.frame(
   gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
 )
@@ -3955,8 +2208,8 @@ for (i in seq_along(top_words_list)) {
   }
   tmp <- table(tmp)
   for (j in seq_along(tmp)) {
-    total <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
-    tmp[j] <- sum(markers$total[total])
+    log2FC <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
+    tmp[j] <- sum(markers$avg_log2FC[which(markers$cluster == levels(markers$cluster)[i])[log2FC]])
   }
   tmp <- tmp[order(tmp, decreasing = TRUE)]
   dup <- which(duplicated(tmp))
@@ -3964,12 +2217,12 @@ for (i in seq_along(top_words_list)) {
     tmp <- tmp[-dup]
   }
   tmp <- names(tmp)
-  if (length(tmp) >= 10) {
-    tmp <- tmp[1:10]
+  if (length(tmp) >= 3) {
+    tmp <- tmp[1:3]
     tmp <- paste(paste0(tmp, "\n"), collapse = "")
     tmp <- substr(tmp, 1, nchar(tmp) - 1)
   } else if (length(tmp > 0)) {
-    add <- 10 - length(tmp)
+    add <- 3 - length(tmp)
     tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
     tmp2 <- tmp2[tmp2 %notin% tmp]
     tmp <- c(tmp, tmp2[1:add])
@@ -3979,7 +2232,7 @@ for (i in seq_along(top_words_list)) {
     tmp <- paste(paste0(tmp, "\n"), collapse = "")
     tmp <- substr(tmp, 1, nchar(tmp) - 1)
   } else {
-    tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 10))
+    tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 3))
   }
   top_words <- c(top_words, tmp)
 }
@@ -3991,299 +2244,130 @@ module_colours <- cols25(length(unique(optimal_k)))
 row_anno <-  HeatmapAnnotation(
   top_words = anno_block(
     gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
-    labels_rot = 0, labels_gp = gpar(fontsize = 12)
+    labels_rot = 0, labels_gp = gpar(fontsize = 9)
   ),
   which = "row"
 )
 
-mat <- counts(sce)
+mat <- gse_zscore
 mat <- mat[rownames(mat) %in% markers$gene, ]
 mat <- mat[match(markers$gene, rownames(mat)), ]
+colnames(mat) <- levels(markers$cluster)
+
+top_gse <- vector("list", length = length(modules))
+for (j in seq_along(top_gse)) {
+  idx <- c()
+  for (i in seq_along(unlist(strsplit(top_words[j], split = "\n")))) {
+    idx <- c(
+      idx, grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
+    )
+  }
+  top_gse[[j]] <- markers$gene[idx]
+}
+
+top_genes <- vector("list", length = length(modules))
+for (i in seq_along(top_genes)) {
+  genes <- c()
+  for (gse_names in top_gse[[i]]) {
+    genes <- c(genes, geneIds(gene_sets[names(gene_sets) %in% gse_names])[[1]])
+  }
+  genes <- table(genes) / length(top_gse[[i]])
+
+  counts_zscore_sub <- counts_zscore[rownames(counts_zscore) %in% names(genes), i]
+  counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0]
+  genes <- genes[names(genes) %in% names(counts_zscore_sub)]
+  counts_zscore_sub <- counts_zscore_sub[match(names(genes), names(counts_zscore_sub))]
+
+  comb <- genes * counts_zscore_sub
+  comb <- comb[order(comb, decreasing = TRUE)]
+
+  counts_zscore_sub <- counts_zscore_sub[match(names(comb), names(counts_zscore_sub))]
+  genes <- genes[match(names(comb), names(genes))]
+
+  top_genes[[i]] <- c(
+    comb[1], counts_zscore_sub[1], genes[1], comb[2], counts_zscore_sub[2], genes[2],
+    comb[3], counts_zscore_sub[3], genes[3], comb[4], counts_zscore_sub[4], genes[4]
+  )
+  names(top_genes[[i]]) <- c(
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[1]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[4]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[7]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[10]), ]$external_gene_name, times = 3
+    )
+  )
+}
+names(top_genes) <- levels(markers$cluster)
+```
+
+```{r, fig.height = 4, fig.width = 6}
+panel_fun <- function(index, nm) {
+  pushViewport(viewport())
+  grid.rect(
+    x = 0, y = 0.9, width = top_genes[[nm]][3],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][2]))
+  )
+  grid.rect(
+    x = 0, y = 0.7, width = top_genes[[nm]][6],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][5]))
+  )
+  grid.rect(
+    x = 0, y = 0.5, width = top_genes[[nm]][9],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][8]))
+  )
+  grid.rect(
+    x = 0, y = 0.3, width = top_genes[[nm]][12],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][11]))
+  )
+  grid.text(y = 0.9, names(top_genes[[nm]])[1], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.7, names(top_genes[[nm]])[4], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.5, names(top_genes[[nm]])[7], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.3, names(top_genes[[nm]])[10], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.xaxis(gp = gpar(fontsize = 4), main = FALSE)
+  popViewport()
+}
+right_anno <- rowAnnotation(
+  foo = anno_link(
+    align_to = optimal_k, which = "row", panel_fun = panel_fun, link_width = unit(0, "mm"), gap = unit(1, "mm")
+  )
+)
 
 set.seed(1)
 draw(
   Heatmap(
     mat,
-    colour,
-    cluster_rows = FALSE,
-    cluster_columns = FALSE,
+    col = colour,
     show_row_names = FALSE,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
     row_split = optimal_k,
+    column_split = factor(groups, levels = unique(groups)),
+    column_title = "Microglia",
     left_annotation = row_anno,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
+    right_annotation = right_anno,
+    rect_gp = gpar(col = "lightgray", lwd = 0.01),
+    border = TRUE,
+    row_gap = unit(1, "mm"),
+    column_gap = unit(1, "mm"),
     column_names_side = "top",
     row_title = top_words,
+    column_names_gp = gpar(fontsize = 9),
+    row_title_gp = gpar(fontsize = 9),
     row_title_rot = 0,
     column_names_rot = 45,
-    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
+    heatmap_legend_param = list(
+      title = "Z-Score", direction = "horizontal", title_position = "topcenter",
+      legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7), labels_gp = gpar(fontsize = 6),
+      grid_height = unit(0.3, "cm"), at = c(-3, -2, -1, 0, 1, 2, 3)
+    )
   ),
-  column_title = "Oligodendrocyte PC 1 Up"
-)
-```
-
-```{r, fig.height = 5, fig.width = 12.5}
-sce2 <- as.SingleCellExperiment(seurat_sub_orig, assay = "SCT")
-sce2 <- suppressWarnings(
-  aggregateAcrossCells(sce2, colData(sce2)[ , "sample"], use_exprs_values = "counts", statistics = "sum")
-)
-dge <- DGEList(counts(sce2))
-dge <- calcNormFactors(dge)
-logcounts(sce2, withDimnames = FALSE) <- cpm(dge, log = TRUE, prior.count = 3)
-
-idx <- c()
-for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
-  idx <- c(
-    idx, grep(paste0("\\b", unlist(strsplit(top_words, split = "\n"))[i], "\\b"), x = unlist(top_words_list[[1]]))
-  )
-}
-idx <- table(idx)
-idx <- idx[order(idx, decreasing = TRUE)]
-idx <- idx[idx > 1]
-idx <- as.numeric(names(idx)[seq_along(idx)])
-
-genes_all <- c()
-for (i in idx) {
-  gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
-  gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
-  genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
-  genes_all <- c(genes_all, genes)
-  title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
-
-  mat <- logcounts(sce2)[rownames(sce2) %in% genes, ]
-  mat <- mat[match(genes, rownames(mat)), ]
-
-  set.seed(1)
-  draw(
-    Heatmap(
-      mat,
-      colour2,
-      cluster_columns = FALSE,
-      rect_gp = gpar(col = "lightgray", lwd = 0.1),
-      row_gap = unit(2, "mm"),
-      column_gap = unit(2, "mm"),
-      column_names_side = "top",
-      row_title_rot = 0,
-      column_names_rot = 45,
-      heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
-    ),
-    column_title = title
-  )
-}
-
-# genes <- table(genes_all)
-# genes <- genes[order(genes, decreasing = TRUE)]
-# genes <- genes[genes > 1]
-# 
-# mat <- logcounts(sce2)[rownames(sce2) %in% names(genes), ]
-# mat <- mat[match(names(genes), rownames(mat)), ]
-# 
-# set.seed(1)
-# draw(
-#   Heatmap(
-#     mat,
-#     colour2,
-#     cluster_columns = FALSE,
-#     cluster_rows = FALSE,
-#     rect_gp = gpar(col = "lightgray", lwd = 0.1),
-#     row_gap = unit(2, "mm"),
-#     column_gap = unit(2, "mm"),
-#     column_names_side = "top",
-#     row_title_rot = 0,
-#     column_names_rot = 45,
-#     heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
-#   )
-# )
-```
-
-```{r}
-markers <- as.data.frame(Loadings(seurat_sub, reduction = "GSVA_pca"))
-markers <- markers[ , 1:2]
-q1 <- quantile(markers[ , 1])[4]
-markers <- markers[markers[ , 1] > q1, ]
-markers <- abs(markers)
-
-# min <- quantile(counts(sce))[4]
-# keep <- rownames(sce[rowSums(counts(sce) > min) >= 1, ])
-# markers <- markers[rownames(markers) %in% keep, ]
-
-markers$total <- markers[ , 1]
-markers <- markers[order(markers$total, decreasing = TRUE), ]
-markers$gene <- rownames(markers)
-datatable_download(markers)
-markers$cluster <- rep("0", times = nrow(markers))
-markers$number <- seq(rownames(markers))
-```
-
-```{r, fig.width = 20}
-FeaturePlot(
-  seurat_sub, features = rownames(markers)[1:4], reduction = "GSVA_pca",
-  order = TRUE, cols = c("lightgrey", "red")
-)
-```
-
-```{r}
-modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
-module_names <- modules
-
-go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
-for (l in seq_along(module_names)) {
-  module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
-}
-# for (l in seq_along(module_names)) {
-#   module_names[[l]] <- markers$gene[module_names[[l]]]
-# }
-top_words_tmp <- data.frame(
-  gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
-)
-top_words_list <- vector("list", length = length(unique(top_words_tmp$module)))
-top_words <- c()
-
-for (i in seq_along(top_words_list)) {
-  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
-  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
-  for (j in seq_along(top_words_list[[i]])) {
-    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
-  }
-  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
-  remove <- which(tmp == "")
-  if (length(remove) > 0) {
-    tmp <- tmp[-which(tmp == "")]
-  }
-  tmp <- table(tmp)
-  for (j in seq_along(tmp)) {
-    total <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
-    tmp[j] <- sum(markers$total[total])
-  }
-  tmp <- tmp[order(tmp, decreasing = TRUE)]
-  dup <- which(duplicated(tmp))
-  if (length(dup) > 0) {
-    tmp <- tmp[-dup]
-  }
-  tmp <- names(tmp)
-  if (length(tmp) >= 10) {
-    tmp <- tmp[1:10]
-    tmp <- paste(paste0(tmp, "\n"), collapse = "")
-    tmp <- substr(tmp, 1, nchar(tmp) - 1)
-  } else if (length(tmp > 0)) {
-    add <- 10 - length(tmp)
-    tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set)), "\\s+"))
-    tmp2 <- tmp2[tmp2 %notin% tmp]
-    tmp <- c(tmp, tmp2[1:add])
-    if (any(is.na(tmp))) {
-      tmp <- tmp[-which(is.na(tmp))]
-    }
-    tmp <- paste(paste0(tmp, "\n"), collapse = "")
-    tmp <- substr(tmp, 1, nchar(tmp) - 1)
-  } else {
-    tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 10))
-  }
-  top_words <- c(top_words, tmp)
-}
-
-optimal_k <- unlist(lapply(seq_along(modules), function(i) {rep(names(modules)[i], length(modules[[i]]))}))
-optimal_k <- factor(optimal_k, levels = unique(optimal_k))
-module_colours <- cols25(length(unique(optimal_k)))
-
-row_anno <-  HeatmapAnnotation(
-  top_words = anno_block(
-    gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
-    labels_rot = 0, labels_gp = gpar(fontsize = 12)
-  ),
-  which = "row"
-)
-
-mat <- counts(sce)
-mat <- mat[rownames(mat) %in% markers$gene, ]
-mat <- mat[match(markers$gene, rownames(mat)), ]
-
-set.seed(1)
-draw(
-  Heatmap(
-    mat,
-    colour,
-    cluster_rows = FALSE,
-    cluster_columns = FALSE,
-    show_row_names = FALSE,
-    row_split = optimal_k,
-    left_annotation = row_anno,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
-    column_names_side = "top",
-    row_title = top_words,
-    row_title_rot = 0,
-    column_names_rot = 45,
-    heatmap_legend_param = list(title = "ssGSEA Score", title_position = "lefttop-rot")
-  ),
-  column_title = "Oligodendrocyte PC 1 Down"
-)
-```
-
-```{r, fig.height = 5, fig.width = 12.5}
-idx <- c()
-for (i in seq_along(unlist(strsplit(top_words, split = "\n")))) {
-  idx <- c(
-    idx, grep(paste0("\\b", unlist(strsplit(top_words, split = "\n"))[i], "\\b"), x = unlist(top_words_list[[1]]))
-  )
-}
-idx <- table(idx)
-idx <- idx[order(idx, decreasing = TRUE)]
-idx <- idx[idx > 1]
-idx <- as.numeric(names(idx)[seq_along(idx)])
-
-genes_all <- c()
-for (i in idx) {
-  gene_sets_sub <- gene_sets[names(gene_sets) == rownames(markers)[i]]
-  gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% unlist(geneIds(gene_sets_sub)), , drop = FALSE]
-  genes <- gene_anno_sub$external_gene_name[order(gene_anno_sub$external_gene_name)]
-  genes_all <- c(genes_all, genes)
-  title <- paste0(gene_sets_sub[[1]]@shortDescription, ": ", gene_sets_sub[[1]]@setName)
-
-  mat <- logcounts(sce2)[rownames(sce2) %in% genes, ]
-  mat <- mat[match(genes, rownames(mat)), ]
-
-  set.seed(1)
-  draw(
-    Heatmap(
-      mat,
-      colour2,
-      cluster_columns = FALSE,
-      rect_gp = gpar(col = "lightgray", lwd = 0.1),
-      row_gap = unit(2, "mm"),
-      column_gap = unit(2, "mm"),
-      column_names_side = "top",
-      row_title_rot = 0,
-      column_names_rot = 45,
-      heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
-    ),
-    column_title = title
-  )
-}
-
-genes <- table(genes_all)
-genes <- genes[order(genes, decreasing = TRUE)]
-genes <- genes[genes > 1]
-
-mat <- logcounts(sce2)[rownames(sce2) %in% names(genes), ]
-mat <- mat[match(names(genes), rownames(mat)), ]
-
-set.seed(1)
-draw(
-  Heatmap(
-    mat,
-    colour2,
-    cluster_columns = FALSE,
-    cluster_rows = FALSE,
-    rect_gp = gpar(col = "lightgray", lwd = 0.1),
-    row_gap = unit(2, "mm"),
-    column_gap = unit(2, "mm"),
-    column_names_side = "top",
-    row_title_rot = 0,
-    column_names_rot = 45,
-    heatmap_legend_param = list(title = "log2 CPM", title_position = "lefttop-rot")
-  )
+  heatmap_legend_side = "top"
 )
 ```
 

@@ -89,6 +89,8 @@ genotype <- "NLGF_S305N"
 batch <- 2
 step <- 2
 
+colour <- colorRamp2(c(-3, 0, 3), c("#0077BB", "#FFFFFF", "#CC3311"))
+
 cache_dir <- file.path("..", "cache", genotype, paste0("0", batch), paste0("0", step))
 if (!dir.exists(cache_dir)) {
   dir.create(cache_dir, recursive = TRUE)
@@ -99,15 +101,15 @@ if (!dir.exists(cache_dir)) {
 # Prep
 
 ```{r}
-# Load and filter gene sets.
-# --------------------------
 rds <- file.path("..", "cache", "filtered_gene_sets.rds")
 if (file.exists(rds)) {
   gene_sets <- readRDS(rds)
 } else {
 
-  gene_sets <- getGmt(file.path("..", "data", "gene-sets", "gprofiler_mmusculus.ENSG", "mmusculus.GO.comb.ENSG.gmt"))
-  keep <- filterGeneSets(gene_sets, min.sz = 5, max.sz = 25)
+  gene_sets <- getGmt(
+    file.path("..", "data", "gene-sets", "gprofiler_mmusculus.ENSG_2023.09.20", "mmusculus.GO.comb.ENSG.gmt")
+  )
+  keep <- filterGeneSets(gene_sets, min.sz = 2, max.sz = 1000)
   gene_sets <- gene_sets[names(gene_sets) %in% names(keep)]
 
   for (i in seq(length(gene_sets@.Data))) {
@@ -116,44 +118,7 @@ if (file.exists(rds)) {
     suppressWarnings(gene_sets[[i]]@shortDescription <- go_id)
   }
 
-  if (any(duplicated(names(gene_sets))) == TRUE) {
-    remove <- which(duplicated(names(gene_sets)))
-    gene_sets <- gene_sets[-remove]
-  }
-
-  remove <- grep("positive regulation of", names(gene_sets))
-  if (length(remove) > 0) {
-    gene_sets <- gene_sets[-remove]
-  }
-  remove <- grep("negative regulation of", names(gene_sets))
-  if (length(remove) > 0) {
-    gene_sets <- gene_sets[-remove]
-  }
   remove <- grep("regulation of", names(gene_sets))
-  if (length(remove) > 0) {
-    gene_sets <- gene_sets[-remove]
-  }
-  remove <- grep("downregulation of", names(gene_sets))
-  if (length(remove) > 0) {
-    gene_sets <- gene_sets[-remove]
-  }
-  remove <- grep("inhibition of", names(gene_sets))
-  if (length(remove) > 0) {
-    gene_sets <- gene_sets[-remove]
-  }
-  remove <- grep("termination of", names(gene_sets))
-  if (length(remove) > 0) {
-    gene_sets <- gene_sets[-remove]
-  }
-  remove <- grep("activation of", names(gene_sets))
-  if (length(remove) > 0) {
-    gene_sets <- gene_sets[-remove]
-  }
-  remove <- grep("maintenance of", names(gene_sets))
-  if (length(remove) > 0) {
-    gene_sets <- gene_sets[-remove]
-  }
-  remove <- grep("upregulation of", names(gene_sets))
   if (length(remove) > 0) {
     gene_sets <- gene_sets[-remove]
   }
@@ -172,10 +137,7 @@ if (file.exists(rds)) {
 
   saveRDS(gene_sets, rds)
 }
-# --------------------------
 
-# Create a Seurat object containing only genes in gene sets.
-# ----------------------------------------------------------
 rds <- file.path(cache_dir, "seurat_cleaned.rds")
 rds2 <- file.path(cache_dir, "gene_anno.rds")
 if (file.exists(rds) & file.exists(rds2)) {
@@ -184,6 +146,8 @@ if (file.exists(rds) & file.exists(rds2)) {
 } else {
 
   seurat <- readRDS(file.path(cache_dir, "..", "01", "seurat_annotated.rds"))
+  DefaultAssay(seurat) <- "RNA"
+  seurat[["SCT"]] <- NULL
 
   mart <- useEnsembl("ensembl", "mmusculus_gene_ensembl")
   attributes <- c("external_gene_name", "ensembl_gene_id")
@@ -199,6 +163,26 @@ if (file.exists(rds) & file.exists(rds2)) {
       for (j in seq(nrow(gene_anno))) {
         if (dup$ensembl_gene_id[i] == gene_anno$ensembl_gene_id[j]) {
           gene_anno$external_gene_name[j] <- paste0(gene_anno$external_gene_name[j], "-alt")
+        }
+      }
+    }
+  }
+  dup <- gene_anno[duplicated(gene_anno$external_gene_name), ]
+  if (nrow(dup) > 0) {
+    for (i in seq(nrow(dup))) {
+      for (j in seq(nrow(gene_anno))) {
+        if (dup$ensembl_gene_id[i] == gene_anno$ensembl_gene_id[j]) {
+          gene_anno$external_gene_name[j] <- paste0(gene_anno$external_gene_name[j], "-alt2")
+        }
+      }
+    }
+  }
+  dup <- gene_anno[duplicated(gene_anno$external_gene_name), ]
+  if (nrow(dup) > 0) {
+    for (i in seq(nrow(dup))) {
+      for (j in seq(nrow(gene_anno))) {
+        if (dup$ensembl_gene_id[i] == gene_anno$ensembl_gene_id[j]) {
+          gene_anno$external_gene_name[j] <- paste0(gene_anno$external_gene_name[j], "-alt3")
         }
       }
     }
@@ -231,14 +215,15 @@ if (file.exists(rds) & file.exists(rds2)) {
 
   counts_mat <- rbind(counts_mat, counts_null_mat)
   data_mat <- rbind(data_mat, data_null_mat)
-  seurat <- CreateSeuratObject(counts = counts_mat, data = data_mat, assay = "SCT", meta.data = seurat[[]])
+  seurat <- CreateSeuratObject(counts = counts_mat, data = data_mat, assay = "RNA", meta.data = seurat[[]])
   gene_anno <- gene_anno[match(rownames(seurat), gene_anno$ensembl_gene_id), ]
+
+  seurat <- SCTransform(seurat, vst.flavor = "v2", min_cells = 0, verbose = FALSE)
 
   rm(counts_mat, data_mat, counts_null_mat, data_null_mat, mart)
   saveRDS(seurat, rds)
   saveRDS(gene_anno, rds2)
 }
-# ----------------------------------------------------------
 
 remove <- grep("Unknown", x = seurat$annotations_short)
 if (length(remove) > 0) {
@@ -253,101 +238,74 @@ seurat$annotations_short <- factor(
   )
 )
 
-sce <- as.SingleCellExperiment(seurat, assay = "SCT")
-sce <- suppressWarnings(
-  aggregateAcrossCells(sce, colData(sce)[ , "annotations_short"], use_exprs_values = "counts", statistics = "sum")
-)
-
-rds <- file.path(cache_dir, "gse.rds")
-if (file.exists(rds)) {
-  gse <- readRDS(rds)
-} else {
-  gse <- matrix(NA, nrow = length(gene_sets) + 1, ncol = 1)
-  total <- colSums(counts(sce))
-  for (j in seq(ncol(sce))) {
-    tmp <- matrix(NA, nrow = 1, ncol = 1)
-    for (i in seq_along(gene_sets)) {
-      idx <- which(rownames(sce) %in% geneIds(gene_sets[[i]]))
-      aggr <- counts(sce)[idx, j]
-      skew <- skewness(aggr)
-      if (is.na(skew)) {
-        aggr <- sum(aggr) / total[j]
-      } else if (skew >= 0) {
-        aggr <- (sum(aggr) / total[j]) / (abs(skew) + 1)
-      } else if (skew < 0) {
-        aggr <- (sum(aggr) / total[j]) * (abs(skew) + 1)
-      }
-      tmp <- rbind(tmp, aggr)
-    }
-    gse <- cbind(gse, tmp)
-  }
-  gse <- gse[-1, -1]
-  rownames(gse) <- names(gene_sets)
-  saveRDS(gse, rds)
+mat <- GetAssayData(seurat, layer = "counts")
+if (any(is.na(mat))) {
+  mat[is.na(mat)] <- 0
+  seurat <- SetAssayData(seurat, layer = "counts", new.data = mat)
 }
 
-d <- density(gse)
-plot(d)
-
-min <- min(gse)
-keep <- rownames(gse[rowSums(gse > min) >= 1, ])
-gse_sub <- gse[keep, ]
-d <- density(gse_sub)
-plot(d)
-
-gse_zscore <- t(scale(t(gse_sub)))
-d <- density(gse_zscore)
-plot(d)
-
-colour <- colorRamp2(c(-3, 0, 3), c("#0077BB", "#FFFFFF", "#CC3311"))
-
-set.seed(1)
-draw(
-  Heatmap(
-    gse_zscore,
-    col = colour,
-    show_row_names = FALSE,
-    cluster_columns = FALSE,
-    column_names_side = "top",
-    column_names_rot = 45
+rds <- file.path(cache_dir, "pseudobulk_counts.rds")
+if (file.exists(rds)) {
+  pseudobulk_counts <- readRDS(rds)
+} else {
+  pseudobulk_counts <- as.SingleCellExperiment(seurat, assay = "SCT")
+  pseudobulk_counts <- suppressWarnings(
+    aggregateAcrossCells(
+      pseudobulk_counts, colData(pseudobulk_counts)[ , "annotations_short"],
+      use_exprs_values = "counts", statistics = "sum"
+    )
   )
-)
+  logcounts(pseudobulk_counts) <- log1p(counts(pseudobulk_counts))
+  saveRDS(pseudobulk_counts, file = rds)
+}
 
-min <- -2
-keep <- rownames(gse_zscore[rowSums(gse_zscore >= abs(min)) | rowSums(gse_zscore <= min) >= 1, ])
-gse_zscore_sub <- gse_zscore[keep, ]
-d <- density(gse_zscore_sub)
-plot(d)
+plot(density(counts(pseudobulk_counts)))
+plot(density(logcounts(pseudobulk_counts)))
 
-set.seed(1)
-draw(
-  Heatmap(
-    gse_zscore_sub,
-    col = colour,
-    show_row_names = FALSE,
-    cluster_columns = FALSE,
-    column_names_side = "top",
-    column_names_rot = 45
-  )
-)
+rds <- file.path(cache_dir, "pseudobulk_gse.rds")
+if (file.exists(rds)) {
+  pseudobulk_gse <- readRDS(rds)
+} else {
 
-min <- -2.5
-keep <- rownames(gse_zscore[rowSums(gse_zscore >= abs(min)) | rowSums(gse_zscore <= min) >= 1, ])
-gse_zscore_sub <- gse_zscore[keep, ]
-d <- density(gse_zscore_sub)
-plot(d)
+  mat <- matrix(NA, nrow = length(gene_sets) + 1, ncol = 1)
+  for (j in seq(ncol(pseudobulk_counts))) {
+    tmp <- matrix(NA, nrow = 1, ncol = 1)
+    for (i in seq_along(gene_sets)) {
+      idx <- which(rownames(pseudobulk_counts) %in% geneIds(gene_sets[[i]]))
+      idx <- counts(pseudobulk_counts)[idx, j]
+      sum <- sum(idx)
+      var <- exp(sd(idx) / sum)
+      if (is.na(var)) {
+        var <- 1
+      }
+      length <- sqrt(length(idx))
+      score <- sum / var / length
+      tmp <- rbind(tmp, score)
+    }
+    mat <- cbind(mat, tmp)
+  }
+  mat <- mat[-1, -1]
 
-set.seed(1)
-draw(
-  Heatmap(
-    gse_zscore_sub,
-    col = colour,
-    show_row_names = FALSE,
-    cluster_columns = FALSE,
-    column_names_side = "top",
-    column_names_rot = 45
-  )
-)
+  pseudobulk_gse <- pseudobulk_counts[1:nrow(mat), ]
+  rownames(pseudobulk_gse) <- names(gene_sets)
+  counts(pseudobulk_gse, withDimnames = FALSE) <- mat
+  logcounts(pseudobulk_gse, withDimnames = FALSE) <- log1p(counts(pseudobulk_gse))
+
+  saveRDS(pseudobulk_gse, file = rds)
+}
+
+plot(density(counts(pseudobulk_gse)))
+plot(density(logcounts(pseudobulk_gse)))
+
+keep <- rownames(pseudobulk_counts[rowSums(logcounts(pseudobulk_counts) > 0) >= 1, ])
+counts_zscore <- t(scale(t(logcounts(pseudobulk_counts)[keep, ])))
+counts_zscore[is.na(counts_zscore)] <- 0
+plot(density(counts_zscore))
+
+keep <- rownames(pseudobulk_gse[rowSums(logcounts(pseudobulk_gse) > 0) >= 1, ])
+gse_zscore <- t(scale(t(logcounts(pseudobulk_gse)[keep, ])))
+gse_zscore[is.na(gse_zscore)] <- 0
+plot(density(gse_zscore))
 ```
 
 # Analysis
@@ -371,9 +329,6 @@ go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
 for (l in seq_along(module_names)) {
   module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
 }
-# for (l in seq_along(module_names)) {
-#   module_names[[l]] <- markers$gene[module_names[[l]]]
-# }
 top_words_tmp <- data.frame(
   gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
 )
@@ -447,18 +402,8 @@ for (j in seq_along(top_gse)) {
       idx, grep(paste0("\\b", unlist(strsplit(top_words[j], split = " "))[i], "\\b"), x = unlist(top_words_list[[j]]))
     )
   }
-  top_gse[[j]] <- rownames(markers)[idx]
+  top_gse[[j]] <- markers$gene[idx]
 }
-
-min <- min(counts(sce))
-keep <- rownames(counts(sce)[rowSums(counts(sce) > min) >= 1, ])
-sce_sub <- sce[keep, ]
-d <- density(counts(sce_sub))
-plot(d)
-
-sct_zscores <- t(scale(t(counts(sce_sub))))
-d <- density(sct_zscores)
-plot(d)
 
 top_genes <- vector("list", length = length(modules))
 for (i in seq_along(top_genes)) {
@@ -468,18 +413,18 @@ for (i in seq_along(top_genes)) {
   }
   genes <- table(genes) / length(top_gse[[i]])
 
-  sct_zscores_sub <- sct_zscores[rownames(sct_zscores) %in% names(genes), i]
-  genes <- genes[names(genes) %in% names(sct_zscores_sub)]
-  sct_zscores_sub <- sct_zscores_sub[match(names(genes), names(sct_zscores_sub))]
+  counts_sub <- counts_zscore[rownames(counts_zscore) %in% names(genes), i]
+  counts_sub <- counts_sub[counts_sub > 0]
+  genes <- genes[names(genes) %in% names(counts_sub)]
+  counts_sub <- counts_sub[match(names(genes), names(counts_sub))]
 
-  comb <- genes * (sct_zscores_sub + 1)
-  # comb <- sct_zscores_sub
+  comb <- genes * counts_sub
   comb <- comb[order(comb, decreasing = TRUE)]
 
-  sct_zscores_sub <- sct_zscores_sub[match(names(comb), names(sct_zscores_sub))]
+  counts_sub <- counts_sub[match(names(comb), names(counts_sub))]
   genes <- genes[match(names(comb), names(genes))]
 
-  top_genes[[i]] <- c(comb[1], sct_zscores_sub[1], genes[1], comb[2], sct_zscores_sub[2], genes[2])
+  top_genes[[i]] <- c(comb[1], counts_sub[1], genes[1], comb[2], counts_sub[2], genes[2])
   names(top_genes[[i]]) <- c(
     rep(
       gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[1]), ]$external_gene_name, times = 3
@@ -499,12 +444,7 @@ panel_fun <- function(index, nm) {
     x = 0, y = 0.75, width = top_genes[[nm]][3],
     height = 0.5, just = "left", gp = gpar(fill = colour(top_genes[[nm]][2]))
   )
-  # grid.rect(
-  #   x = 0, y = 0.25, width = top_genes[[nm]][6],
-  #   height = 0.5, just = "left", gp = gpar(fill = colour(top_genes[[nm]][5]))
-  # )
   grid.text(y = 0.65, names(top_genes[[nm]])[1], gp = gpar(fontsize = 7), x = 1, just = "right")
-  # grid.text(y = 0.25, names(top_genes[[nm]])[4], gp = gpar(fontsize = 7), x = 1, just = "right")
   grid.xaxis(gp = gpar(fontsize = 4), main = FALSE)
   popViewport()
 }
