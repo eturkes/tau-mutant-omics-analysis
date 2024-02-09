@@ -491,11 +491,11 @@ for (i in seq_along(top_genes)) {
   genes <- table(genes) / length(top_gse[[i]])
 
   counts_zscore_sub <- counts_zscore[rownames(counts_zscore) %in% names(genes), i]
-  counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0]
+  # counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0]
   genes <- genes[names(genes) %in% names(counts_zscore_sub)]
   counts_zscore_sub <- counts_zscore_sub[match(names(genes), names(counts_zscore_sub))]
 
-  comb <- genes * counts_zscore_sub
+  comb <- genes * ((counts_zscore_sub - min(counts_zscore_sub)) / (max(counts_zscore_sub) - min(counts_zscore_sub)))
   comb <- comb[order(comb, decreasing = TRUE)]
 
   counts_zscore_sub <- counts_zscore_sub[match(names(comb), names(counts_zscore_sub))]
@@ -714,11 +714,11 @@ for (i in seq_along(top_genes)) {
   genes <- table(genes) / length(top_gse[[i]])
 
   counts_zscore_sub <- counts_zscore[rownames(counts_zscore) %in% names(genes), i]
-  counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0]
+  # counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0]
   genes <- genes[names(genes) %in% names(counts_zscore_sub)]
   counts_zscore_sub <- counts_zscore_sub[match(names(genes), names(counts_zscore_sub))]
 
-  comb <- genes * counts_zscore_sub
+  comb <- genes * ((counts_zscore_sub - min(counts_zscore_sub)) / (max(counts_zscore_sub) - min(counts_zscore_sub)))
   comb <- comb[order(comb, decreasing = TRUE)]
 
   counts_zscore_sub <- counts_zscore_sub[match(names(comb), names(counts_zscore_sub))]
@@ -937,11 +937,11 @@ for (i in seq_along(top_genes)) {
   genes <- table(genes) / length(top_gse[[i]])
 
   counts_zscore_sub <- counts_zscore[rownames(counts_zscore) %in% names(genes), i]
-  counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0]
+  # counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0]
   genes <- genes[names(genes) %in% names(counts_zscore_sub)]
   counts_zscore_sub <- counts_zscore_sub[match(names(genes), names(counts_zscore_sub))]
 
-  comb <- genes * counts_zscore_sub
+  comb <- genes * ((counts_zscore_sub - min(counts_zscore_sub)) / (max(counts_zscore_sub) - min(counts_zscore_sub)))
   comb <- comb[order(comb, decreasing = TRUE)]
 
   counts_zscore_sub <- counts_zscore_sub[match(names(comb), names(counts_zscore_sub))]
@@ -1159,11 +1159,11 @@ for (i in seq_along(top_genes)) {
   genes <- table(genes) / length(top_gse[[i]])
 
   counts_zscore_sub <- counts_zscore[rownames(counts_zscore) %in% names(genes), i]
-  counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0]
+  # counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0]
   genes <- genes[names(genes) %in% names(counts_zscore_sub)]
   counts_zscore_sub <- counts_zscore_sub[match(names(genes), names(counts_zscore_sub))]
 
-  comb <- genes * counts_zscore_sub
+  comb <- genes * ((counts_zscore_sub - min(counts_zscore_sub)) / (max(counts_zscore_sub) - min(counts_zscore_sub)))
   comb <- comb[order(comb, decreasing = TRUE)]
 
   counts_zscore_sub <- counts_zscore_sub[match(names(comb), names(counts_zscore_sub))]
@@ -1382,11 +1382,11 @@ for (i in seq_along(top_genes)) {
   genes <- table(genes) / length(top_gse[[i]])
 
   counts_zscore_sub <- counts_zscore[rownames(counts_zscore) %in% names(genes), i]
-  counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0]
+  # counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0]
   genes <- genes[names(genes) %in% names(counts_zscore_sub)]
   counts_zscore_sub <- counts_zscore_sub[match(names(genes), names(counts_zscore_sub))]
 
-  comb <- genes * counts_zscore_sub
+  comb <- genes * ((counts_zscore_sub - min(counts_zscore_sub)) / (max(counts_zscore_sub) - min(counts_zscore_sub)))
   comb <- comb[order(comb, decreasing = TRUE)]
 
   counts_zscore_sub <- counts_zscore_sub[match(names(comb), names(counts_zscore_sub))]
@@ -1605,11 +1605,11 @@ for (i in seq_along(top_genes)) {
   genes <- table(genes) / length(top_gse[[i]])
 
   counts_zscore_sub <- counts_zscore[rownames(counts_zscore) %in% names(genes), i]
-  counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0]
+  # counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0]
   genes <- genes[names(genes) %in% names(counts_zscore_sub)]
   counts_zscore_sub <- counts_zscore_sub[match(names(genes), names(counts_zscore_sub))]
 
-  comb <- genes * counts_zscore_sub
+  comb <- genes * ((counts_zscore_sub - min(counts_zscore_sub)) / (max(counts_zscore_sub) - min(counts_zscore_sub)))
   comb <- comb[order(comb, decreasing = TRUE)]
 
   counts_zscore_sub <- counts_zscore_sub[match(names(comb), names(counts_zscore_sub))]
@@ -1828,11 +1828,11 @@ for (i in seq_along(top_genes)) {
   genes <- table(genes) / length(top_gse[[i]])
 
   counts_zscore_sub <- counts_zscore[rownames(counts_zscore) %in% names(genes), i]
-  counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0]
+  # counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0]
   genes <- genes[names(genes) %in% names(counts_zscore_sub)]
   counts_zscore_sub <- counts_zscore_sub[match(names(genes), names(counts_zscore_sub))]
 
-  comb <- genes * counts_zscore_sub
+  comb <- genes * ((counts_zscore_sub - min(counts_zscore_sub)) / (max(counts_zscore_sub) - min(counts_zscore_sub)))
   comb <- comb[order(comb, decreasing = TRUE)]
 
   counts_zscore_sub <- counts_zscore_sub[match(names(comb), names(counts_zscore_sub))]
@@ -2051,11 +2051,11 @@ for (i in seq_along(top_genes)) {
   genes <- table(genes) / length(top_gse[[i]])
 
   counts_zscore_sub <- counts_zscore[rownames(counts_zscore) %in% names(genes), i]
-  counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0]
+  # counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0]
   genes <- genes[names(genes) %in% names(counts_zscore_sub)]
   counts_zscore_sub <- counts_zscore_sub[match(names(genes), names(counts_zscore_sub))]
 
-  comb <- genes * counts_zscore_sub
+  comb <- genes * ((counts_zscore_sub - min(counts_zscore_sub)) / (max(counts_zscore_sub) - min(counts_zscore_sub)))
   comb <- comb[order(comb, decreasing = TRUE)]
 
   counts_zscore_sub <- counts_zscore_sub[match(names(comb), names(counts_zscore_sub))]
@@ -2274,11 +2274,11 @@ for (i in seq_along(top_genes)) {
   genes <- table(genes) / length(top_gse[[i]])
 
   counts_zscore_sub <- counts_zscore[rownames(counts_zscore) %in% names(genes), i]
-  counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0]
+  # counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0]
   genes <- genes[names(genes) %in% names(counts_zscore_sub)]
   counts_zscore_sub <- counts_zscore_sub[match(names(genes), names(counts_zscore_sub))]
 
-  comb <- genes * counts_zscore_sub
+  comb <- genes * ((counts_zscore_sub - min(counts_zscore_sub)) / (max(counts_zscore_sub) - min(counts_zscore_sub)))
   comb <- comb[order(comb, decreasing = TRUE)]
 
   counts_zscore_sub <- counts_zscore_sub[match(names(comb), names(counts_zscore_sub))]
