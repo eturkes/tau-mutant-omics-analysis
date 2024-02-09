@@ -1041,6 +1041,7 @@ keep <- grep("GABAergic", x = colnames(gse))
 gse_zscore <- gse[, keep]
 counts_zscore <- counts[, keep]
 gse_zscore <- t(scale(t(gse_zscore[rownames(gse_zscore[rowSums(gse_zscore > 0) >= 1, ]), ])))
+counts_zscore <- t(scale(t(counts_zscore[rownames(counts_zscore[rowSums(counts_zscore > 0) >= 1, ]), ])))
 gse_zscore[is.na(gse_zscore)] <- 0
 counts_zscore[is.na(counts_zscore)] <- 0
 
