@@ -66,7 +66,7 @@ library(conflicted)
 conflicts_prefer(AnnotationDbi::select, DT::JS, .quiet = TRUE)
 packages <- c(
   "GSEABase", "GSVA", "Seurat", "biomaRt", "parallelly", "dplyr", "scuttle", "GO.db", "tm", "pals", "ComplexHeatmap",
-  "DT", "circlize", "moments"
+  "DT", "circlize"
 )
 invisible(suppressPackageStartupMessages(lapply(packages, FUN = library, character.only = TRUE)))
 # -----------------------------------------------------
@@ -218,6 +218,13 @@ if (file.exists(rds) & file.exists(rds2)) {
 
   seurat <- SCTransform(seurat, vst.flavor = "v2", min_cells = 0, verbose = FALSE)
 
+  counts_mat <- GetAssayData(seurat, layer = "counts")
+  counts_mat[is.na(counts_mat)] <- 0
+  seurat <- SetAssayData(seurat, layer = "counts", new.data = counts_mat)
+  counts_mat <- GetAssayData(seurat, layer = "data")
+  counts_mat[is.na(counts_mat)] <- 0
+  seurat <- SetAssayData(seurat, layer = "data", new.data = counts_mat)
+
   rm(counts_mat, data_mat, counts_null_mat, data_null_mat, mart)
   saveRDS(seurat, rds)
   saveRDS(gene_anno, rds2)
@@ -235,12 +242,6 @@ seurat$annotations_short <- factor(
       "Astrocyte", "OPC", "Oligodendrocyte", "Microglia"
   )
 )
-
-mat <- GetAssayData(seurat, layer = "counts")
-if (any(is.na(mat))) {
-  mat[is.na(mat)] <- 0
-  seurat <- SetAssayData(seurat, layer = "counts", new.data = mat)
-}
 
 rds <- file.path(cache_dir, "pseudobulk_counts.rds")
 if (file.exists(rds)) {
