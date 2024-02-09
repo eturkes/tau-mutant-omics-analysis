@@ -863,7 +863,9 @@ word_cloud = function(x, width = NULL){
            "approximately", "alkaline", "morphologically", "delamination",
            "evidence", "budding", "armadillo", "alphaamylase",
            "facilitated", "compared", "armrepeat", "bicarbonate",
-           "sheet", "chymotrypsinogen", "splitting")
+           "sheet", "chymotrypsinogen", "splitting", "glutathione",
+           "aminoacylation", "catalyzed", "synthetase", "transferred",
+           "abundance")
   txt = unlist(strsplit(x, " "))
   txt = Corpus(VectorSource(txt))
   txt = tm_map(txt, PlainTextDocument)
