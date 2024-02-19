@@ -1,0 +1,3263 @@
+---
+title: "NLGF vs. NLGF P301S+3 - Batch 02 - 01 GeneFunnel"
+author:
+  - name: "Emir Turkes"
+date: '`r strftime(Sys.time(), format = "%B %d, %Y")`'
+link-citations: true
+output:
+  html_document:
+    code_folding: hide
+    number_sections: true
+    theme: lumen
+    highlight: haddock
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+knit: (function(inputFile, encoding) {
+  rmarkdown::render(
+    inputFile, encoding = encoding,
+    output_file = file.path("..", "results", "NLGF_NLGF_P301S_batch02_01genefunnel.html")
+  )})
+---
+
+<style type="text/css">
+body {font-size: 16px;}
+h1.title {font-size: 35px;}
+h1 {font-size: 24px;}
+h2 {font-size: 22px;}
+h3 {font-size: 20px;}
+.toc-content {padding-left: 0px; padding-right: 0px;}
+div.tocify {width: 100%;}
+.tocify-subheader .tocify-item {font-size: 0.95em; padding-left: 25px; text-indent: 0;}
+.tocify-subheader .tocify-subheader .tocify-item {font-size: 0.95em; padding-left: 35px; text-indent: 0;}
+div.main-container {max-width: none; width: 100%;}
+</style>
+
+*This file is a part of [tau-mutant-omics-analysis](https://github.com/eturkes/tau-mutant-omics-analysis).*
+
+The table of contents in the top left is clickable and can be used to quickly navigate the document.
+To toggle the visibility of code, use the `CODE` toggles at the top right of chunks.
+The toggle at the start of the document controls the visibility of all chunks.
+
+```{r}
+#    This file is part of tau-mutant-omics-analysis.
+#    Copyright (C) 2023-2024  Emir Turkes, Naoto Watamura, UK DRI at UCL
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#    Emir Turkes can be contacted at emir.turkes@eturkes.com
+
+# Load required packages, suppressing startup messages.
+# -----------------------------------------------------
+library(conflicted)
+conflicts_prefer(AnnotationDbi::select, edgeR::cpm, DT::JS, base::intersect, .quiet = TRUE)
+packages <- c(
+  "GSEABase", "Seurat", "ggplot2", "dplyr", "ggrepel", "scuttle", "GO.db", "tm", "pals", "ComplexHeatmap", "edgeR",
+  "DT", "circlize", "purrr", "networkD3"
+)
+invisible(suppressPackageStartupMessages(lapply(packages, FUN = library, character.only = TRUE)))
+# -----------------------------------------------------
+
+# Define global settings.
+# -----------------------
+knitr::opts_chunk$set(fig.width = 10, fig.height = 7, dpi = 300)
+# -----------------------
+
+# Define functions.
+# -----------------
+source("utils.R")
+
+`%notin%` <- Negate(`%in%`)
+# -----------------
+
+# Useful variables.
+# -----------------
+genotype <- "NLGF_NLGF_P301S"
+batch <- 2
+step <- 1
+
+cache_dir <- file.path("..", "cache", genotype, paste0("0", batch), paste0("0", step))
+if (!dir.exists(cache_dir)) {
+  dir.create(cache_dir, recursive = TRUE)
+}
+# -----------------
+
+# Useful data.
+# ------------
+gene_anno <- readRDS(file.path("..", "cache", "MAPTKI", "02", "02", "gene_anno.rds"))
+gene_sets <- readRDS(file.path("..", "cache", "filtered_gene_sets.rds"))
+# ------------
+```
+
+# Merging
+
+```{r}
+rds <- file.path(cache_dir, "gse_merged.rds")
+if (file.exists(rds)) {
+  gse <- readRDS(rds)
+} else {
+  file_list <- list.files(file.path(cache_dir, "..", "..", ".."), recursive = TRUE)
+  file_list <- file_list[grep("pseudobulk_gse.rds", x = file_list)]
+  file_list <- c(file_list[2], file_list[3])
+  files <- vector("list", length = length(file_list))
+  for (i in seq_along(files)) {
+    files[[i]] <- counts(readRDS(file.path(cache_dir, "..", "..", "..", file_list[i])))
+    colnames(files[[i]]) <- paste(colnames(files[[i]]), sub("\\/.*", "", file_list[i]), sep = " ")
+  }
+  gse <- Reduce(cbind, x = files)
+  saveRDS(gse, file = rds)
+}
+
+rds <- file.path(cache_dir, "counts_merged.rds")
+if (file.exists(rds)) {
+  counts <- readRDS(rds)
+} else {
+  file_list <- list.files(file.path(cache_dir, "..", "..", ".."), recursive = TRUE)
+  file_list <- file_list[grep("pseudobulk_counts.rds", x = file_list)]
+  file_list <- c(file_list[2], file_list[3])
+  files <- vector("list", length = length(file_list))
+  for (i in seq_along(files)) {
+    files[[i]] <- counts(readRDS(file.path(cache_dir, "..", "..", "..", file_list[i])))
+    colnames(files[[i]]) <- paste(colnames(files[[i]]), sub("\\/.*", "", file_list[i]), sep = " ")
+  }
+  counts <- Reduce(cbind, x = files)
+  saveRDS(counts, file = rds)
+}
+```
+
+# Analysis
+
+```{r}
+colour <- colorRamp2(c(-3, 0, 3), c("#0077BB", "#FFFFFF", "#CC3311"))
+```
+
+# GSE
+
+## All Cell-types
+
+```{r}
+gse_cpm <- log1p(cpm(gse))
+counts_cpm <- log1p(cpm(counts))
+
+keep <- rownames(gse_cpm[rowSums(gse_cpm > 0) >= 1, ])
+gse_zscore <- t(scale(t(gse_cpm[keep, ])))
+keep <- rownames(counts_cpm[rowSums(counts_cpm > 0) >= 1, ])
+counts_zscore <- t(scale(t(counts_cpm[keep, ])))
+
+markers <- data.frame(cluster = character(), gene = character())
+groups <- sub(".*\\s", "", colnames(gse_zscore))
+group_idx <- vector("list", length = length(groups))
+group_idx[[1]] <- 1:9
+group_idx[[2]] <- 10:18
+
+for (i in seq_along(unique(groups))) {
+  gene <- rownames(gse_zscore)[
+    rowMeans(gse_zscore[ , group_idx[[i]]]) > 0
+  ]
+  avg_log2FC <- rowMeans(gse_zscore[gene, group_idx[[i]]])
+  add <- data.frame(
+    cluster = rep(sub(".*\\s", "", colnames(gse_zscore)[group_idx[[i]]])[1], times = length(gene)),
+    gene = gene, avg_log2FC = avg_log2FC
+  )
+  markers <- rbind(markers, add)
+}
+markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
+datatable_download_exp(markers)
+markers$number <- seq(markers$gene)
+
+modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
+module_names <- modules
+
+go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
+for (l in seq_along(module_names)) {
+  module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
+}
+for (l in seq_along(modules)) {
+  modules[[l]] <- markers$gene[modules[[l]]]
+}
+top_words_tmp <- data.frame(
+  gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
+)
+top_words_list <- vector("list", length = length(unique(top_words_tmp$module)))
+top_words <- c()
+
+dict_list <- top_words_list
+for (i in seq_along(top_words_list)) {
+  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
+  for (j in seq_along(top_words_list[[i]])) {
+    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
+  }
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  dict_list[[i]] <- unique(tmp)
+}
+dict <- table(unlist(dict_list))
+# dict <- names(dict[dict > round(length(dict_list) / 2)])
+# dict <- names(dict[dict > round(sqrt(length(dict_list)))])
+dict <- names(dict[dict == length(dict_list)])
+
+for (i in seq_along(top_words_list)) {
+  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
+  for (j in seq_along(top_words_list[[i]])) {
+    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j], dict = dict))
+  }
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  tmp <- table(tmp)
+  for (j in seq_along(tmp)) {
+    log2FC <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
+    tmp[j] <- sum(markers$avg_log2FC[which(markers$cluster == levels(markers$cluster)[i])[log2FC]])
+  }
+  tmp <- tmp[order(tmp, decreasing = TRUE)]
+  dup <- which(duplicated(tmp))
+  if (length(dup) > 0) {
+    tmp <- tmp[-dup]
+  }
+  tmp <- names(tmp)
+  if (length(tmp) >= 3) {
+    tmp <- tmp[1:3]
+    tmp <- paste(paste0(tmp, "\n"), collapse = "")
+    tmp <- substr(tmp, 1, nchar(tmp) - 1)
+  } else if (length(tmp > 0)) {
+    add <- 3 - length(tmp)
+    tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, dict = dict)), "\\s+"))
+    tmp2 <- tmp2[tmp2 %notin% tmp]
+    tmp <- c(tmp, tmp2[1:add])
+    if (any(is.na(tmp))) {
+      tmp <- tmp[-which(is.na(tmp))]
+    }
+    tmp <- paste(paste0(tmp, "\n"), collapse = "")
+    tmp <- substr(tmp, 1, nchar(tmp) - 1)
+  } else {
+    tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 3, dict = dict))
+  }
+  top_words <- c(top_words, tmp)
+}
+
+optimal_k <- unlist(lapply(seq_along(modules), function(i) {rep(names(modules)[i], length(modules[[i]]))}))
+optimal_k <- factor(optimal_k, levels = unique(optimal_k))
+module_colours <- cols25(length(unique(optimal_k)))
+
+row_anno <-  HeatmapAnnotation(
+  top_words = anno_block(
+    gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
+    labels_rot = 0, labels_gp = gpar(fontsize = 9)
+  ),
+  which = "row"
+)
+
+mat <- gse_zscore
+mat <- mat[rownames(mat) %in% markers$gene, ]
+mat <- mat[match(markers$gene, rownames(mat)), ]
+
+top_gse <- vector("list", length = length(modules))
+for (j in seq_along(top_gse)) {
+  idx <- c()
+  for (i in seq_along(unlist(strsplit(top_words[j], split = "\n")))) {
+    idx <- c(
+      idx, grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
+    )
+  }
+  top_gse[[j]] <- modules[[j]][idx]
+}
+
+top_genes <- vector("list", length = length(modules))
+for (i in seq_along(top_genes)) {
+  genes <- c()
+  for (gse_names in top_gse[[i]]) {
+    genes <- c(genes, geneIds(gene_sets[names(gene_sets) %in% gse_names])[[1]])
+  }
+  genes <- table(genes) / length(top_gse[[i]])
+
+  # counts_zscore_scaled <- t(
+  #   apply(counts_zscore, MARGIN = 1, FUN = function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1))
+  # )
+  counts_zscore_scaled <- as.matrix((counts_zscore - min(counts_zscore)) / (max(counts_zscore) - min(counts_zscore)))
+  # counts_zscore_scaled <- (2 * (counts_zscore - min(counts_zscore)) / (max(counts_zscore) - min(counts_zscore))) - 1
+  counts_zscore_scaled <- counts_zscore_scaled[counts_zscore[ , i] > 0, ]
+  counts_zscore_sub <- counts_zscore_scaled[rownames(counts_zscore_scaled) %in% names(genes), i]
+  # counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0.5]
+  genes <- genes[names(genes) %in% names(counts_zscore_sub)]
+  counts_zscore_sub <- counts_zscore_sub[match(names(genes), names(counts_zscore_sub))]
+
+  matches <- table(
+    factor(names(genes), levels = names(genes))[match(unlist(geneIds(gene_sets)), names(genes), nomatch = 0)]
+  )
+  matches <- (matches - max(matches)) / (min(matches) - max(matches))
+
+  comb <- genes * counts_zscore_sub * matches
+  comb <- comb[order(comb, decreasing = TRUE)]
+
+  counts_zscore_sub <- counts_zscore_sub[match(names(comb), names(counts_zscore_sub))]
+  genes <- genes[match(names(comb), names(genes))]
+
+  top_genes[[i]] <- c(
+    comb[1], counts_zscore_sub[1], genes[1], comb[2], counts_zscore_sub[2], genes[2],
+    comb[3], counts_zscore_sub[3], genes[3], comb[4], counts_zscore_sub[4], genes[4]
+  )
+  names(top_genes[[i]]) <- c(
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[1]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[4]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[7]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[10]), ]$external_gene_name, times = 3
+    )
+  )
+}
+names(top_genes) <- levels(markers$cluster)
+```
+
+```{r, fig.height = 3, fig.width = 6}
+panel_fun <- function(index, nm) {
+  pushViewport(viewport())
+  grid.rect(
+    x = 0, y = 0.9, width = top_genes[[nm]][3],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][2]))
+  )
+  grid.rect(
+    x = 0, y = 0.7, width = top_genes[[nm]][6],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][5]))
+  )
+  grid.rect(
+    x = 0, y = 0.5, width = top_genes[[nm]][9],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][8]))
+  )
+  grid.rect(
+    x = 0, y = 0.3, width = top_genes[[nm]][12],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][11]))
+  )
+  grid.text(y = 0.9, names(top_genes[[nm]])[1], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.7, names(top_genes[[nm]])[4], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.5, names(top_genes[[nm]])[7], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.3, names(top_genes[[nm]])[10], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.xaxis(gp = gpar(fontsize = 4), main = FALSE)
+  popViewport()
+}
+right_anno <- rowAnnotation(
+  foo = anno_link(
+    align_to = optimal_k, which = "row", panel_fun = panel_fun, link_width = unit(0, "mm"), gap = unit(1, "mm")
+  )
+)
+
+set.seed(1)
+draw(
+  Heatmap(
+    mat,
+    col = colour,
+    show_row_names = FALSE,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
+    row_split = optimal_k,
+    column_split = factor(groups, levels = unique(groups)),
+    column_title = NULL,
+    left_annotation = row_anno,
+    right_annotation = right_anno,
+    rect_gp = gpar(col = "lightgray", lwd = 0.01),
+    border = TRUE,
+    row_gap = unit(1, "mm"),
+    column_gap = unit(1, "mm"),
+    column_names_side = "top",
+    row_title = top_words,
+    column_names_gp = gpar(fontsize = 4),
+    row_title_gp = gpar(fontsize = 9),
+    row_title_rot = 0,
+    column_names_rot = 45,
+    heatmap_legend_param = list(
+      title = "Z-Score", direction = "horizontal", title_position = "topcenter",
+      legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7), labels_gp = gpar(fontsize = 6),
+      grid_height = unit(0.3, "cm"), at = c(-3, -2, -1, 0, 1, 2, 3)
+    )
+  ),
+  heatmap_legend_side = "top"
+)
+```
+
+```{r, fig.height = 2, fig.width = 6}
+gene_ids <- geneIds(gene_sets)
+gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[1]]]
+gene_ids <- gene_ids[match(top_gse[[1]], names(gene_ids))]
+links_orig <- data.frame(
+  source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
+)
+map <- setNames(gene_anno$external_gene_name, gene_anno$ensembl_gene_id)
+links <- links_orig
+links_orig[] <- map[unlist(links_orig)]
+links$value <- links_orig$value
+colnames(links) <- c("source", "target")
+links <- links[links$target %in% unique(names(top_genes[[1]])), ]
+links$value <- rep(1, times = nrow(links))
+dup <- which(duplicated(links[ , 1:2]))
+if (length(dup) > 0) {
+  links <- links[-dup, ]
+}
+
+nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
+links$IDsource <- match(links$source, nodes$name) - 1
+links$IDtarget <- match(links$target, nodes$name) - 1
+
+sankeyNetwork(
+  Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
+  Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
+)
+
+gene_ids <- geneIds(gene_sets)
+gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[2]]]
+gene_ids <- gene_ids[match(top_gse[[2]], names(gene_ids))]
+links_orig <- data.frame(
+  source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
+)
+map <- setNames(gene_anno$external_gene_name, gene_anno$ensembl_gene_id)
+links <- links_orig
+links_orig[] <- map[unlist(links_orig)]
+links$value <- links_orig$value
+colnames(links) <- c("source", "target")
+links <- links[links$target %in% unique(names(top_genes[[2]])), ]
+links$value <- rep(1, times = nrow(links))
+dup <- which(duplicated(links[ , 1:2]))
+if (length(dup) > 0) {
+  links <- links[-dup, ]
+}
+
+nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
+links$IDsource <- match(links$source, nodes$name) - 1
+links$IDtarget <- match(links$target, nodes$name) - 1
+
+sankeyNetwork(
+  Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
+  Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
+)
+```
+
+## Dentate Gyrus Glutamatergic
+
+```{r}
+keep <- grep("Dentate Gyrus Glutamatergic", x = colnames(gse))
+gse_cpm <- log1p(cpm(gse[ , keep]))
+counts_cpm <- log1p(cpm(counts[ , keep]))
+
+keep <- rownames(gse_cpm[rowSums(gse_cpm > 0) >= 1, ])
+gse_zscore <- t(scale(t(gse_cpm[keep, ])))
+keep <- rownames(counts_cpm[rowSums(counts_cpm > 0) >= 1, ])
+counts_zscore <- t(scale(t(counts_cpm[keep, ])))
+
+markers <- data.frame(cluster = character(), gene = character())
+groups <- sub(".*\\s", "", colnames(gse_zscore))
+group_idx <- vector("list", length = length(groups))
+group_idx[[1]] <- 1
+group_idx[[2]] <- 2
+
+for (i in seq_along(unique(groups))) {
+  gene <- rownames(gse_zscore)[
+    gse_zscore[ , group_idx[[i]]] > 0
+  ]
+  avg_log2FC <- gse_zscore[gene, group_idx[[i]]]
+  add <- data.frame(
+    cluster = rep(sub(".*\\s", "", colnames(gse_zscore)[group_idx[[i]]])[1], times = length(gene)),
+    gene = gene, avg_log2FC = avg_log2FC
+  )
+  markers <- rbind(markers, add)
+}
+markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
+datatable_download_exp(markers)
+markers$number <- seq(markers$gene)
+
+modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
+module_names <- modules
+
+go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
+for (l in seq_along(module_names)) {
+  module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
+}
+for (l in seq_along(modules)) {
+  modules[[l]] <- markers$gene[modules[[l]]]
+}
+top_words_tmp <- data.frame(
+  gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
+)
+top_words_list <- vector("list", length = length(unique(top_words_tmp$module)))
+top_words <- c()
+
+dict_list <- top_words_list
+for (i in seq_along(top_words_list)) {
+  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
+  for (j in seq_along(top_words_list[[i]])) {
+    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
+  }
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  dict_list[[i]] <- unique(tmp)
+}
+dict <- table(unlist(dict_list))
+# dict <- names(dict[dict > round(length(dict_list) / 2)])
+# dict <- names(dict[dict > round(sqrt(length(dict_list)))])
+dict <- names(dict[dict == length(dict_list)])
+
+for (i in seq_along(top_words_list)) {
+  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
+  for (j in seq_along(top_words_list[[i]])) {
+    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j], dict = dict))
+  }
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  tmp <- table(tmp)
+  for (j in seq_along(tmp)) {
+    log2FC <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
+    tmp[j] <- sum(markers$avg_log2FC[which(markers$cluster == levels(markers$cluster)[i])[log2FC]])
+  }
+  tmp <- tmp[order(tmp, decreasing = TRUE)]
+  dup <- which(duplicated(tmp))
+  if (length(dup) > 0) {
+    tmp <- tmp[-dup]
+  }
+  tmp <- names(tmp)
+  if (length(tmp) >= 3) {
+    tmp <- tmp[1:3]
+    tmp <- paste(paste0(tmp, "\n"), collapse = "")
+    tmp <- substr(tmp, 1, nchar(tmp) - 1)
+  } else if (length(tmp > 0)) {
+    add <- 3 - length(tmp)
+    tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, dict = dict)), "\\s+"))
+    tmp2 <- tmp2[tmp2 %notin% tmp]
+    tmp <- c(tmp, tmp2[1:add])
+    if (any(is.na(tmp))) {
+      tmp <- tmp[-which(is.na(tmp))]
+    }
+    tmp <- paste(paste0(tmp, "\n"), collapse = "")
+    tmp <- substr(tmp, 1, nchar(tmp) - 1)
+  } else {
+    tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 3, dict = dict))
+  }
+  top_words <- c(top_words, tmp)
+}
+
+optimal_k <- unlist(lapply(seq_along(modules), function(i) {rep(names(modules)[i], length(modules[[i]]))}))
+optimal_k <- factor(optimal_k, levels = unique(optimal_k))
+module_colours <- cols25(length(unique(optimal_k)))
+
+row_anno <-  HeatmapAnnotation(
+  top_words = anno_block(
+    gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
+    labels_rot = 0, labels_gp = gpar(fontsize = 9)
+  ),
+  which = "row"
+)
+
+mat <- gse_zscore
+mat <- mat[rownames(mat) %in% markers$gene, ]
+mat <- mat[match(markers$gene, rownames(mat)), ]
+colnames(mat) <- levels(markers$cluster)
+
+top_gse <- vector("list", length = length(modules))
+for (j in seq_along(top_gse)) {
+  idx <- c()
+  for (i in seq_along(unlist(strsplit(top_words[j], split = "\n")))) {
+    idx <- c(
+      idx, grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
+    )
+  }
+  top_gse[[j]] <- modules[[j]][idx]
+}
+
+top_genes <- vector("list", length = length(modules))
+for (i in seq_along(top_genes)) {
+  genes <- c()
+  for (gse_names in top_gse[[i]]) {
+    genes <- c(genes, geneIds(gene_sets[names(gene_sets) %in% gse_names])[[1]])
+  }
+  genes <- table(genes) / length(top_gse[[i]])
+
+  # counts_zscore_scaled <- t(
+  #   apply(counts_zscore, MARGIN = 1, FUN = function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1))
+  # )
+  counts_zscore_scaled <- as.matrix((counts_zscore - min(counts_zscore)) / (max(counts_zscore) - min(counts_zscore)))
+  # counts_zscore_scaled <- (2 * (counts_zscore - min(counts_zscore)) / (max(counts_zscore) - min(counts_zscore))) - 1
+  counts_zscore_scaled <- counts_zscore_scaled[counts_zscore[ , i] > 0, ]
+  counts_zscore_sub <- counts_zscore_scaled[rownames(counts_zscore_scaled) %in% names(genes), i]
+  # counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0.5]
+  genes <- genes[names(genes) %in% names(counts_zscore_sub)]
+  counts_zscore_sub <- counts_zscore_sub[match(names(genes), names(counts_zscore_sub))]
+
+  matches <- table(
+    factor(names(genes), levels = names(genes))[match(unlist(geneIds(gene_sets)), names(genes), nomatch = 0)]
+  )
+  matches <- (matches - max(matches)) / (min(matches) - max(matches))
+
+  comb <- genes * counts_zscore_sub * matches
+  comb <- comb[order(comb, decreasing = TRUE)]
+
+  counts_zscore_sub <- counts_zscore_sub[match(names(comb), names(counts_zscore_sub))]
+  genes <- genes[match(names(comb), names(genes))]
+
+  top_genes[[i]] <- c(
+    comb[1], counts_zscore_sub[1], genes[1], comb[2], counts_zscore_sub[2], genes[2],
+    comb[3], counts_zscore_sub[3], genes[3], comb[4], counts_zscore_sub[4], genes[4]
+  )
+  names(top_genes[[i]]) <- c(
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[1]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[4]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[7]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[10]), ]$external_gene_name, times = 3
+    )
+  )
+}
+names(top_genes) <- levels(markers$cluster)
+```
+
+```{r, fig.height = 3, fig.width = 6}
+panel_fun <- function(index, nm) {
+  pushViewport(viewport())
+  grid.rect(
+    x = 0, y = 0.9, width = top_genes[[nm]][3],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][2]))
+  )
+  grid.rect(
+    x = 0, y = 0.7, width = top_genes[[nm]][6],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][5]))
+  )
+  grid.rect(
+    x = 0, y = 0.5, width = top_genes[[nm]][9],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][8]))
+  )
+  grid.rect(
+    x = 0, y = 0.3, width = top_genes[[nm]][12],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][11]))
+  )
+  grid.text(y = 0.9, names(top_genes[[nm]])[1], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.7, names(top_genes[[nm]])[4], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.5, names(top_genes[[nm]])[7], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.3, names(top_genes[[nm]])[10], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.xaxis(gp = gpar(fontsize = 4), main = FALSE)
+  popViewport()
+}
+right_anno <- rowAnnotation(
+  foo = anno_link(
+    align_to = optimal_k, which = "row", panel_fun = panel_fun, link_width = unit(0, "mm"), gap = unit(1, "mm")
+  )
+)
+
+set.seed(1)
+draw(
+  Heatmap(
+    mat,
+    col = colour,
+    show_row_names = FALSE,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
+    row_split = optimal_k,
+    column_split = factor(groups, levels = unique(groups)),
+    column_title = "Dentate Gyrus Glutamatergic",
+    left_annotation = row_anno,
+    right_annotation = right_anno,
+    rect_gp = gpar(col = "lightgray", lwd = 0.01),
+    border = TRUE,
+    row_gap = unit(1, "mm"),
+    column_gap = unit(1, "mm"),
+    column_names_side = "top",
+    row_title = top_words,
+    column_names_gp = gpar(fontsize = 9),
+    row_title_gp = gpar(fontsize = 9),
+    row_title_rot = 0,
+    column_names_rot = 45,
+    heatmap_legend_param = list(
+      title = "Z-Score", direction = "horizontal", title_position = "topcenter",
+      legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7), labels_gp = gpar(fontsize = 6),
+      grid_height = unit(0.3, "cm"), at = c(-3, -2, -1, 0, 1, 2, 3)
+    )
+  ),
+  heatmap_legend_side = "top"
+)
+```
+
+```{r, fig.height = 2, fig.width = 6}
+gene_ids <- geneIds(gene_sets)
+gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[1]]]
+gene_ids <- gene_ids[match(top_gse[[1]], names(gene_ids))]
+links_orig <- data.frame(
+  source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
+)
+map <- setNames(gene_anno$external_gene_name, gene_anno$ensembl_gene_id)
+links <- links_orig
+links_orig[] <- map[unlist(links_orig)]
+links$value <- links_orig$value
+colnames(links) <- c("source", "target")
+links <- links[links$target %in% unique(names(top_genes[[1]])), ]
+links$value <- rep(1, times = nrow(links))
+dup <- which(duplicated(links[ , 1:2]))
+if (length(dup) > 0) {
+  links <- links[-dup, ]
+}
+
+nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
+links$IDsource <- match(links$source, nodes$name) - 1
+links$IDtarget <- match(links$target, nodes$name) - 1
+
+sankeyNetwork(
+  Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
+  Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
+)
+
+gene_ids <- geneIds(gene_sets)
+gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[2]]]
+gene_ids <- gene_ids[match(top_gse[[2]], names(gene_ids))]
+links_orig <- data.frame(
+  source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
+)
+map <- setNames(gene_anno$external_gene_name, gene_anno$ensembl_gene_id)
+links <- links_orig
+links_orig[] <- map[unlist(links_orig)]
+links$value <- links_orig$value
+colnames(links) <- c("source", "target")
+links <- links[links$target %in% unique(names(top_genes[[2]])), ]
+links$value <- rep(1, times = nrow(links))
+dup <- which(duplicated(links[ , 1:2]))
+if (length(dup) > 0) {
+  links <- links[-dup, ]
+}
+
+nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
+links$IDsource <- match(links$source, nodes$name) - 1
+links$IDtarget <- match(links$target, nodes$name) - 1
+
+sankeyNetwork(
+  Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
+  Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
+)
+```
+
+## Hippocampal Glutamatergic
+
+```{r}
+keep <- grep("Hippocampal Glutamatergic", x = colnames(gse))
+gse_cpm <- log1p(cpm(gse[ , keep]))
+counts_cpm <- log1p(cpm(counts[ , keep]))
+
+keep <- rownames(gse_cpm[rowSums(gse_cpm > 0) >= 1, ])
+gse_zscore <- t(scale(t(gse_cpm[keep, ])))
+keep <- rownames(counts_cpm[rowSums(counts_cpm > 0) >= 1, ])
+counts_zscore <- t(scale(t(counts_cpm[keep, ])))
+
+markers <- data.frame(cluster = character(), gene = character())
+groups <- sub(".*\\s", "", colnames(gse_zscore))
+group_idx <- vector("list", length = length(groups))
+group_idx[[1]] <- 1
+group_idx[[2]] <- 2
+
+for (i in seq_along(unique(groups))) {
+  gene <- rownames(gse_zscore)[
+    gse_zscore[ , group_idx[[i]]] > 0
+  ]
+  avg_log2FC <- gse_zscore[gene, group_idx[[i]]]
+  add <- data.frame(
+    cluster = rep(sub(".*\\s", "", colnames(gse_zscore)[group_idx[[i]]])[1], times = length(gene)),
+    gene = gene, avg_log2FC = avg_log2FC
+  )
+  markers <- rbind(markers, add)
+}
+markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
+datatable_download_exp(markers)
+markers$number <- seq(markers$gene)
+
+modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
+module_names <- modules
+
+go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
+for (l in seq_along(module_names)) {
+  module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
+}
+for (l in seq_along(modules)) {
+  modules[[l]] <- markers$gene[modules[[l]]]
+}
+top_words_tmp <- data.frame(
+  gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
+)
+top_words_list <- vector("list", length = length(unique(top_words_tmp$module)))
+top_words <- c()
+
+dict_list <- top_words_list
+for (i in seq_along(top_words_list)) {
+  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
+  for (j in seq_along(top_words_list[[i]])) {
+    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
+  }
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  dict_list[[i]] <- unique(tmp)
+}
+dict <- table(unlist(dict_list))
+# dict <- names(dict[dict > round(length(dict_list) / 2)])
+# dict <- names(dict[dict > round(sqrt(length(dict_list)))])
+dict <- names(dict[dict == length(dict_list)])
+
+for (i in seq_along(top_words_list)) {
+  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
+  for (j in seq_along(top_words_list[[i]])) {
+    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j], dict = dict))
+  }
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  tmp <- table(tmp)
+  for (j in seq_along(tmp)) {
+    log2FC <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
+    tmp[j] <- sum(markers$avg_log2FC[which(markers$cluster == levels(markers$cluster)[i])[log2FC]])
+  }
+  tmp <- tmp[order(tmp, decreasing = TRUE)]
+  dup <- which(duplicated(tmp))
+  if (length(dup) > 0) {
+    tmp <- tmp[-dup]
+  }
+  tmp <- names(tmp)
+  if (length(tmp) >= 3) {
+    tmp <- tmp[1:3]
+    tmp <- paste(paste0(tmp, "\n"), collapse = "")
+    tmp <- substr(tmp, 1, nchar(tmp) - 1)
+  } else if (length(tmp > 0)) {
+    add <- 3 - length(tmp)
+    tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, dict = dict)), "\\s+"))
+    tmp2 <- tmp2[tmp2 %notin% tmp]
+    tmp <- c(tmp, tmp2[1:add])
+    if (any(is.na(tmp))) {
+      tmp <- tmp[-which(is.na(tmp))]
+    }
+    tmp <- paste(paste0(tmp, "\n"), collapse = "")
+    tmp <- substr(tmp, 1, nchar(tmp) - 1)
+  } else {
+    tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 3, dict = dict))
+  }
+  top_words <- c(top_words, tmp)
+}
+
+optimal_k <- unlist(lapply(seq_along(modules), function(i) {rep(names(modules)[i], length(modules[[i]]))}))
+optimal_k <- factor(optimal_k, levels = unique(optimal_k))
+module_colours <- cols25(length(unique(optimal_k)))
+
+row_anno <-  HeatmapAnnotation(
+  top_words = anno_block(
+    gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
+    labels_rot = 0, labels_gp = gpar(fontsize = 9)
+  ),
+  which = "row"
+)
+
+mat <- gse_zscore
+mat <- mat[rownames(mat) %in% markers$gene, ]
+mat <- mat[match(markers$gene, rownames(mat)), ]
+colnames(mat) <- levels(markers$cluster)
+
+top_gse <- vector("list", length = length(modules))
+for (j in seq_along(top_gse)) {
+  idx <- c()
+  for (i in seq_along(unlist(strsplit(top_words[j], split = "\n")))) {
+    idx <- c(
+      idx, grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
+    )
+  }
+  top_gse[[j]] <- modules[[j]][idx]
+}
+
+top_genes <- vector("list", length = length(modules))
+for (i in seq_along(top_genes)) {
+  genes <- c()
+  for (gse_names in top_gse[[i]]) {
+    genes <- c(genes, geneIds(gene_sets[names(gene_sets) %in% gse_names])[[1]])
+  }
+  genes <- table(genes) / length(top_gse[[i]])
+
+  # counts_zscore_scaled <- t(
+  #   apply(counts_zscore, MARGIN = 1, FUN = function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1))
+  # )
+  counts_zscore_scaled <- as.matrix((counts_zscore - min(counts_zscore)) / (max(counts_zscore) - min(counts_zscore)))
+  # counts_zscore_scaled <- (2 * (counts_zscore - min(counts_zscore)) / (max(counts_zscore) - min(counts_zscore))) - 1
+  counts_zscore_scaled <- counts_zscore_scaled[counts_zscore[ , i] > 0, ]
+  counts_zscore_sub <- counts_zscore_scaled[rownames(counts_zscore_scaled) %in% names(genes), i]
+  # counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0.5]
+  genes <- genes[names(genes) %in% names(counts_zscore_sub)]
+  counts_zscore_sub <- counts_zscore_sub[match(names(genes), names(counts_zscore_sub))]
+
+  matches <- table(
+    factor(names(genes), levels = names(genes))[match(unlist(geneIds(gene_sets)), names(genes), nomatch = 0)]
+  )
+  matches <- (matches - max(matches)) / (min(matches) - max(matches))
+
+  comb <- genes * counts_zscore_sub * matches
+  comb <- comb[order(comb, decreasing = TRUE)]
+
+  counts_zscore_sub <- counts_zscore_sub[match(names(comb), names(counts_zscore_sub))]
+  genes <- genes[match(names(comb), names(genes))]
+
+  top_genes[[i]] <- c(
+    comb[1], counts_zscore_sub[1], genes[1], comb[2], counts_zscore_sub[2], genes[2],
+    comb[3], counts_zscore_sub[3], genes[3], comb[4], counts_zscore_sub[4], genes[4]
+  )
+  names(top_genes[[i]]) <- c(
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[1]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[4]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[7]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[10]), ]$external_gene_name, times = 3
+    )
+  )
+}
+names(top_genes) <- levels(markers$cluster)
+```
+
+```{r, fig.height = 3, fig.width = 6}
+panel_fun <- function(index, nm) {
+  pushViewport(viewport())
+  grid.rect(
+    x = 0, y = 0.9, width = top_genes[[nm]][3],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][2]))
+  )
+  grid.rect(
+    x = 0, y = 0.7, width = top_genes[[nm]][6],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][5]))
+  )
+  grid.rect(
+    x = 0, y = 0.5, width = top_genes[[nm]][9],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][8]))
+  )
+  grid.rect(
+    x = 0, y = 0.3, width = top_genes[[nm]][12],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][11]))
+  )
+  grid.text(y = 0.9, names(top_genes[[nm]])[1], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.7, names(top_genes[[nm]])[4], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.5, names(top_genes[[nm]])[7], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.3, names(top_genes[[nm]])[10], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.xaxis(gp = gpar(fontsize = 4), main = FALSE)
+  popViewport()
+}
+right_anno <- rowAnnotation(
+  foo = anno_link(
+    align_to = optimal_k, which = "row", panel_fun = panel_fun, link_width = unit(0, "mm"), gap = unit(1, "mm")
+  )
+)
+
+set.seed(1)
+draw(
+  Heatmap(
+    mat,
+    col = colour,
+    show_row_names = FALSE,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
+    row_split = optimal_k,
+    column_split = factor(groups, levels = unique(groups)),
+    column_title = "Hippocampal Glutamatergic",
+    left_annotation = row_anno,
+    right_annotation = right_anno,
+    rect_gp = gpar(col = "lightgray", lwd = 0.01),
+    border = TRUE,
+    row_gap = unit(1, "mm"),
+    column_gap = unit(1, "mm"),
+    column_names_side = "top",
+    row_title = top_words,
+    column_names_gp = gpar(fontsize = 9),
+    row_title_gp = gpar(fontsize = 9),
+    row_title_rot = 0,
+    column_names_rot = 45,
+    heatmap_legend_param = list(
+      title = "Z-Score", direction = "horizontal", title_position = "topcenter",
+      legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7), labels_gp = gpar(fontsize = 6),
+      grid_height = unit(0.3, "cm"), at = c(-3, -2, -1, 0, 1, 2, 3)
+    )
+  ),
+  heatmap_legend_side = "top"
+)
+```
+
+```{r, fig.height = 2, fig.width = 6}
+gene_ids <- geneIds(gene_sets)
+gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[1]]]
+gene_ids <- gene_ids[match(top_gse[[1]], names(gene_ids))]
+links_orig <- data.frame(
+  source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
+)
+map <- setNames(gene_anno$external_gene_name, gene_anno$ensembl_gene_id)
+links <- links_orig
+links_orig[] <- map[unlist(links_orig)]
+links$value <- links_orig$value
+colnames(links) <- c("source", "target")
+links <- links[links$target %in% unique(names(top_genes[[1]])), ]
+links$value <- rep(1, times = nrow(links))
+dup <- which(duplicated(links[ , 1:2]))
+if (length(dup) > 0) {
+  links <- links[-dup, ]
+}
+
+nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
+links$IDsource <- match(links$source, nodes$name) - 1
+links$IDtarget <- match(links$target, nodes$name) - 1
+
+sankeyNetwork(
+  Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
+  Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
+)
+
+gene_ids <- geneIds(gene_sets)
+gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[2]]]
+gene_ids <- gene_ids[match(top_gse[[2]], names(gene_ids))]
+links_orig <- data.frame(
+  source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
+)
+map <- setNames(gene_anno$external_gene_name, gene_anno$ensembl_gene_id)
+links <- links_orig
+links_orig[] <- map[unlist(links_orig)]
+links$value <- links_orig$value
+colnames(links) <- c("source", "target")
+links <- links[links$target %in% unique(names(top_genes[[2]])), ]
+links$value <- rep(1, times = nrow(links))
+dup <- which(duplicated(links[ , 1:2]))
+if (length(dup) > 0) {
+  links <- links[-dup, ]
+}
+
+nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
+links$IDsource <- match(links$source, nodes$name) - 1
+links$IDtarget <- match(links$target, nodes$name) - 1
+
+sankeyNetwork(
+  Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
+  Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
+)
+```
+
+## Cortical Glutamatergic
+
+```{r}
+keep <- grep("Cortical Glutamatergic", x = colnames(gse))
+gse_cpm <- log1p(cpm(gse[ , keep]))
+counts_cpm <- log1p(cpm(counts[ , keep]))
+
+keep <- rownames(gse_cpm[rowSums(gse_cpm > 0) >= 1, ])
+gse_zscore <- t(scale(t(gse_cpm[keep, ])))
+keep <- rownames(counts_cpm[rowSums(counts_cpm > 0) >= 1, ])
+counts_zscore <- t(scale(t(counts_cpm[keep, ])))
+
+markers <- data.frame(cluster = character(), gene = character())
+groups <- sub(".*\\s", "", colnames(gse_zscore))
+group_idx <- vector("list", length = length(groups))
+group_idx[[1]] <- 1
+group_idx[[2]] <- 2
+
+for (i in seq_along(unique(groups))) {
+  gene <- rownames(gse_zscore)[
+    gse_zscore[ , group_idx[[i]]] > 0
+  ]
+  avg_log2FC <- gse_zscore[gene, group_idx[[i]]]
+  add <- data.frame(
+    cluster = rep(sub(".*\\s", "", colnames(gse_zscore)[group_idx[[i]]])[1], times = length(gene)),
+    gene = gene, avg_log2FC = avg_log2FC
+  )
+  markers <- rbind(markers, add)
+}
+markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
+datatable_download_exp(markers)
+markers$number <- seq(markers$gene)
+
+modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
+module_names <- modules
+
+go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
+for (l in seq_along(module_names)) {
+  module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
+}
+for (l in seq_along(modules)) {
+  modules[[l]] <- markers$gene[modules[[l]]]
+}
+top_words_tmp <- data.frame(
+  gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
+)
+top_words_list <- vector("list", length = length(unique(top_words_tmp$module)))
+top_words <- c()
+
+dict_list <- top_words_list
+for (i in seq_along(top_words_list)) {
+  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
+  for (j in seq_along(top_words_list[[i]])) {
+    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
+  }
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  dict_list[[i]] <- unique(tmp)
+}
+dict <- table(unlist(dict_list))
+# dict <- names(dict[dict > round(length(dict_list) / 2)])
+# dict <- names(dict[dict > round(sqrt(length(dict_list)))])
+dict <- names(dict[dict == length(dict_list)])
+
+for (i in seq_along(top_words_list)) {
+  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
+  for (j in seq_along(top_words_list[[i]])) {
+    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j], dict = dict))
+  }
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  tmp <- table(tmp)
+  for (j in seq_along(tmp)) {
+    log2FC <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
+    tmp[j] <- sum(markers$avg_log2FC[which(markers$cluster == levels(markers$cluster)[i])[log2FC]])
+  }
+  tmp <- tmp[order(tmp, decreasing = TRUE)]
+  dup <- which(duplicated(tmp))
+  if (length(dup) > 0) {
+    tmp <- tmp[-dup]
+  }
+  tmp <- names(tmp)
+  if (length(tmp) >= 3) {
+    tmp <- tmp[1:3]
+    tmp <- paste(paste0(tmp, "\n"), collapse = "")
+    tmp <- substr(tmp, 1, nchar(tmp) - 1)
+  } else if (length(tmp > 0)) {
+    add <- 3 - length(tmp)
+    tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, dict = dict)), "\\s+"))
+    tmp2 <- tmp2[tmp2 %notin% tmp]
+    tmp <- c(tmp, tmp2[1:add])
+    if (any(is.na(tmp))) {
+      tmp <- tmp[-which(is.na(tmp))]
+    }
+    tmp <- paste(paste0(tmp, "\n"), collapse = "")
+    tmp <- substr(tmp, 1, nchar(tmp) - 1)
+  } else {
+    tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 3, dict = dict))
+  }
+  top_words <- c(top_words, tmp)
+}
+
+optimal_k <- unlist(lapply(seq_along(modules), function(i) {rep(names(modules)[i], length(modules[[i]]))}))
+optimal_k <- factor(optimal_k, levels = unique(optimal_k))
+module_colours <- cols25(length(unique(optimal_k)))
+
+row_anno <-  HeatmapAnnotation(
+  top_words = anno_block(
+    gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
+    labels_rot = 0, labels_gp = gpar(fontsize = 9)
+  ),
+  which = "row"
+)
+
+mat <- gse_zscore
+mat <- mat[rownames(mat) %in% markers$gene, ]
+mat <- mat[match(markers$gene, rownames(mat)), ]
+colnames(mat) <- levels(markers$cluster)
+
+top_gse <- vector("list", length = length(modules))
+for (j in seq_along(top_gse)) {
+  idx <- c()
+  for (i in seq_along(unlist(strsplit(top_words[j], split = "\n")))) {
+    idx <- c(
+      idx, grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
+    )
+  }
+  top_gse[[j]] <- modules[[j]][idx]
+}
+
+top_genes <- vector("list", length = length(modules))
+for (i in seq_along(top_genes)) {
+  genes <- c()
+  for (gse_names in top_gse[[i]]) {
+    genes <- c(genes, geneIds(gene_sets[names(gene_sets) %in% gse_names])[[1]])
+  }
+  genes <- table(genes) / length(top_gse[[i]])
+
+  # counts_zscore_scaled <- t(
+  #   apply(counts_zscore, MARGIN = 1, FUN = function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1))
+  # )
+  counts_zscore_scaled <- as.matrix((counts_zscore - min(counts_zscore)) / (max(counts_zscore) - min(counts_zscore)))
+  # counts_zscore_scaled <- (2 * (counts_zscore - min(counts_zscore)) / (max(counts_zscore) - min(counts_zscore))) - 1
+  counts_zscore_scaled <- counts_zscore_scaled[counts_zscore[ , i] > 0, ]
+  counts_zscore_sub <- counts_zscore_scaled[rownames(counts_zscore_scaled) %in% names(genes), i]
+  # counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0.5]
+  genes <- genes[names(genes) %in% names(counts_zscore_sub)]
+  counts_zscore_sub <- counts_zscore_sub[match(names(genes), names(counts_zscore_sub))]
+
+  matches <- table(
+    factor(names(genes), levels = names(genes))[match(unlist(geneIds(gene_sets)), names(genes), nomatch = 0)]
+  )
+  matches <- (matches - max(matches)) / (min(matches) - max(matches))
+
+  comb <- genes * counts_zscore_sub * matches
+  comb <- comb[order(comb, decreasing = TRUE)]
+
+  counts_zscore_sub <- counts_zscore_sub[match(names(comb), names(counts_zscore_sub))]
+  genes <- genes[match(names(comb), names(genes))]
+
+  top_genes[[i]] <- c(
+    comb[1], counts_zscore_sub[1], genes[1], comb[2], counts_zscore_sub[2], genes[2],
+    comb[3], counts_zscore_sub[3], genes[3], comb[4], counts_zscore_sub[4], genes[4]
+  )
+  names(top_genes[[i]]) <- c(
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[1]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[4]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[7]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[10]), ]$external_gene_name, times = 3
+    )
+  )
+}
+names(top_genes) <- levels(markers$cluster)
+```
+
+```{r, fig.height = 3, fig.width = 6}
+panel_fun <- function(index, nm) {
+  pushViewport(viewport())
+  grid.rect(
+    x = 0, y = 0.9, width = top_genes[[nm]][3],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][2]))
+  )
+  grid.rect(
+    x = 0, y = 0.7, width = top_genes[[nm]][6],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][5]))
+  )
+  grid.rect(
+    x = 0, y = 0.5, width = top_genes[[nm]][9],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][8]))
+  )
+  grid.rect(
+    x = 0, y = 0.3, width = top_genes[[nm]][12],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][11]))
+  )
+  grid.text(y = 0.9, names(top_genes[[nm]])[1], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.7, names(top_genes[[nm]])[4], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.5, names(top_genes[[nm]])[7], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.3, names(top_genes[[nm]])[10], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.xaxis(gp = gpar(fontsize = 4), main = FALSE)
+  popViewport()
+}
+right_anno <- rowAnnotation(
+  foo = anno_link(
+    align_to = optimal_k, which = "row", panel_fun = panel_fun, link_width = unit(0, "mm"), gap = unit(1, "mm")
+  )
+)
+
+set.seed(1)
+draw(
+  Heatmap(
+    mat,
+    col = colour,
+    show_row_names = FALSE,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
+    row_split = optimal_k,
+    column_split = factor(groups, levels = unique(groups)),
+    column_title = "Cortical Glutamatergic",
+    left_annotation = row_anno,
+    right_annotation = right_anno,
+    rect_gp = gpar(col = "lightgray", lwd = 0.01),
+    border = TRUE,
+    row_gap = unit(1, "mm"),
+    column_gap = unit(1, "mm"),
+    column_names_side = "top",
+    row_title = top_words,
+    column_names_gp = gpar(fontsize = 9),
+    row_title_gp = gpar(fontsize = 9),
+    row_title_rot = 0,
+    column_names_rot = 45,
+    heatmap_legend_param = list(
+      title = "Z-Score", direction = "horizontal", title_position = "topcenter",
+      legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7), labels_gp = gpar(fontsize = 6),
+      grid_height = unit(0.3, "cm"), at = c(-3, -2, -1, 0, 1, 2, 3)
+    )
+  ),
+  heatmap_legend_side = "top"
+)
+```
+
+```{r, fig.height = 2, fig.width = 6}
+gene_ids <- geneIds(gene_sets)
+gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[1]]]
+gene_ids <- gene_ids[match(top_gse[[1]], names(gene_ids))]
+links_orig <- data.frame(
+  source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
+)
+map <- setNames(gene_anno$external_gene_name, gene_anno$ensembl_gene_id)
+links <- links_orig
+links_orig[] <- map[unlist(links_orig)]
+links$value <- links_orig$value
+colnames(links) <- c("source", "target")
+links <- links[links$target %in% unique(names(top_genes[[1]])), ]
+links$value <- rep(1, times = nrow(links))
+dup <- which(duplicated(links[ , 1:2]))
+if (length(dup) > 0) {
+  links <- links[-dup, ]
+}
+
+nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
+links$IDsource <- match(links$source, nodes$name) - 1
+links$IDtarget <- match(links$target, nodes$name) - 1
+
+sankeyNetwork(
+  Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
+  Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
+)
+
+gene_ids <- geneIds(gene_sets)
+gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[2]]]
+gene_ids <- gene_ids[match(top_gse[[2]], names(gene_ids))]
+links_orig <- data.frame(
+  source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
+)
+map <- setNames(gene_anno$external_gene_name, gene_anno$ensembl_gene_id)
+links <- links_orig
+links_orig[] <- map[unlist(links_orig)]
+links$value <- links_orig$value
+colnames(links) <- c("source", "target")
+links <- links[links$target %in% unique(names(top_genes[[2]])), ]
+links$value <- rep(1, times = nrow(links))
+dup <- which(duplicated(links[ , 1:2]))
+if (length(dup) > 0) {
+  links <- links[-dup, ]
+}
+
+nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
+links$IDsource <- match(links$source, nodes$name) - 1
+links$IDtarget <- match(links$target, nodes$name) - 1
+
+sankeyNetwork(
+  Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
+  Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
+)
+```
+
+## GABAergic
+
+```{r}
+keep <- grep("GABAergic", x = colnames(gse))
+gse_cpm <- log1p(cpm(gse[ , keep]))
+counts_cpm <- log1p(cpm(counts[ , keep]))
+
+keep <- rownames(gse_cpm[rowSums(gse_cpm > 0) >= 1, ])
+gse_zscore <- t(scale(t(gse_cpm[keep, ])))
+keep <- rownames(counts_cpm[rowSums(counts_cpm > 0) >= 1, ])
+counts_zscore <- t(scale(t(counts_cpm[keep, ])))
+
+markers <- data.frame(cluster = character(), gene = character())
+groups <- sub(".*\\s", "", colnames(gse_zscore))
+group_idx <- vector("list", length = length(groups))
+group_idx[[1]] <- 1
+group_idx[[2]] <- 2
+
+for (i in seq_along(unique(groups))) {
+  gene <- rownames(gse_zscore)[
+    gse_zscore[ , group_idx[[i]]] > 0
+  ]
+  avg_log2FC <- gse_zscore[gene, group_idx[[i]]]
+  add <- data.frame(
+    cluster = rep(sub(".*\\s", "", colnames(gse_zscore)[group_idx[[i]]])[1], times = length(gene)),
+    gene = gene, avg_log2FC = avg_log2FC
+  )
+  markers <- rbind(markers, add)
+}
+markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
+datatable_download_exp(markers)
+markers$number <- seq(markers$gene)
+
+modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
+module_names <- modules
+
+go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
+for (l in seq_along(module_names)) {
+  module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
+}
+for (l in seq_along(modules)) {
+  modules[[l]] <- markers$gene[modules[[l]]]
+}
+top_words_tmp <- data.frame(
+  gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
+)
+top_words_list <- vector("list", length = length(unique(top_words_tmp$module)))
+top_words <- c()
+
+dict_list <- top_words_list
+for (i in seq_along(top_words_list)) {
+  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
+  for (j in seq_along(top_words_list[[i]])) {
+    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
+  }
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  dict_list[[i]] <- unique(tmp)
+}
+dict <- table(unlist(dict_list))
+# dict <- names(dict[dict > round(length(dict_list) / 2)])
+# dict <- names(dict[dict > round(sqrt(length(dict_list)))])
+dict <- names(dict[dict == length(dict_list)])
+
+for (i in seq_along(top_words_list)) {
+  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
+  for (j in seq_along(top_words_list[[i]])) {
+    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j], dict = dict))
+  }
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  tmp <- table(tmp)
+  for (j in seq_along(tmp)) {
+    log2FC <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
+    tmp[j] <- sum(markers$avg_log2FC[which(markers$cluster == levels(markers$cluster)[i])[log2FC]])
+  }
+  tmp <- tmp[order(tmp, decreasing = TRUE)]
+  dup <- which(duplicated(tmp))
+  if (length(dup) > 0) {
+    tmp <- tmp[-dup]
+  }
+  tmp <- names(tmp)
+  if (length(tmp) >= 3) {
+    tmp <- tmp[1:3]
+    tmp <- paste(paste0(tmp, "\n"), collapse = "")
+    tmp <- substr(tmp, 1, nchar(tmp) - 1)
+  } else if (length(tmp > 0)) {
+    add <- 3 - length(tmp)
+    tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, dict = dict)), "\\s+"))
+    tmp2 <- tmp2[tmp2 %notin% tmp]
+    tmp <- c(tmp, tmp2[1:add])
+    if (any(is.na(tmp))) {
+      tmp <- tmp[-which(is.na(tmp))]
+    }
+    tmp <- paste(paste0(tmp, "\n"), collapse = "")
+    tmp <- substr(tmp, 1, nchar(tmp) - 1)
+  } else {
+    tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 3, dict = dict))
+  }
+  top_words <- c(top_words, tmp)
+}
+
+optimal_k <- unlist(lapply(seq_along(modules), function(i) {rep(names(modules)[i], length(modules[[i]]))}))
+optimal_k <- factor(optimal_k, levels = unique(optimal_k))
+module_colours <- cols25(length(unique(optimal_k)))
+
+row_anno <-  HeatmapAnnotation(
+  top_words = anno_block(
+    gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
+    labels_rot = 0, labels_gp = gpar(fontsize = 9)
+  ),
+  which = "row"
+)
+
+mat <- gse_zscore
+mat <- mat[rownames(mat) %in% markers$gene, ]
+mat <- mat[match(markers$gene, rownames(mat)), ]
+colnames(mat) <- levels(markers$cluster)
+
+top_gse <- vector("list", length = length(modules))
+for (j in seq_along(top_gse)) {
+  idx <- c()
+  for (i in seq_along(unlist(strsplit(top_words[j], split = "\n")))) {
+    idx <- c(
+      idx, grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
+    )
+  }
+  top_gse[[j]] <- modules[[j]][idx]
+}
+
+top_genes <- vector("list", length = length(modules))
+for (i in seq_along(top_genes)) {
+  genes <- c()
+  for (gse_names in top_gse[[i]]) {
+    genes <- c(genes, geneIds(gene_sets[names(gene_sets) %in% gse_names])[[1]])
+  }
+  genes <- table(genes) / length(top_gse[[i]])
+
+  # counts_zscore_scaled <- t(
+  #   apply(counts_zscore, MARGIN = 1, FUN = function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1))
+  # )
+  counts_zscore_scaled <- as.matrix((counts_zscore - min(counts_zscore)) / (max(counts_zscore) - min(counts_zscore)))
+  # counts_zscore_scaled <- (2 * (counts_zscore - min(counts_zscore)) / (max(counts_zscore) - min(counts_zscore))) - 1
+  counts_zscore_scaled <- counts_zscore_scaled[counts_zscore[ , i] > 0, ]
+  counts_zscore_sub <- counts_zscore_scaled[rownames(counts_zscore_scaled) %in% names(genes), i]
+  # counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0.5]
+  genes <- genes[names(genes) %in% names(counts_zscore_sub)]
+  counts_zscore_sub <- counts_zscore_sub[match(names(genes), names(counts_zscore_sub))]
+
+  matches <- table(
+    factor(names(genes), levels = names(genes))[match(unlist(geneIds(gene_sets)), names(genes), nomatch = 0)]
+  )
+  matches <- (matches - max(matches)) / (min(matches) - max(matches))
+
+  comb <- genes * counts_zscore_sub * matches
+  comb <- comb[order(comb, decreasing = TRUE)]
+
+  counts_zscore_sub <- counts_zscore_sub[match(names(comb), names(counts_zscore_sub))]
+  genes <- genes[match(names(comb), names(genes))]
+
+  top_genes[[i]] <- c(
+    comb[1], counts_zscore_sub[1], genes[1], comb[2], counts_zscore_sub[2], genes[2],
+    comb[3], counts_zscore_sub[3], genes[3], comb[4], counts_zscore_sub[4], genes[4]
+  )
+  names(top_genes[[i]]) <- c(
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[1]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[4]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[7]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[10]), ]$external_gene_name, times = 3
+    )
+  )
+}
+names(top_genes) <- levels(markers$cluster)
+```
+
+```{r, fig.height = 3, fig.width = 6}
+panel_fun <- function(index, nm) {
+  pushViewport(viewport())
+  grid.rect(
+    x = 0, y = 0.9, width = top_genes[[nm]][3],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][2]))
+  )
+  grid.rect(
+    x = 0, y = 0.7, width = top_genes[[nm]][6],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][5]))
+  )
+  grid.rect(
+    x = 0, y = 0.5, width = top_genes[[nm]][9],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][8]))
+  )
+  grid.rect(
+    x = 0, y = 0.3, width = top_genes[[nm]][12],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][11]))
+  )
+  grid.text(y = 0.9, names(top_genes[[nm]])[1], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.7, names(top_genes[[nm]])[4], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.5, names(top_genes[[nm]])[7], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.3, names(top_genes[[nm]])[10], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.xaxis(gp = gpar(fontsize = 4), main = FALSE)
+  popViewport()
+}
+right_anno <- rowAnnotation(
+  foo = anno_link(
+    align_to = optimal_k, which = "row", panel_fun = panel_fun, link_width = unit(0, "mm"), gap = unit(1, "mm")
+  )
+)
+
+set.seed(1)
+draw(
+  Heatmap(
+    mat,
+    col = colour,
+    show_row_names = FALSE,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
+    row_split = optimal_k,
+    column_split = factor(groups, levels = unique(groups)),
+    column_title = "GABAergic",
+    left_annotation = row_anno,
+    right_annotation = right_anno,
+    rect_gp = gpar(col = "lightgray", lwd = 0.01),
+    border = TRUE,
+    row_gap = unit(1, "mm"),
+    column_gap = unit(1, "mm"),
+    column_names_side = "top",
+    row_title = top_words,
+    column_names_gp = gpar(fontsize = 9),
+    row_title_gp = gpar(fontsize = 9),
+    row_title_rot = 0,
+    column_names_rot = 45,
+    heatmap_legend_param = list(
+      title = "Z-Score", direction = "horizontal", title_position = "topcenter",
+      legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7), labels_gp = gpar(fontsize = 6),
+      grid_height = unit(0.3, "cm"), at = c(-3, -2, -1, 0, 1, 2, 3)
+    )
+  ),
+  heatmap_legend_side = "top"
+)
+```
+
+```{r, fig.height = 2, fig.width = 6}
+gene_ids <- geneIds(gene_sets)
+gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[1]]]
+gene_ids <- gene_ids[match(top_gse[[1]], names(gene_ids))]
+links_orig <- data.frame(
+  source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
+)
+map <- setNames(gene_anno$external_gene_name, gene_anno$ensembl_gene_id)
+links <- links_orig
+links_orig[] <- map[unlist(links_orig)]
+links$value <- links_orig$value
+colnames(links) <- c("source", "target")
+links <- links[links$target %in% unique(names(top_genes[[1]])), ]
+links$value <- rep(1, times = nrow(links))
+dup <- which(duplicated(links[ , 1:2]))
+if (length(dup) > 0) {
+  links <- links[-dup, ]
+}
+
+nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
+links$IDsource <- match(links$source, nodes$name) - 1
+links$IDtarget <- match(links$target, nodes$name) - 1
+
+sankeyNetwork(
+  Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
+  Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
+)
+
+gene_ids <- geneIds(gene_sets)
+gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[2]]]
+gene_ids <- gene_ids[match(top_gse[[2]], names(gene_ids))]
+links_orig <- data.frame(
+  source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
+)
+map <- setNames(gene_anno$external_gene_name, gene_anno$ensembl_gene_id)
+links <- links_orig
+links_orig[] <- map[unlist(links_orig)]
+links$value <- links_orig$value
+colnames(links) <- c("source", "target")
+links <- links[links$target %in% unique(names(top_genes[[2]])), ]
+links$value <- rep(1, times = nrow(links))
+dup <- which(duplicated(links[ , 1:2]))
+if (length(dup) > 0) {
+  links <- links[-dup, ]
+}
+
+nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
+links$IDsource <- match(links$source, nodes$name) - 1
+links$IDtarget <- match(links$target, nodes$name) - 1
+
+sankeyNetwork(
+  Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
+  Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
+)
+```
+
+## Endothelial
+
+```{r}
+keep <- grep("Endothelial", x = colnames(gse))
+gse_cpm <- log1p(cpm(gse[ , keep]))
+counts_cpm <- log1p(cpm(counts[ , keep]))
+
+keep <- rownames(gse_cpm[rowSums(gse_cpm > 0) >= 1, ])
+gse_zscore <- t(scale(t(gse_cpm[keep, ])))
+keep <- rownames(counts_cpm[rowSums(counts_cpm > 0) >= 1, ])
+counts_zscore <- t(scale(t(counts_cpm[keep, ])))
+
+markers <- data.frame(cluster = character(), gene = character())
+groups <- sub(".*\\s", "", colnames(gse_zscore))
+group_idx <- vector("list", length = length(groups))
+group_idx[[1]] <- 1
+group_idx[[2]] <- 2
+
+for (i in seq_along(unique(groups))) {
+  gene <- rownames(gse_zscore)[
+    gse_zscore[ , group_idx[[i]]] > 0
+  ]
+  avg_log2FC <- gse_zscore[gene, group_idx[[i]]]
+  add <- data.frame(
+    cluster = rep(sub(".*\\s", "", colnames(gse_zscore)[group_idx[[i]]])[1], times = length(gene)),
+    gene = gene, avg_log2FC = avg_log2FC
+  )
+  markers <- rbind(markers, add)
+}
+markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
+datatable_download_exp(markers)
+markers$number <- seq(markers$gene)
+
+modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
+module_names <- modules
+
+go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
+for (l in seq_along(module_names)) {
+  module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
+}
+for (l in seq_along(modules)) {
+  modules[[l]] <- markers$gene[modules[[l]]]
+}
+top_words_tmp <- data.frame(
+  gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
+)
+top_words_list <- vector("list", length = length(unique(top_words_tmp$module)))
+top_words <- c()
+
+dict_list <- top_words_list
+for (i in seq_along(top_words_list)) {
+  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
+  for (j in seq_along(top_words_list[[i]])) {
+    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
+  }
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  dict_list[[i]] <- unique(tmp)
+}
+dict <- table(unlist(dict_list))
+# dict <- names(dict[dict > round(length(dict_list) / 2)])
+# dict <- names(dict[dict > round(sqrt(length(dict_list)))])
+dict <- names(dict[dict == length(dict_list)])
+
+for (i in seq_along(top_words_list)) {
+  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
+  for (j in seq_along(top_words_list[[i]])) {
+    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j], dict = dict))
+  }
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  tmp <- table(tmp)
+  for (j in seq_along(tmp)) {
+    log2FC <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
+    tmp[j] <- sum(markers$avg_log2FC[which(markers$cluster == levels(markers$cluster)[i])[log2FC]])
+  }
+  tmp <- tmp[order(tmp, decreasing = TRUE)]
+  dup <- which(duplicated(tmp))
+  if (length(dup) > 0) {
+    tmp <- tmp[-dup]
+  }
+  tmp <- names(tmp)
+  if (length(tmp) >= 3) {
+    tmp <- tmp[1:3]
+    tmp <- paste(paste0(tmp, "\n"), collapse = "")
+    tmp <- substr(tmp, 1, nchar(tmp) - 1)
+  } else if (length(tmp > 0)) {
+    add <- 3 - length(tmp)
+    tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, dict = dict)), "\\s+"))
+    tmp2 <- tmp2[tmp2 %notin% tmp]
+    tmp <- c(tmp, tmp2[1:add])
+    if (any(is.na(tmp))) {
+      tmp <- tmp[-which(is.na(tmp))]
+    }
+    tmp <- paste(paste0(tmp, "\n"), collapse = "")
+    tmp <- substr(tmp, 1, nchar(tmp) - 1)
+  } else {
+    tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 3, dict = dict))
+  }
+  top_words <- c(top_words, tmp)
+}
+
+optimal_k <- unlist(lapply(seq_along(modules), function(i) {rep(names(modules)[i], length(modules[[i]]))}))
+optimal_k <- factor(optimal_k, levels = unique(optimal_k))
+module_colours <- cols25(length(unique(optimal_k)))
+
+row_anno <-  HeatmapAnnotation(
+  top_words = anno_block(
+    gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
+    labels_rot = 0, labels_gp = gpar(fontsize = 9)
+  ),
+  which = "row"
+)
+
+mat <- gse_zscore
+mat <- mat[rownames(mat) %in% markers$gene, ]
+mat <- mat[match(markers$gene, rownames(mat)), ]
+colnames(mat) <- levels(markers$cluster)
+
+top_gse <- vector("list", length = length(modules))
+for (j in seq_along(top_gse)) {
+  idx <- c()
+  for (i in seq_along(unlist(strsplit(top_words[j], split = "\n")))) {
+    idx <- c(
+      idx, grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
+    )
+  }
+  top_gse[[j]] <- modules[[j]][idx]
+}
+
+top_genes <- vector("list", length = length(modules))
+for (i in seq_along(top_genes)) {
+  genes <- c()
+  for (gse_names in top_gse[[i]]) {
+    genes <- c(genes, geneIds(gene_sets[names(gene_sets) %in% gse_names])[[1]])
+  }
+  genes <- table(genes) / length(top_gse[[i]])
+
+  # counts_zscore_scaled <- t(
+  #   apply(counts_zscore, MARGIN = 1, FUN = function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1))
+  # )
+  counts_zscore_scaled <- as.matrix((counts_zscore - min(counts_zscore)) / (max(counts_zscore) - min(counts_zscore)))
+  # counts_zscore_scaled <- (2 * (counts_zscore - min(counts_zscore)) / (max(counts_zscore) - min(counts_zscore))) - 1
+  counts_zscore_scaled <- counts_zscore_scaled[counts_zscore[ , i] > 0, ]
+  counts_zscore_sub <- counts_zscore_scaled[rownames(counts_zscore_scaled) %in% names(genes), i]
+  # counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0.5]
+  genes <- genes[names(genes) %in% names(counts_zscore_sub)]
+  counts_zscore_sub <- counts_zscore_sub[match(names(genes), names(counts_zscore_sub))]
+
+  matches <- table(
+    factor(names(genes), levels = names(genes))[match(unlist(geneIds(gene_sets)), names(genes), nomatch = 0)]
+  )
+  matches <- (matches - max(matches)) / (min(matches) - max(matches))
+
+  comb <- genes * counts_zscore_sub * matches
+  comb <- comb[order(comb, decreasing = TRUE)]
+
+  counts_zscore_sub <- counts_zscore_sub[match(names(comb), names(counts_zscore_sub))]
+  genes <- genes[match(names(comb), names(genes))]
+
+  top_genes[[i]] <- c(
+    comb[1], counts_zscore_sub[1], genes[1], comb[2], counts_zscore_sub[2], genes[2],
+    comb[3], counts_zscore_sub[3], genes[3], comb[4], counts_zscore_sub[4], genes[4]
+  )
+  names(top_genes[[i]]) <- c(
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[1]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[4]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[7]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[10]), ]$external_gene_name, times = 3
+    )
+  )
+}
+names(top_genes) <- levels(markers$cluster)
+```
+
+```{r, fig.height = 3, fig.width = 6}
+panel_fun <- function(index, nm) {
+  pushViewport(viewport())
+  grid.rect(
+    x = 0, y = 0.9, width = top_genes[[nm]][3],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][2]))
+  )
+  grid.rect(
+    x = 0, y = 0.7, width = top_genes[[nm]][6],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][5]))
+  )
+  grid.rect(
+    x = 0, y = 0.5, width = top_genes[[nm]][9],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][8]))
+  )
+  grid.rect(
+    x = 0, y = 0.3, width = top_genes[[nm]][12],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][11]))
+  )
+  grid.text(y = 0.9, names(top_genes[[nm]])[1], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.7, names(top_genes[[nm]])[4], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.5, names(top_genes[[nm]])[7], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.3, names(top_genes[[nm]])[10], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.xaxis(gp = gpar(fontsize = 4), main = FALSE)
+  popViewport()
+}
+right_anno <- rowAnnotation(
+  foo = anno_link(
+    align_to = optimal_k, which = "row", panel_fun = panel_fun, link_width = unit(0, "mm"), gap = unit(1, "mm")
+  )
+)
+
+set.seed(1)
+draw(
+  Heatmap(
+    mat,
+    col = colour,
+    show_row_names = FALSE,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
+    row_split = optimal_k,
+    column_split = factor(groups, levels = unique(groups)),
+    column_title = "Endothelial",
+    left_annotation = row_anno,
+    right_annotation = right_anno,
+    rect_gp = gpar(col = "lightgray", lwd = 0.01),
+    border = TRUE,
+    row_gap = unit(1, "mm"),
+    column_gap = unit(1, "mm"),
+    column_names_side = "top",
+    row_title = top_words,
+    column_names_gp = gpar(fontsize = 9),
+    row_title_gp = gpar(fontsize = 9),
+    row_title_rot = 0,
+    column_names_rot = 45,
+    heatmap_legend_param = list(
+      title = "Z-Score", direction = "horizontal", title_position = "topcenter",
+      legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7), labels_gp = gpar(fontsize = 6),
+      grid_height = unit(0.3, "cm"), at = c(-3, -2, -1, 0, 1, 2, 3)
+    )
+  ),
+  heatmap_legend_side = "top"
+)
+```
+
+```{r, fig.height = 2, fig.width = 6}
+gene_ids <- geneIds(gene_sets)
+gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[1]]]
+gene_ids <- gene_ids[match(top_gse[[1]], names(gene_ids))]
+links_orig <- data.frame(
+  source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
+)
+map <- setNames(gene_anno$external_gene_name, gene_anno$ensembl_gene_id)
+links <- links_orig
+links_orig[] <- map[unlist(links_orig)]
+links$value <- links_orig$value
+colnames(links) <- c("source", "target")
+links <- links[links$target %in% unique(names(top_genes[[1]])), ]
+links$value <- rep(1, times = nrow(links))
+dup <- which(duplicated(links[ , 1:2]))
+if (length(dup) > 0) {
+  links <- links[-dup, ]
+}
+
+nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
+links$IDsource <- match(links$source, nodes$name) - 1
+links$IDtarget <- match(links$target, nodes$name) - 1
+
+sankeyNetwork(
+  Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
+  Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
+)
+
+gene_ids <- geneIds(gene_sets)
+gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[2]]]
+gene_ids <- gene_ids[match(top_gse[[2]], names(gene_ids))]
+links_orig <- data.frame(
+  source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
+)
+map <- setNames(gene_anno$external_gene_name, gene_anno$ensembl_gene_id)
+links <- links_orig
+links_orig[] <- map[unlist(links_orig)]
+links$value <- links_orig$value
+colnames(links) <- c("source", "target")
+links <- links[links$target %in% unique(names(top_genes[[2]])), ]
+links$value <- rep(1, times = nrow(links))
+dup <- which(duplicated(links[ , 1:2]))
+if (length(dup) > 0) {
+  links <- links[-dup, ]
+}
+
+nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
+links$IDsource <- match(links$source, nodes$name) - 1
+links$IDtarget <- match(links$target, nodes$name) - 1
+
+sankeyNetwork(
+  Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
+  Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
+)
+```
+
+## Astrocyte
+
+```{r}
+keep <- grep("Astrocyte", x = colnames(gse))
+gse_cpm <- log1p(cpm(gse[ , keep]))
+counts_cpm <- log1p(cpm(counts[ , keep]))
+
+keep <- rownames(gse_cpm[rowSums(gse_cpm > 0) >= 1, ])
+gse_zscore <- t(scale(t(gse_cpm[keep, ])))
+keep <- rownames(counts_cpm[rowSums(counts_cpm > 0) >= 1, ])
+counts_zscore <- t(scale(t(counts_cpm[keep, ])))
+
+markers <- data.frame(cluster = character(), gene = character())
+groups <- sub(".*\\s", "", colnames(gse_zscore))
+group_idx <- vector("list", length = length(groups))
+group_idx[[1]] <- 1
+group_idx[[2]] <- 2
+
+for (i in seq_along(unique(groups))) {
+  gene <- rownames(gse_zscore)[
+    gse_zscore[ , group_idx[[i]]] > 0
+  ]
+  avg_log2FC <- gse_zscore[gene, group_idx[[i]]]
+  add <- data.frame(
+    cluster = rep(sub(".*\\s", "", colnames(gse_zscore)[group_idx[[i]]])[1], times = length(gene)),
+    gene = gene, avg_log2FC = avg_log2FC
+  )
+  markers <- rbind(markers, add)
+}
+markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
+datatable_download_exp(markers)
+markers$number <- seq(markers$gene)
+
+modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
+module_names <- modules
+
+go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
+for (l in seq_along(module_names)) {
+  module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
+}
+for (l in seq_along(modules)) {
+  modules[[l]] <- markers$gene[modules[[l]]]
+}
+top_words_tmp <- data.frame(
+  gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
+)
+top_words_list <- vector("list", length = length(unique(top_words_tmp$module)))
+top_words <- c()
+
+dict_list <- top_words_list
+for (i in seq_along(top_words_list)) {
+  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
+  for (j in seq_along(top_words_list[[i]])) {
+    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
+  }
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  dict_list[[i]] <- unique(tmp)
+}
+dict <- table(unlist(dict_list))
+# dict <- names(dict[dict > round(length(dict_list) / 2)])
+# dict <- names(dict[dict > round(sqrt(length(dict_list)))])
+dict <- names(dict[dict == length(dict_list)])
+
+for (i in seq_along(top_words_list)) {
+  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
+  for (j in seq_along(top_words_list[[i]])) {
+    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j], dict = dict))
+  }
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  tmp <- table(tmp)
+  for (j in seq_along(tmp)) {
+    log2FC <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
+    tmp[j] <- sum(markers$avg_log2FC[which(markers$cluster == levels(markers$cluster)[i])[log2FC]])
+  }
+  tmp <- tmp[order(tmp, decreasing = TRUE)]
+  dup <- which(duplicated(tmp))
+  if (length(dup) > 0) {
+    tmp <- tmp[-dup]
+  }
+  tmp <- names(tmp)
+  if (length(tmp) >= 3) {
+    tmp <- tmp[1:3]
+    tmp <- paste(paste0(tmp, "\n"), collapse = "")
+    tmp <- substr(tmp, 1, nchar(tmp) - 1)
+  } else if (length(tmp > 0)) {
+    add <- 3 - length(tmp)
+    tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, dict = dict)), "\\s+"))
+    tmp2 <- tmp2[tmp2 %notin% tmp]
+    tmp <- c(tmp, tmp2[1:add])
+    if (any(is.na(tmp))) {
+      tmp <- tmp[-which(is.na(tmp))]
+    }
+    tmp <- paste(paste0(tmp, "\n"), collapse = "")
+    tmp <- substr(tmp, 1, nchar(tmp) - 1)
+  } else {
+    tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 3, dict = dict))
+  }
+  top_words <- c(top_words, tmp)
+}
+
+optimal_k <- unlist(lapply(seq_along(modules), function(i) {rep(names(modules)[i], length(modules[[i]]))}))
+optimal_k <- factor(optimal_k, levels = unique(optimal_k))
+module_colours <- cols25(length(unique(optimal_k)))
+
+row_anno <-  HeatmapAnnotation(
+  top_words = anno_block(
+    gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
+    labels_rot = 0, labels_gp = gpar(fontsize = 9)
+  ),
+  which = "row"
+)
+
+mat <- gse_zscore
+mat <- mat[rownames(mat) %in% markers$gene, ]
+mat <- mat[match(markers$gene, rownames(mat)), ]
+colnames(mat) <- levels(markers$cluster)
+
+top_gse <- vector("list", length = length(modules))
+for (j in seq_along(top_gse)) {
+  idx <- c()
+  for (i in seq_along(unlist(strsplit(top_words[j], split = "\n")))) {
+    idx <- c(
+      idx, grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
+    )
+  }
+  top_gse[[j]] <- modules[[j]][idx]
+}
+
+top_genes <- vector("list", length = length(modules))
+for (i in seq_along(top_genes)) {
+  genes <- c()
+  for (gse_names in top_gse[[i]]) {
+    genes <- c(genes, geneIds(gene_sets[names(gene_sets) %in% gse_names])[[1]])
+  }
+  genes <- table(genes) / length(top_gse[[i]])
+
+  # counts_zscore_scaled <- t(
+  #   apply(counts_zscore, MARGIN = 1, FUN = function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1))
+  # )
+  counts_zscore_scaled <- as.matrix((counts_zscore - min(counts_zscore)) / (max(counts_zscore) - min(counts_zscore)))
+  # counts_zscore_scaled <- (2 * (counts_zscore - min(counts_zscore)) / (max(counts_zscore) - min(counts_zscore))) - 1
+  counts_zscore_scaled <- counts_zscore_scaled[counts_zscore[ , i] > 0, ]
+  counts_zscore_sub <- counts_zscore_scaled[rownames(counts_zscore_scaled) %in% names(genes), i]
+  # counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0.5]
+  genes <- genes[names(genes) %in% names(counts_zscore_sub)]
+  counts_zscore_sub <- counts_zscore_sub[match(names(genes), names(counts_zscore_sub))]
+
+  matches <- table(
+    factor(names(genes), levels = names(genes))[match(unlist(geneIds(gene_sets)), names(genes), nomatch = 0)]
+  )
+  matches <- (matches - max(matches)) / (min(matches) - max(matches))
+
+  comb <- genes * counts_zscore_sub * matches
+  comb <- comb[order(comb, decreasing = TRUE)]
+
+  counts_zscore_sub <- counts_zscore_sub[match(names(comb), names(counts_zscore_sub))]
+  genes <- genes[match(names(comb), names(genes))]
+
+  top_genes[[i]] <- c(
+    comb[1], counts_zscore_sub[1], genes[1], comb[2], counts_zscore_sub[2], genes[2],
+    comb[3], counts_zscore_sub[3], genes[3], comb[4], counts_zscore_sub[4], genes[4]
+  )
+  names(top_genes[[i]]) <- c(
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[1]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[4]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[7]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[10]), ]$external_gene_name, times = 3
+    )
+  )
+}
+names(top_genes) <- levels(markers$cluster)
+```
+
+```{r, fig.height = 3, fig.width = 6}
+panel_fun <- function(index, nm) {
+  pushViewport(viewport())
+  grid.rect(
+    x = 0, y = 0.9, width = top_genes[[nm]][3],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][2]))
+  )
+  grid.rect(
+    x = 0, y = 0.7, width = top_genes[[nm]][6],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][5]))
+  )
+  grid.rect(
+    x = 0, y = 0.5, width = top_genes[[nm]][9],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][8]))
+  )
+  grid.rect(
+    x = 0, y = 0.3, width = top_genes[[nm]][12],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][11]))
+  )
+  grid.text(y = 0.9, names(top_genes[[nm]])[1], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.7, names(top_genes[[nm]])[4], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.5, names(top_genes[[nm]])[7], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.3, names(top_genes[[nm]])[10], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.xaxis(gp = gpar(fontsize = 4), main = FALSE)
+  popViewport()
+}
+right_anno <- rowAnnotation(
+  foo = anno_link(
+    align_to = optimal_k, which = "row", panel_fun = panel_fun, link_width = unit(0, "mm"), gap = unit(1, "mm")
+  )
+)
+
+set.seed(1)
+draw(
+  Heatmap(
+    mat,
+    col = colour,
+    show_row_names = FALSE,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
+    row_split = optimal_k,
+    column_split = factor(groups, levels = unique(groups)),
+    column_title = "Astrocyte",
+    left_annotation = row_anno,
+    right_annotation = right_anno,
+    rect_gp = gpar(col = "lightgray", lwd = 0.01),
+    border = TRUE,
+    row_gap = unit(1, "mm"),
+    column_gap = unit(1, "mm"),
+    column_names_side = "top",
+    row_title = top_words,
+    column_names_gp = gpar(fontsize = 9),
+    row_title_gp = gpar(fontsize = 9),
+    row_title_rot = 0,
+    column_names_rot = 45,
+    heatmap_legend_param = list(
+      title = "Z-Score", direction = "horizontal", title_position = "topcenter",
+      legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7), labels_gp = gpar(fontsize = 6),
+      grid_height = unit(0.3, "cm"), at = c(-3, -2, -1, 0, 1, 2, 3)
+    )
+  ),
+  heatmap_legend_side = "top"
+)
+```
+
+```{r, fig.height = 2, fig.width = 6}
+gene_ids <- geneIds(gene_sets)
+gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[1]]]
+gene_ids <- gene_ids[match(top_gse[[1]], names(gene_ids))]
+links_orig <- data.frame(
+  source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
+)
+map <- setNames(gene_anno$external_gene_name, gene_anno$ensembl_gene_id)
+links <- links_orig
+links_orig[] <- map[unlist(links_orig)]
+links$value <- links_orig$value
+colnames(links) <- c("source", "target")
+links <- links[links$target %in% unique(names(top_genes[[1]])), ]
+links$value <- rep(1, times = nrow(links))
+dup <- which(duplicated(links[ , 1:2]))
+if (length(dup) > 0) {
+  links <- links[-dup, ]
+}
+
+nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
+links$IDsource <- match(links$source, nodes$name) - 1
+links$IDtarget <- match(links$target, nodes$name) - 1
+
+sankeyNetwork(
+  Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
+  Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
+)
+
+gene_ids <- geneIds(gene_sets)
+gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[2]]]
+gene_ids <- gene_ids[match(top_gse[[2]], names(gene_ids))]
+links_orig <- data.frame(
+  source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
+)
+map <- setNames(gene_anno$external_gene_name, gene_anno$ensembl_gene_id)
+links <- links_orig
+links_orig[] <- map[unlist(links_orig)]
+links$value <- links_orig$value
+colnames(links) <- c("source", "target")
+links <- links[links$target %in% unique(names(top_genes[[2]])), ]
+links$value <- rep(1, times = nrow(links))
+dup <- which(duplicated(links[ , 1:2]))
+if (length(dup) > 0) {
+  links <- links[-dup, ]
+}
+
+nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
+links$IDsource <- match(links$source, nodes$name) - 1
+links$IDtarget <- match(links$target, nodes$name) - 1
+
+sankeyNetwork(
+  Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
+  Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
+)
+```
+
+## OPC
+
+```{r}
+keep <- grep("OPC", x = colnames(gse))
+gse_cpm <- log1p(cpm(gse[ , keep]))
+counts_cpm <- log1p(cpm(counts[ , keep]))
+
+keep <- rownames(gse_cpm[rowSums(gse_cpm > 0) >= 1, ])
+gse_zscore <- t(scale(t(gse_cpm[keep, ])))
+keep <- rownames(counts_cpm[rowSums(counts_cpm > 0) >= 1, ])
+counts_zscore <- t(scale(t(counts_cpm[keep, ])))
+
+markers <- data.frame(cluster = character(), gene = character())
+groups <- sub(".*\\s", "", colnames(gse_zscore))
+group_idx <- vector("list", length = length(groups))
+group_idx[[1]] <- 1
+group_idx[[2]] <- 2
+
+for (i in seq_along(unique(groups))) {
+  gene <- rownames(gse_zscore)[
+    gse_zscore[ , group_idx[[i]]] > 0
+  ]
+  avg_log2FC <- gse_zscore[gene, group_idx[[i]]]
+  add <- data.frame(
+    cluster = rep(sub(".*\\s", "", colnames(gse_zscore)[group_idx[[i]]])[1], times = length(gene)),
+    gene = gene, avg_log2FC = avg_log2FC
+  )
+  markers <- rbind(markers, add)
+}
+markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
+datatable_download_exp(markers)
+markers$number <- seq(markers$gene)
+
+modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
+module_names <- modules
+
+go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
+for (l in seq_along(module_names)) {
+  module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
+}
+for (l in seq_along(modules)) {
+  modules[[l]] <- markers$gene[modules[[l]]]
+}
+top_words_tmp <- data.frame(
+  gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
+)
+top_words_list <- vector("list", length = length(unique(top_words_tmp$module)))
+top_words <- c()
+
+dict_list <- top_words_list
+for (i in seq_along(top_words_list)) {
+  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
+  for (j in seq_along(top_words_list[[i]])) {
+    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
+  }
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  dict_list[[i]] <- unique(tmp)
+}
+dict <- table(unlist(dict_list))
+# dict <- names(dict[dict > round(length(dict_list) / 2)])
+# dict <- names(dict[dict > round(sqrt(length(dict_list)))])
+dict <- names(dict[dict == length(dict_list)])
+
+for (i in seq_along(top_words_list)) {
+  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
+  for (j in seq_along(top_words_list[[i]])) {
+    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j], dict = dict))
+  }
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  tmp <- table(tmp)
+  for (j in seq_along(tmp)) {
+    log2FC <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
+    tmp[j] <- sum(markers$avg_log2FC[which(markers$cluster == levels(markers$cluster)[i])[log2FC]])
+  }
+  tmp <- tmp[order(tmp, decreasing = TRUE)]
+  dup <- which(duplicated(tmp))
+  if (length(dup) > 0) {
+    tmp <- tmp[-dup]
+  }
+  tmp <- names(tmp)
+  if (length(tmp) >= 3) {
+    tmp <- tmp[1:3]
+    tmp <- paste(paste0(tmp, "\n"), collapse = "")
+    tmp <- substr(tmp, 1, nchar(tmp) - 1)
+  } else if (length(tmp > 0)) {
+    add <- 3 - length(tmp)
+    tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, dict = dict)), "\\s+"))
+    tmp2 <- tmp2[tmp2 %notin% tmp]
+    tmp <- c(tmp, tmp2[1:add])
+    if (any(is.na(tmp))) {
+      tmp <- tmp[-which(is.na(tmp))]
+    }
+    tmp <- paste(paste0(tmp, "\n"), collapse = "")
+    tmp <- substr(tmp, 1, nchar(tmp) - 1)
+  } else {
+    tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 3, dict = dict))
+  }
+  top_words <- c(top_words, tmp)
+}
+
+optimal_k <- unlist(lapply(seq_along(modules), function(i) {rep(names(modules)[i], length(modules[[i]]))}))
+optimal_k <- factor(optimal_k, levels = unique(optimal_k))
+module_colours <- cols25(length(unique(optimal_k)))
+
+row_anno <-  HeatmapAnnotation(
+  top_words = anno_block(
+    gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
+    labels_rot = 0, labels_gp = gpar(fontsize = 9)
+  ),
+  which = "row"
+)
+
+mat <- gse_zscore
+mat <- mat[rownames(mat) %in% markers$gene, ]
+mat <- mat[match(markers$gene, rownames(mat)), ]
+colnames(mat) <- levels(markers$cluster)
+
+top_gse <- vector("list", length = length(modules))
+for (j in seq_along(top_gse)) {
+  idx <- c()
+  for (i in seq_along(unlist(strsplit(top_words[j], split = "\n")))) {
+    idx <- c(
+      idx, grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
+    )
+  }
+  top_gse[[j]] <- modules[[j]][idx]
+}
+
+top_genes <- vector("list", length = length(modules))
+for (i in seq_along(top_genes)) {
+  genes <- c()
+  for (gse_names in top_gse[[i]]) {
+    genes <- c(genes, geneIds(gene_sets[names(gene_sets) %in% gse_names])[[1]])
+  }
+  genes <- table(genes) / length(top_gse[[i]])
+
+  # counts_zscore_scaled <- t(
+  #   apply(counts_zscore, MARGIN = 1, FUN = function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1))
+  # )
+  counts_zscore_scaled <- as.matrix((counts_zscore - min(counts_zscore)) / (max(counts_zscore) - min(counts_zscore)))
+  # counts_zscore_scaled <- (2 * (counts_zscore - min(counts_zscore)) / (max(counts_zscore) - min(counts_zscore))) - 1
+  counts_zscore_scaled <- counts_zscore_scaled[counts_zscore[ , i] > 0, ]
+  counts_zscore_sub <- counts_zscore_scaled[rownames(counts_zscore_scaled) %in% names(genes), i]
+  # counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0.5]
+  genes <- genes[names(genes) %in% names(counts_zscore_sub)]
+  counts_zscore_sub <- counts_zscore_sub[match(names(genes), names(counts_zscore_sub))]
+
+  matches <- table(
+    factor(names(genes), levels = names(genes))[match(unlist(geneIds(gene_sets)), names(genes), nomatch = 0)]
+  )
+  matches <- (matches - max(matches)) / (min(matches) - max(matches))
+
+  comb <- genes * counts_zscore_sub * matches
+  comb <- comb[order(comb, decreasing = TRUE)]
+
+  counts_zscore_sub <- counts_zscore_sub[match(names(comb), names(counts_zscore_sub))]
+  genes <- genes[match(names(comb), names(genes))]
+
+  top_genes[[i]] <- c(
+    comb[1], counts_zscore_sub[1], genes[1], comb[2], counts_zscore_sub[2], genes[2],
+    comb[3], counts_zscore_sub[3], genes[3], comb[4], counts_zscore_sub[4], genes[4]
+  )
+  names(top_genes[[i]]) <- c(
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[1]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[4]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[7]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[10]), ]$external_gene_name, times = 3
+    )
+  )
+}
+names(top_genes) <- levels(markers$cluster)
+```
+
+```{r, fig.height = 3, fig.width = 6}
+panel_fun <- function(index, nm) {
+  pushViewport(viewport())
+  grid.rect(
+    x = 0, y = 0.9, width = top_genes[[nm]][3],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][2]))
+  )
+  grid.rect(
+    x = 0, y = 0.7, width = top_genes[[nm]][6],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][5]))
+  )
+  grid.rect(
+    x = 0, y = 0.5, width = top_genes[[nm]][9],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][8]))
+  )
+  grid.rect(
+    x = 0, y = 0.3, width = top_genes[[nm]][12],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][11]))
+  )
+  grid.text(y = 0.9, names(top_genes[[nm]])[1], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.7, names(top_genes[[nm]])[4], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.5, names(top_genes[[nm]])[7], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.3, names(top_genes[[nm]])[10], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.xaxis(gp = gpar(fontsize = 4), main = FALSE)
+  popViewport()
+}
+right_anno <- rowAnnotation(
+  foo = anno_link(
+    align_to = optimal_k, which = "row", panel_fun = panel_fun, link_width = unit(0, "mm"), gap = unit(1, "mm")
+  )
+)
+
+set.seed(1)
+draw(
+  Heatmap(
+    mat,
+    col = colour,
+    show_row_names = FALSE,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
+    row_split = optimal_k,
+    column_split = factor(groups, levels = unique(groups)),
+    column_title = "OPC",
+    left_annotation = row_anno,
+    right_annotation = right_anno,
+    rect_gp = gpar(col = "lightgray", lwd = 0.01),
+    border = TRUE,
+    row_gap = unit(1, "mm"),
+    column_gap = unit(1, "mm"),
+    column_names_side = "top",
+    row_title = top_words,
+    column_names_gp = gpar(fontsize = 9),
+    row_title_gp = gpar(fontsize = 9),
+    row_title_rot = 0,
+    column_names_rot = 45,
+    heatmap_legend_param = list(
+      title = "Z-Score", direction = "horizontal", title_position = "topcenter",
+      legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7), labels_gp = gpar(fontsize = 6),
+      grid_height = unit(0.3, "cm"), at = c(-3, -2, -1, 0, 1, 2, 3)
+    )
+  ),
+  heatmap_legend_side = "top"
+)
+```
+
+```{r, fig.height = 2, fig.width = 6}
+gene_ids <- geneIds(gene_sets)
+gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[1]]]
+gene_ids <- gene_ids[match(top_gse[[1]], names(gene_ids))]
+links_orig <- data.frame(
+  source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
+)
+map <- setNames(gene_anno$external_gene_name, gene_anno$ensembl_gene_id)
+links <- links_orig
+links_orig[] <- map[unlist(links_orig)]
+links$value <- links_orig$value
+colnames(links) <- c("source", "target")
+links <- links[links$target %in% unique(names(top_genes[[1]])), ]
+links$value <- rep(1, times = nrow(links))
+dup <- which(duplicated(links[ , 1:2]))
+if (length(dup) > 0) {
+  links <- links[-dup, ]
+}
+
+nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
+links$IDsource <- match(links$source, nodes$name) - 1
+links$IDtarget <- match(links$target, nodes$name) - 1
+
+sankeyNetwork(
+  Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
+  Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
+)
+
+gene_ids <- geneIds(gene_sets)
+gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[2]]]
+gene_ids <- gene_ids[match(top_gse[[2]], names(gene_ids))]
+links_orig <- data.frame(
+  source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
+)
+map <- setNames(gene_anno$external_gene_name, gene_anno$ensembl_gene_id)
+links <- links_orig
+links_orig[] <- map[unlist(links_orig)]
+links$value <- links_orig$value
+colnames(links) <- c("source", "target")
+links <- links[links$target %in% unique(names(top_genes[[2]])), ]
+links$value <- rep(1, times = nrow(links))
+dup <- which(duplicated(links[ , 1:2]))
+if (length(dup) > 0) {
+  links <- links[-dup, ]
+}
+
+nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
+links$IDsource <- match(links$source, nodes$name) - 1
+links$IDtarget <- match(links$target, nodes$name) - 1
+
+sankeyNetwork(
+  Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
+  Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
+)
+```
+
+## Oligodendrocyte
+
+```{r}
+keep <- grep("Oligodendrocyte", x = colnames(gse))
+gse_cpm <- log1p(cpm(gse[ , keep]))
+counts_cpm <- log1p(cpm(counts[ , keep]))
+
+keep <- rownames(gse_cpm[rowSums(gse_cpm > 0) >= 1, ])
+gse_zscore <- t(scale(t(gse_cpm[keep, ])))
+keep <- rownames(counts_cpm[rowSums(counts_cpm > 0) >= 1, ])
+counts_zscore <- t(scale(t(counts_cpm[keep, ])))
+
+markers <- data.frame(cluster = character(), gene = character())
+groups <- sub(".*\\s", "", colnames(gse_zscore))
+group_idx <- vector("list", length = length(groups))
+group_idx[[1]] <- 1
+group_idx[[2]] <- 2
+
+for (i in seq_along(unique(groups))) {
+  gene <- rownames(gse_zscore)[
+    gse_zscore[ , group_idx[[i]]] > 0
+  ]
+  avg_log2FC <- gse_zscore[gene, group_idx[[i]]]
+  add <- data.frame(
+    cluster = rep(sub(".*\\s", "", colnames(gse_zscore)[group_idx[[i]]])[1], times = length(gene)),
+    gene = gene, avg_log2FC = avg_log2FC
+  )
+  markers <- rbind(markers, add)
+}
+markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
+datatable_download_exp(markers)
+markers$number <- seq(markers$gene)
+
+modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
+module_names <- modules
+
+go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
+for (l in seq_along(module_names)) {
+  module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
+}
+for (l in seq_along(modules)) {
+  modules[[l]] <- markers$gene[modules[[l]]]
+}
+top_words_tmp <- data.frame(
+  gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
+)
+top_words_list <- vector("list", length = length(unique(top_words_tmp$module)))
+top_words <- c()
+
+dict_list <- top_words_list
+for (i in seq_along(top_words_list)) {
+  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
+  for (j in seq_along(top_words_list[[i]])) {
+    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
+  }
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  dict_list[[i]] <- unique(tmp)
+}
+dict <- table(unlist(dict_list))
+# dict <- names(dict[dict > round(length(dict_list) / 2)])
+# dict <- names(dict[dict > round(sqrt(length(dict_list)))])
+dict <- names(dict[dict == length(dict_list)])
+
+for (i in seq_along(top_words_list)) {
+  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
+  for (j in seq_along(top_words_list[[i]])) {
+    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j], dict = dict))
+  }
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  tmp <- table(tmp)
+  for (j in seq_along(tmp)) {
+    log2FC <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
+    tmp[j] <- sum(markers$avg_log2FC[which(markers$cluster == levels(markers$cluster)[i])[log2FC]])
+  }
+  tmp <- tmp[order(tmp, decreasing = TRUE)]
+  dup <- which(duplicated(tmp))
+  if (length(dup) > 0) {
+    tmp <- tmp[-dup]
+  }
+  tmp <- names(tmp)
+  if (length(tmp) >= 3) {
+    tmp <- tmp[1:3]
+    tmp <- paste(paste0(tmp, "\n"), collapse = "")
+    tmp <- substr(tmp, 1, nchar(tmp) - 1)
+  } else if (length(tmp > 0)) {
+    add <- 3 - length(tmp)
+    tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, dict = dict)), "\\s+"))
+    tmp2 <- tmp2[tmp2 %notin% tmp]
+    tmp <- c(tmp, tmp2[1:add])
+    if (any(is.na(tmp))) {
+      tmp <- tmp[-which(is.na(tmp))]
+    }
+    tmp <- paste(paste0(tmp, "\n"), collapse = "")
+    tmp <- substr(tmp, 1, nchar(tmp) - 1)
+  } else {
+    tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 3, dict = dict))
+  }
+  top_words <- c(top_words, tmp)
+}
+
+optimal_k <- unlist(lapply(seq_along(modules), function(i) {rep(names(modules)[i], length(modules[[i]]))}))
+optimal_k <- factor(optimal_k, levels = unique(optimal_k))
+module_colours <- cols25(length(unique(optimal_k)))
+
+row_anno <-  HeatmapAnnotation(
+  top_words = anno_block(
+    gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
+    labels_rot = 0, labels_gp = gpar(fontsize = 9)
+  ),
+  which = "row"
+)
+
+mat <- gse_zscore
+mat <- mat[rownames(mat) %in% markers$gene, ]
+mat <- mat[match(markers$gene, rownames(mat)), ]
+colnames(mat) <- levels(markers$cluster)
+
+top_gse <- vector("list", length = length(modules))
+for (j in seq_along(top_gse)) {
+  idx <- c()
+  for (i in seq_along(unlist(strsplit(top_words[j], split = "\n")))) {
+    idx <- c(
+      idx, grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
+    )
+  }
+  top_gse[[j]] <- modules[[j]][idx]
+}
+
+top_genes <- vector("list", length = length(modules))
+for (i in seq_along(top_genes)) {
+  genes <- c()
+  for (gse_names in top_gse[[i]]) {
+    genes <- c(genes, geneIds(gene_sets[names(gene_sets) %in% gse_names])[[1]])
+  }
+  genes <- table(genes) / length(top_gse[[i]])
+
+  # counts_zscore_scaled <- t(
+  #   apply(counts_zscore, MARGIN = 1, FUN = function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1))
+  # )
+  counts_zscore_scaled <- as.matrix((counts_zscore - min(counts_zscore)) / (max(counts_zscore) - min(counts_zscore)))
+  # counts_zscore_scaled <- (2 * (counts_zscore - min(counts_zscore)) / (max(counts_zscore) - min(counts_zscore))) - 1
+  counts_zscore_scaled <- counts_zscore_scaled[counts_zscore[ , i] > 0, ]
+  counts_zscore_sub <- counts_zscore_scaled[rownames(counts_zscore_scaled) %in% names(genes), i]
+  # counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0.5]
+  genes <- genes[names(genes) %in% names(counts_zscore_sub)]
+  counts_zscore_sub <- counts_zscore_sub[match(names(genes), names(counts_zscore_sub))]
+
+  matches <- table(
+    factor(names(genes), levels = names(genes))[match(unlist(geneIds(gene_sets)), names(genes), nomatch = 0)]
+  )
+  matches <- (matches - max(matches)) / (min(matches) - max(matches))
+
+  comb <- genes * counts_zscore_sub * matches
+  comb <- comb[order(comb, decreasing = TRUE)]
+
+  counts_zscore_sub <- counts_zscore_sub[match(names(comb), names(counts_zscore_sub))]
+  genes <- genes[match(names(comb), names(genes))]
+
+  top_genes[[i]] <- c(
+    comb[1], counts_zscore_sub[1], genes[1], comb[2], counts_zscore_sub[2], genes[2],
+    comb[3], counts_zscore_sub[3], genes[3], comb[4], counts_zscore_sub[4], genes[4]
+  )
+  names(top_genes[[i]]) <- c(
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[1]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[4]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[7]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[10]), ]$external_gene_name, times = 3
+    )
+  )
+}
+names(top_genes) <- levels(markers$cluster)
+```
+
+```{r, fig.height = 3, fig.width = 6}
+panel_fun <- function(index, nm) {
+  pushViewport(viewport())
+  grid.rect(
+    x = 0, y = 0.9, width = top_genes[[nm]][3],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][2]))
+  )
+  grid.rect(
+    x = 0, y = 0.7, width = top_genes[[nm]][6],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][5]))
+  )
+  grid.rect(
+    x = 0, y = 0.5, width = top_genes[[nm]][9],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][8]))
+  )
+  grid.rect(
+    x = 0, y = 0.3, width = top_genes[[nm]][12],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][11]))
+  )
+  grid.text(y = 0.9, names(top_genes[[nm]])[1], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.7, names(top_genes[[nm]])[4], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.5, names(top_genes[[nm]])[7], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.3, names(top_genes[[nm]])[10], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.xaxis(gp = gpar(fontsize = 4), main = FALSE)
+  popViewport()
+}
+right_anno <- rowAnnotation(
+  foo = anno_link(
+    align_to = optimal_k, which = "row", panel_fun = panel_fun, link_width = unit(0, "mm"), gap = unit(1, "mm")
+  )
+)
+
+set.seed(1)
+draw(
+  Heatmap(
+    mat,
+    col = colour,
+    show_row_names = FALSE,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
+    row_split = optimal_k,
+    column_split = factor(groups, levels = unique(groups)),
+    column_title = "Oligodendrocyte",
+    left_annotation = row_anno,
+    right_annotation = right_anno,
+    rect_gp = gpar(col = "lightgray", lwd = 0.01),
+    border = TRUE,
+    row_gap = unit(1, "mm"),
+    column_gap = unit(1, "mm"),
+    column_names_side = "top",
+    row_title = top_words,
+    column_names_gp = gpar(fontsize = 9),
+    row_title_gp = gpar(fontsize = 9),
+    row_title_rot = 0,
+    column_names_rot = 45,
+    heatmap_legend_param = list(
+      title = "Z-Score", direction = "horizontal", title_position = "topcenter",
+      legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7), labels_gp = gpar(fontsize = 6),
+      grid_height = unit(0.3, "cm"), at = c(-3, -2, -1, 0, 1, 2, 3)
+    )
+  ),
+  heatmap_legend_side = "top"
+)
+```
+
+```{r, fig.height = 2, fig.width = 6}
+gene_ids <- geneIds(gene_sets)
+gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[1]]]
+gene_ids <- gene_ids[match(top_gse[[1]], names(gene_ids))]
+links_orig <- data.frame(
+  source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
+)
+map <- setNames(gene_anno$external_gene_name, gene_anno$ensembl_gene_id)
+links <- links_orig
+links_orig[] <- map[unlist(links_orig)]
+links$value <- links_orig$value
+colnames(links) <- c("source", "target")
+links <- links[links$target %in% unique(names(top_genes[[1]])), ]
+links$value <- rep(1, times = nrow(links))
+dup <- which(duplicated(links[ , 1:2]))
+if (length(dup) > 0) {
+  links <- links[-dup, ]
+}
+
+nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
+links$IDsource <- match(links$source, nodes$name) - 1
+links$IDtarget <- match(links$target, nodes$name) - 1
+
+sankeyNetwork(
+  Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
+  Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
+)
+
+gene_ids <- geneIds(gene_sets)
+gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[2]]]
+gene_ids <- gene_ids[match(top_gse[[2]], names(gene_ids))]
+links_orig <- data.frame(
+  source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
+)
+map <- setNames(gene_anno$external_gene_name, gene_anno$ensembl_gene_id)
+links <- links_orig
+links_orig[] <- map[unlist(links_orig)]
+links$value <- links_orig$value
+colnames(links) <- c("source", "target")
+links <- links[links$target %in% unique(names(top_genes[[2]])), ]
+links$value <- rep(1, times = nrow(links))
+dup <- which(duplicated(links[ , 1:2]))
+if (length(dup) > 0) {
+  links <- links[-dup, ]
+}
+
+nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
+links$IDsource <- match(links$source, nodes$name) - 1
+links$IDtarget <- match(links$target, nodes$name) - 1
+
+sankeyNetwork(
+  Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
+  Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
+)
+```
+
+## Microglia
+
+```{r}
+keep <- grep("Microglia", x = colnames(gse))
+gse_cpm <- log1p(cpm(gse[ , keep]))
+counts_cpm <- log1p(cpm(counts[ , keep]))
+
+keep <- rownames(gse_cpm[rowSums(gse_cpm > 0) >= 1, ])
+gse_zscore <- t(scale(t(gse_cpm[keep, ])))
+keep <- rownames(counts_cpm[rowSums(counts_cpm > 0) >= 1, ])
+counts_zscore <- t(scale(t(counts_cpm[keep, ])))
+
+markers <- data.frame(cluster = character(), gene = character())
+groups <- sub(".*\\s", "", colnames(gse_zscore))
+group_idx <- vector("list", length = length(groups))
+group_idx[[1]] <- 1
+group_idx[[2]] <- 2
+
+for (i in seq_along(unique(groups))) {
+  gene <- rownames(gse_zscore)[
+    gse_zscore[ , group_idx[[i]]] > 0
+  ]
+  avg_log2FC <- gse_zscore[gene, group_idx[[i]]]
+  add <- data.frame(
+    cluster = rep(sub(".*\\s", "", colnames(gse_zscore)[group_idx[[i]]])[1], times = length(gene)),
+    gene = gene, avg_log2FC = avg_log2FC
+  )
+  markers <- rbind(markers, add)
+}
+markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
+datatable_download_exp(markers)
+markers$number <- seq(markers$gene)
+
+modules <- markers %>% group_by(cluster) %>% summarise(named_vec = list(number)) %>% tibble::deframe()
+module_names <- modules
+
+go_anno <- select(GO.db, markers$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
+for (l in seq_along(module_names)) {
+  module_names[[l]] <- paste0(markers$gene[module_names[[l]]], " ", go_anno$DEFINITION[module_names[[l]]])
+}
+for (l in seq_along(modules)) {
+  modules[[l]] <- markers$gene[modules[[l]]]
+}
+top_words_tmp <- data.frame(
+  gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
+)
+top_words_list <- vector("list", length = length(unique(top_words_tmp$module)))
+top_words <- c()
+
+dict_list <- top_words_list
+for (i in seq_along(top_words_list)) {
+  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
+  for (j in seq_along(top_words_list[[i]])) {
+    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j]))
+  }
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  dict_list[[i]] <- unique(tmp)
+}
+dict <- table(unlist(dict_list))
+# dict <- names(dict[dict > round(length(dict_list) / 2)])
+# dict <- names(dict[dict > round(sqrt(length(dict_list)))])
+dict <- names(dict[dict == length(dict_list)])
+
+for (i in seq_along(top_words_list)) {
+  top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
+  top_words_list[[i]] <- vector("list", nrow(top_words_tmp_sub))
+  for (j in seq_along(top_words_list[[i]])) {
+    top_words_list[[i]][[j]] <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_sets[j], dict = dict))
+  }
+  tmp <- strsplit(paste(unlist(top_words_list[[i]]), collapse = " "), "\\s+")[[1]]
+  remove <- which(tmp == "")
+  if (length(remove) > 0) {
+    tmp <- tmp[-which(tmp == "")]
+  }
+  tmp <- table(tmp)
+  for (j in seq_along(tmp)) {
+    log2FC <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
+    tmp[j] <- sum(markers$avg_log2FC[which(markers$cluster == levels(markers$cluster)[i])[log2FC]])
+  }
+  tmp <- tmp[order(tmp, decreasing = TRUE)]
+  dup <- which(duplicated(tmp))
+  if (length(dup) > 0) {
+    tmp <- tmp[-dup]
+  }
+  tmp <- names(tmp)
+  if (length(tmp) >= 3) {
+    tmp <- tmp[1:3]
+    tmp <- paste(paste0(tmp, "\n"), collapse = "")
+    tmp <- substr(tmp, 1, nchar(tmp) - 1)
+  } else if (length(tmp > 0)) {
+    add <- 3 - length(tmp)
+    tmp2 <- unlist(strsplit(suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, dict = dict)), "\\s+"))
+    tmp2 <- tmp2[tmp2 %notin% tmp]
+    tmp <- c(tmp, tmp2[1:add])
+    if (any(is.na(tmp))) {
+      tmp <- tmp[-which(is.na(tmp))]
+    }
+    tmp <- paste(paste0(tmp, "\n"), collapse = "")
+    tmp <- substr(tmp, 1, nchar(tmp) - 1)
+  } else {
+    tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 3, dict = dict))
+  }
+  top_words <- c(top_words, tmp)
+}
+
+optimal_k <- unlist(lapply(seq_along(modules), function(i) {rep(names(modules)[i], length(modules[[i]]))}))
+optimal_k <- factor(optimal_k, levels = unique(optimal_k))
+module_colours <- cols25(length(unique(optimal_k)))
+
+row_anno <-  HeatmapAnnotation(
+  top_words = anno_block(
+    gp = gpar(col = module_colours), labels = seq(length(unique(optimal_k))),
+    labels_rot = 0, labels_gp = gpar(fontsize = 9)
+  ),
+  which = "row"
+)
+
+mat <- gse_zscore
+mat <- mat[rownames(mat) %in% markers$gene, ]
+mat <- mat[match(markers$gene, rownames(mat)), ]
+colnames(mat) <- levels(markers$cluster)
+
+top_gse <- vector("list", length = length(modules))
+for (j in seq_along(top_gse)) {
+  idx <- c()
+  for (i in seq_along(unlist(strsplit(top_words[j], split = "\n")))) {
+    idx <- c(
+      idx, grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
+    )
+  }
+  top_gse[[j]] <- modules[[j]][idx]
+}
+
+top_genes <- vector("list", length = length(modules))
+for (i in seq_along(top_genes)) {
+  genes <- c()
+  for (gse_names in top_gse[[i]]) {
+    genes <- c(genes, geneIds(gene_sets[names(gene_sets) %in% gse_names])[[1]])
+  }
+  genes <- table(genes) / length(top_gse[[i]])
+
+  # counts_zscore_scaled <- t(
+  #   apply(counts_zscore, MARGIN = 1, FUN = function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1))
+  # )
+  counts_zscore_scaled <- as.matrix((counts_zscore - min(counts_zscore)) / (max(counts_zscore) - min(counts_zscore)))
+  # counts_zscore_scaled <- (2 * (counts_zscore - min(counts_zscore)) / (max(counts_zscore) - min(counts_zscore))) - 1
+  counts_zscore_scaled <- counts_zscore_scaled[counts_zscore[ , i] > 0, ]
+  counts_zscore_sub <- counts_zscore_scaled[rownames(counts_zscore_scaled) %in% names(genes), i]
+  # counts_zscore_sub <- counts_zscore_sub[counts_zscore_sub > 0.5]
+  genes <- genes[names(genes) %in% names(counts_zscore_sub)]
+  counts_zscore_sub <- counts_zscore_sub[match(names(genes), names(counts_zscore_sub))]
+
+  matches <- table(
+    factor(names(genes), levels = names(genes))[match(unlist(geneIds(gene_sets)), names(genes), nomatch = 0)]
+  )
+  matches <- (matches - max(matches)) / (min(matches) - max(matches))
+
+  comb <- genes * counts_zscore_sub * matches
+  comb <- comb[order(comb, decreasing = TRUE)]
+
+  counts_zscore_sub <- counts_zscore_sub[match(names(comb), names(counts_zscore_sub))]
+  genes <- genes[match(names(comb), names(genes))]
+
+  top_genes[[i]] <- c(
+    comb[1], counts_zscore_sub[1], genes[1], comb[2], counts_zscore_sub[2], genes[2],
+    comb[3], counts_zscore_sub[3], genes[3], comb[4], counts_zscore_sub[4], genes[4]
+  )
+  names(top_genes[[i]]) <- c(
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[1]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[4]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[7]), ]$external_gene_name, times = 3
+    ),
+    rep(
+      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes[[i]])[10]), ]$external_gene_name, times = 3
+    )
+  )
+}
+names(top_genes) <- levels(markers$cluster)
+```
+
+```{r, fig.height = 3, fig.width = 6}
+panel_fun <- function(index, nm) {
+  pushViewport(viewport())
+  grid.rect(
+    x = 0, y = 0.9, width = top_genes[[nm]][3],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][2]))
+  )
+  grid.rect(
+    x = 0, y = 0.7, width = top_genes[[nm]][6],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][5]))
+  )
+  grid.rect(
+    x = 0, y = 0.5, width = top_genes[[nm]][9],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][8]))
+  )
+  grid.rect(
+    x = 0, y = 0.3, width = top_genes[[nm]][12],
+    height = 0.2, just = "left", gp = gpar(fill = colour(top_genes[[nm]][11]))
+  )
+  grid.text(y = 0.9, names(top_genes[[nm]])[1], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.7, names(top_genes[[nm]])[4], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.5, names(top_genes[[nm]])[7], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.text(y = 0.3, names(top_genes[[nm]])[10], gp = gpar(fontsize = 7), x = 1, just = "right")
+  grid.xaxis(gp = gpar(fontsize = 4), main = FALSE)
+  popViewport()
+}
+right_anno <- rowAnnotation(
+  foo = anno_link(
+    align_to = optimal_k, which = "row", panel_fun = panel_fun, link_width = unit(0, "mm"), gap = unit(1, "mm")
+  )
+)
+
+set.seed(1)
+draw(
+  Heatmap(
+    mat,
+    col = colour,
+    show_row_names = FALSE,
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
+    row_split = optimal_k,
+    column_split = factor(groups, levels = unique(groups)),
+    column_title = "Microglia",
+    left_annotation = row_anno,
+    right_annotation = right_anno,
+    rect_gp = gpar(col = "lightgray", lwd = 0.01),
+    border = TRUE,
+    row_gap = unit(1, "mm"),
+    column_gap = unit(1, "mm"),
+    column_names_side = "top",
+    row_title = top_words,
+    column_names_gp = gpar(fontsize = 9),
+    row_title_gp = gpar(fontsize = 9),
+    row_title_rot = 0,
+    column_names_rot = 45,
+    heatmap_legend_param = list(
+      title = "Z-Score", direction = "horizontal", title_position = "topcenter",
+      legend_width = unit(2.5, "cm"), title_gp = gpar(fontsize = 7), labels_gp = gpar(fontsize = 6),
+      grid_height = unit(0.3, "cm"), at = c(-3, -2, -1, 0, 1, 2, 3)
+    )
+  ),
+  heatmap_legend_side = "top"
+)
+```
+
+```{r, fig.height = 2, fig.width = 6}
+gene_ids <- geneIds(gene_sets)
+gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[1]]]
+gene_ids <- gene_ids[match(top_gse[[1]], names(gene_ids))]
+links_orig <- data.frame(
+  source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
+)
+map <- setNames(gene_anno$external_gene_name, gene_anno$ensembl_gene_id)
+links <- links_orig
+links_orig[] <- map[unlist(links_orig)]
+links$value <- links_orig$value
+colnames(links) <- c("source", "target")
+links <- links[links$target %in% unique(names(top_genes[[1]])), ]
+links$value <- rep(1, times = nrow(links))
+dup <- which(duplicated(links[ , 1:2]))
+if (length(dup) > 0) {
+  links <- links[-dup, ]
+}
+
+nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
+links$IDsource <- match(links$source, nodes$name) - 1
+links$IDtarget <- match(links$target, nodes$name) - 1
+
+sankeyNetwork(
+  Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
+  Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
+)
+
+gene_ids <- geneIds(gene_sets)
+gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[2]]]
+gene_ids <- gene_ids[match(top_gse[[2]], names(gene_ids))]
+links_orig <- data.frame(
+  source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
+)
+map <- setNames(gene_anno$external_gene_name, gene_anno$ensembl_gene_id)
+links <- links_orig
+links_orig[] <- map[unlist(links_orig)]
+links$value <- links_orig$value
+colnames(links) <- c("source", "target")
+links <- links[links$target %in% unique(names(top_genes[[2]])), ]
+links$value <- rep(1, times = nrow(links))
+dup <- which(duplicated(links[ , 1:2]))
+if (length(dup) > 0) {
+  links <- links[-dup, ]
+}
+
+nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
+links$IDsource <- match(links$source, nodes$name) - 1
+links$IDtarget <- match(links$target, nodes$name) - 1
+
+sankeyNetwork(
+  Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
+  Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
+)
+```
+
+# References
+
+This is the concluding section of the document. Here we output the `sessionInfo` and create a bibliography for works cited.
+
+```{r}
+sessionInfo()
+```
