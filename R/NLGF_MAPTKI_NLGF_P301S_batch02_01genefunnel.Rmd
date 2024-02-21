@@ -1,5 +1,5 @@
 ---
-title: "NLGF vs. NLGF P301S+3 - Batch 02 - 01 GeneFunnel"
+title: "NLGF MAPT KI vs. NLGF P301S+3 - Batch 02 - 01 GeneFunnel"
 author:
   - name: "Emir Turkes"
 date: '`r strftime(Sys.time(), format = "%B %d, %Y")`'
@@ -18,7 +18,7 @@ output:
 knit: (function(inputFile, encoding) {
   rmarkdown::render(
     inputFile, encoding = encoding,
-    output_file = file.path("..", "results", "NLGF_NLGF_P301S_batch02_01genefunnel.html")
+    output_file = file.path("..", "results", "NLGF_MAPTKI_NLGF_P301S_batch02_01genefunnel.html")
   )})
 ---
 
@@ -85,7 +85,7 @@ source("utils.R")
 
 # Useful variables.
 # -----------------
-genotype <- "NLGF_NLGF_P301S"
+genotype <- "NLGF_MAPTKI_NLGF_P301S"
 batch <- 2
 step <- 1
 
