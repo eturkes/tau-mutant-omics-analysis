@@ -159,7 +159,7 @@ colour <- colorRamp2(c(0, 5, 10), c("#0077BB", "#FFFFFF", "#CC3311"))
 gse_cpm <- log1p(cpm(gse))
 counts_cpm <- log1p(cpm(counts))
 
-groups <- sub(".*\\s", "", colnames(gse_cpm))
+groups <- factor(sub(".*\\s", "", colnames(gse_cpm)), levels = unique(sub(".*\\s", "", colnames(gse_cpm))))
 design <- model.matrix(~ 0 + groups)
 colnames(design) <- unique(groups)
 
@@ -181,7 +181,6 @@ results <- results[ , -1]
 # counts_zscore <- t(scale(t(counts_cpm[keep, ])))
 
 markers <- data.frame(cluster = character(), gene = character())
-groups <- sub(".*\\s", "", colnames(gse_cpm))
 group_idx <- vector("list", length = length(groups))
 group_idx[[1]] <- 1:9
 group_idx[[2]] <- 10:18
@@ -647,7 +646,7 @@ keep <- grep("Dentate Gyrus Glutamatergic", x = colnames(gse))
 gse_cpm <- log1p(cpm(gse[ , keep]))
 counts_cpm <- log1p(cpm(counts[ , keep]))
 
-groups <- sub(".*\\s", "", colnames(gse_cpm))
+groups <- factor(sub(".*\\s", "", colnames(gse_cpm)), levels = unique(sub(".*\\s", "", colnames(gse_cpm))))
 results <- as.data.frame(gse_cpm)
 results$Coef <- results[ , 1] - results[ , 2]
 
@@ -657,7 +656,6 @@ results$Coef <- results[ , 1] - results[ , 2]
 # counts_zscore <- t(scale(t(counts_cpm[keep, ])))
 
 markers <- data.frame(cluster = character(), gene = character())
-groups <- sub(".*\\s", "", colnames(gse_cpm))
 group_idx <- vector("list", length = length(groups))
 group_idx[[1]] <- 1
 group_idx[[2]] <- 2
@@ -1105,7 +1103,7 @@ keep <- grep("Hippocampal Glutamatergic", x = colnames(gse))
 gse_cpm <- log1p(cpm(gse[ , keep]))
 counts_cpm <- log1p(cpm(counts[ , keep]))
 
-groups <- sub(".*\\s", "", colnames(gse_cpm))
+groups <- factor(sub(".*\\s", "", colnames(gse_cpm)), levels = unique(sub(".*\\s", "", colnames(gse_cpm))))
 results <- as.data.frame(gse_cpm)
 results$Coef <- results[ , 1] - results[ , 2]
 
@@ -1115,7 +1113,6 @@ results$Coef <- results[ , 1] - results[ , 2]
 # counts_zscore <- t(scale(t(counts_cpm[keep, ])))
 
 markers <- data.frame(cluster = character(), gene = character())
-groups <- sub(".*\\s", "", colnames(gse_cpm))
 group_idx <- vector("list", length = length(groups))
 group_idx[[1]] <- 1
 group_idx[[2]] <- 2
@@ -1563,7 +1560,7 @@ keep <- grep("Cortical Glutamatergic", x = colnames(gse))
 gse_cpm <- log1p(cpm(gse[ , keep]))
 counts_cpm <- log1p(cpm(counts[ , keep]))
 
-groups <- sub(".*\\s", "", colnames(gse_cpm))
+groups <- factor(sub(".*\\s", "", colnames(gse_cpm)), levels = unique(sub(".*\\s", "", colnames(gse_cpm))))
 results <- as.data.frame(gse_cpm)
 results$Coef <- results[ , 1] - results[ , 2]
 
@@ -1573,7 +1570,6 @@ results$Coef <- results[ , 1] - results[ , 2]
 # counts_zscore <- t(scale(t(counts_cpm[keep, ])))
 
 markers <- data.frame(cluster = character(), gene = character())
-groups <- sub(".*\\s", "", colnames(gse_cpm))
 group_idx <- vector("list", length = length(groups))
 group_idx[[1]] <- 1
 group_idx[[2]] <- 2
@@ -2021,7 +2017,7 @@ keep <- grep("GABAergic", x = colnames(gse))
 gse_cpm <- log1p(cpm(gse[ , keep]))
 counts_cpm <- log1p(cpm(counts[ , keep]))
 
-groups <- sub(".*\\s", "", colnames(gse_cpm))
+groups <- factor(sub(".*\\s", "", colnames(gse_cpm)), levels = unique(sub(".*\\s", "", colnames(gse_cpm))))
 results <- as.data.frame(gse_cpm)
 results$Coef <- results[ , 1] - results[ , 2]
 
@@ -2031,7 +2027,6 @@ results$Coef <- results[ , 1] - results[ , 2]
 # counts_zscore <- t(scale(t(counts_cpm[keep, ])))
 
 markers <- data.frame(cluster = character(), gene = character())
-groups <- sub(".*\\s", "", colnames(gse_cpm))
 group_idx <- vector("list", length = length(groups))
 group_idx[[1]] <- 1
 group_idx[[2]] <- 2
@@ -2479,7 +2474,7 @@ keep <- grep("Endothelial", x = colnames(gse))
 gse_cpm <- log1p(cpm(gse[ , keep]))
 counts_cpm <- log1p(cpm(counts[ , keep]))
 
-groups <- sub(".*\\s", "", colnames(gse_cpm))
+groups <- factor(sub(".*\\s", "", colnames(gse_cpm)), levels = unique(sub(".*\\s", "", colnames(gse_cpm))))
 results <- as.data.frame(gse_cpm)
 results$Coef <- results[ , 1] - results[ , 2]
 
@@ -2489,7 +2484,6 @@ results$Coef <- results[ , 1] - results[ , 2]
 # counts_zscore <- t(scale(t(counts_cpm[keep, ])))
 
 markers <- data.frame(cluster = character(), gene = character())
-groups <- sub(".*\\s", "", colnames(gse_cpm))
 group_idx <- vector("list", length = length(groups))
 group_idx[[1]] <- 1
 group_idx[[2]] <- 2
@@ -2937,7 +2931,7 @@ keep <- grep("Astrocyte", x = colnames(gse))
 gse_cpm <- log1p(cpm(gse[ , keep]))
 counts_cpm <- log1p(cpm(counts[ , keep]))
 
-groups <- sub(".*\\s", "", colnames(gse_cpm))
+groups <- factor(sub(".*\\s", "", colnames(gse_cpm)), levels = unique(sub(".*\\s", "", colnames(gse_cpm))))
 results <- as.data.frame(gse_cpm)
 results$Coef <- results[ , 1] - results[ , 2]
 
@@ -2947,7 +2941,6 @@ results$Coef <- results[ , 1] - results[ , 2]
 # counts_zscore <- t(scale(t(counts_cpm[keep, ])))
 
 markers <- data.frame(cluster = character(), gene = character())
-groups <- sub(".*\\s", "", colnames(gse_cpm))
 group_idx <- vector("list", length = length(groups))
 group_idx[[1]] <- 1
 group_idx[[2]] <- 2
@@ -3395,7 +3388,7 @@ keep <- grep("OPC", x = colnames(gse))
 gse_cpm <- log1p(cpm(gse[ , keep]))
 counts_cpm <- log1p(cpm(counts[ , keep]))
 
-groups <- sub(".*\\s", "", colnames(gse_cpm))
+groups <- factor(sub(".*\\s", "", colnames(gse_cpm)), levels = unique(sub(".*\\s", "", colnames(gse_cpm))))
 results <- as.data.frame(gse_cpm)
 results$Coef <- results[ , 1] - results[ , 2]
 
@@ -3405,7 +3398,6 @@ results$Coef <- results[ , 1] - results[ , 2]
 # counts_zscore <- t(scale(t(counts_cpm[keep, ])))
 
 markers <- data.frame(cluster = character(), gene = character())
-groups <- sub(".*\\s", "", colnames(gse_cpm))
 group_idx <- vector("list", length = length(groups))
 group_idx[[1]] <- 1
 group_idx[[2]] <- 2
@@ -3853,7 +3845,7 @@ keep <- grep("Oligodendrocyte", x = colnames(gse))
 gse_cpm <- log1p(cpm(gse[ , keep]))
 counts_cpm <- log1p(cpm(counts[ , keep]))
 
-groups <- sub(".*\\s", "", colnames(gse_cpm))
+groups <- factor(sub(".*\\s", "", colnames(gse_cpm)), levels = unique(sub(".*\\s", "", colnames(gse_cpm))))
 results <- as.data.frame(gse_cpm)
 results$Coef <- results[ , 1] - results[ , 2]
 
@@ -3863,7 +3855,6 @@ results$Coef <- results[ , 1] - results[ , 2]
 # counts_zscore <- t(scale(t(counts_cpm[keep, ])))
 
 markers <- data.frame(cluster = character(), gene = character())
-groups <- sub(".*\\s", "", colnames(gse_cpm))
 group_idx <- vector("list", length = length(groups))
 group_idx[[1]] <- 1
 group_idx[[2]] <- 2
@@ -4311,7 +4302,7 @@ keep <- grep("Microglia", x = colnames(gse))
 gse_cpm <- log1p(cpm(gse[ , keep]))
 counts_cpm <- log1p(cpm(counts[ , keep]))
 
-groups <- sub(".*\\s", "", colnames(gse_cpm))
+groups <- factor(sub(".*\\s", "", colnames(gse_cpm)), levels = unique(sub(".*\\s", "", colnames(gse_cpm))))
 results <- as.data.frame(gse_cpm)
 results$Coef <- results[ , 1] - results[ , 2]
 
@@ -4321,7 +4312,6 @@ results$Coef <- results[ , 1] - results[ , 2]
 # counts_zscore <- t(scale(t(counts_cpm[keep, ])))
 
 markers <- data.frame(cluster = character(), gene = character())
-groups <- sub(".*\\s", "", colnames(gse_cpm))
 group_idx <- vector("list", length = length(groups))
 group_idx[[1]] <- 1
 group_idx[[2]] <- 2
