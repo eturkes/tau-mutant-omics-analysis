@@ -136,3 +136,35 @@ xfun::Rscript_call(
     envir = new.env()
   )
 )
+xfun::Rscript_call(
+  rmarkdown::render,
+  list(
+    file.path("MAPTKI_P301S_batch02_01genefunnel.Rmd"),
+    output_file = file.path("..", "results", "MAPTKI_P301S_batch02_01genefunnel.html"),
+    envir = new.env()
+  )
+)
+xfun::Rscript_call(
+  rmarkdown::render,
+  list(
+    file.path("NLGF_MAPTKI_NLGF_P301S_batch02_01genefunnel.Rmd"),
+    output_file = file.path("..", "results", "NLGF_MAPTKI_NLGF_P301S_batch02_01genefunnel.html"),
+    envir = new.env()
+  )
+)
+xfun::Rscript_call(
+  rmarkdown::render,
+  list(
+    file.path("P301S_NLGF_P301S_batch02_01genefunnel.Rmd"),
+    output_file = file.path("..", "results", "P301S_NLGF_P301S_batch02_01genefunnel.html"),
+    envir = new.env()
+  )
+)
+xfun::Rscript_call(
+  rmarkdown::render,
+  list(
+    file.path("MAPTKI_NLGF_P301S_batch02_01genefunnel.Rmd"),
+    output_file = file.path("..", "results", "MAPTKI_NLGF_P301S_batch02_01genefunnel.html"),
+    envir = new.env()
+  )
+)
