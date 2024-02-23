@@ -187,11 +187,11 @@ group_idx[[2]] <- 10:18
 
 for (i in seq_along(unique(groups))) {
   if (i == 1) {
-    gene <- rownames(results)[results$Coef > 0.1]
-    avg_log2FC <- results$Coef[results$Coef > 0.1]
+    gene <- rownames(results)[results$Coef > 0.25]
+    avg_log2FC <- results$Coef[results$Coef > 0.25]
   } else {
-    gene <- rownames(results)[results$Coef < -0.1]
-    avg_log2FC <- abs(results$Coef)[results$Coef < -0.1]
+    gene <- rownames(results)[results$Coef < -0.25]
+    avg_log2FC <- abs(results$Coef)[results$Coef < -0.25]
   }
   add <- data.frame(
     cluster = rep(sub(".*\\s", "", colnames(gse_cpm)[group_idx[[i]]])[1], times = length(gene)),
@@ -336,10 +336,10 @@ for (i in seq_along(top_genes)) {
   # counts_cpm_scaled <- (2 * (counts_cpm - min(counts_cpm)) / (max(counts_cpm) - min(counts_cpm))) - 1
   if (i == 1) {
     avg_log2FC_scaled <- (avg_log2FC - min(avg_log2FC)) / (max(avg_log2FC) - min(avg_log2FC))
-    avg_log2FC <- avg_log2FC[avg_log2FC > 0.1]
+    avg_log2FC <- avg_log2FC[avg_log2FC > 0.25]
   } else {
     avg_log2FC_scaled <- (avg_log2FC - max(avg_log2FC)) / (min(avg_log2FC) - max(avg_log2FC))
-    avg_log2FC <- avg_log2FC[avg_log2FC < -0.1]
+    avg_log2FC <- avg_log2FC[avg_log2FC < -0.25]
   }
   avg_log2FC_scaled <- avg_log2FC_scaled[names(avg_log2FC_scaled) %in% names(avg_log2FC)]
   avg_log2FC_scaled <- avg_log2FC_scaled[names(avg_log2FC_scaled) %in% names(genes)]
@@ -679,11 +679,11 @@ group_idx[[2]] <- 2
 
 for (i in seq_along(unique(groups))) {
   if (i == 1) {
-    gene <- rownames(results)[results$Coef > 0.1]
-    avg_log2FC <- results$Coef[results$Coef > 0.1]
+    gene <- rownames(results)[results$Coef > 0.25]
+    avg_log2FC <- results$Coef[results$Coef > 0.25]
   } else {
-    gene <- rownames(results)[results$Coef < -0.1]
-    avg_log2FC <- abs(results$Coef)[results$Coef < -0.1]
+    gene <- rownames(results)[results$Coef < -0.25]
+    avg_log2FC <- abs(results$Coef)[results$Coef < -0.25]
   }
   add <- data.frame(
     cluster = rep(sub(".*\\s", "", colnames(gse_cpm)[group_idx[[i]]])[1], times = length(gene)),
@@ -820,10 +820,10 @@ for (i in seq_along(top_genes)) {
   # counts_cpm_scaled <- (2 * (counts_cpm - min(counts_cpm)) / (max(counts_cpm) - min(counts_cpm))) - 1
   if (i == 1) {
     avg_log2FC_scaled <- (avg_log2FC - min(avg_log2FC)) / (max(avg_log2FC) - min(avg_log2FC))
-    avg_log2FC <- avg_log2FC[avg_log2FC > 0.1]
+    avg_log2FC <- avg_log2FC[avg_log2FC > 0.25]
   } else {
     avg_log2FC_scaled <- (avg_log2FC - max(avg_log2FC)) / (min(avg_log2FC) - max(avg_log2FC))
-    avg_log2FC <- avg_log2FC[avg_log2FC < -0.1]
+    avg_log2FC <- avg_log2FC[avg_log2FC < -0.25]
   }
   avg_log2FC_scaled <- avg_log2FC_scaled[names(avg_log2FC_scaled) %in% names(avg_log2FC)]
   avg_log2FC_scaled <- avg_log2FC_scaled[names(avg_log2FC_scaled) %in% names(genes)]
@@ -1153,11 +1153,11 @@ group_idx[[2]] <- 2
 
 for (i in seq_along(unique(groups))) {
   if (i == 1) {
-    gene <- rownames(results)[results$Coef > 0.1]
-    avg_log2FC <- results$Coef[results$Coef > 0.1]
+    gene <- rownames(results)[results$Coef > 0.25]
+    avg_log2FC <- results$Coef[results$Coef > 0.25]
   } else {
-    gene <- rownames(results)[results$Coef < -0.1]
-    avg_log2FC <- abs(results$Coef)[results$Coef < -0.1]
+    gene <- rownames(results)[results$Coef < -0.25]
+    avg_log2FC <- abs(results$Coef)[results$Coef < -0.25]
   }
   add <- data.frame(
     cluster = rep(sub(".*\\s", "", colnames(gse_cpm)[group_idx[[i]]])[1], times = length(gene)),
@@ -1294,10 +1294,10 @@ for (i in seq_along(top_genes)) {
   # counts_cpm_scaled <- (2 * (counts_cpm - min(counts_cpm)) / (max(counts_cpm) - min(counts_cpm))) - 1
   if (i == 1) {
     avg_log2FC_scaled <- (avg_log2FC - min(avg_log2FC)) / (max(avg_log2FC) - min(avg_log2FC))
-    avg_log2FC <- avg_log2FC[avg_log2FC > 0.1]
+    avg_log2FC <- avg_log2FC[avg_log2FC > 0.25]
   } else {
     avg_log2FC_scaled <- (avg_log2FC - max(avg_log2FC)) / (min(avg_log2FC) - max(avg_log2FC))
-    avg_log2FC <- avg_log2FC[avg_log2FC < -0.1]
+    avg_log2FC <- avg_log2FC[avg_log2FC < -0.25]
   }
   avg_log2FC_scaled <- avg_log2FC_scaled[names(avg_log2FC_scaled) %in% names(avg_log2FC)]
   avg_log2FC_scaled <- avg_log2FC_scaled[names(avg_log2FC_scaled) %in% names(genes)]
@@ -1627,11 +1627,11 @@ group_idx[[2]] <- 2
 
 for (i in seq_along(unique(groups))) {
   if (i == 1) {
-    gene <- rownames(results)[results$Coef > 0.1]
-    avg_log2FC <- results$Coef[results$Coef > 0.1]
+    gene <- rownames(results)[results$Coef > 0.25]
+    avg_log2FC <- results$Coef[results$Coef > 0.25]
   } else {
-    gene <- rownames(results)[results$Coef < -0.1]
-    avg_log2FC <- abs(results$Coef)[results$Coef < -0.1]
+    gene <- rownames(results)[results$Coef < -0.25]
+    avg_log2FC <- abs(results$Coef)[results$Coef < -0.25]
   }
   add <- data.frame(
     cluster = rep(sub(".*\\s", "", colnames(gse_cpm)[group_idx[[i]]])[1], times = length(gene)),
@@ -1768,10 +1768,10 @@ for (i in seq_along(top_genes)) {
   # counts_cpm_scaled <- (2 * (counts_cpm - min(counts_cpm)) / (max(counts_cpm) - min(counts_cpm))) - 1
   if (i == 1) {
     avg_log2FC_scaled <- (avg_log2FC - min(avg_log2FC)) / (max(avg_log2FC) - min(avg_log2FC))
-    avg_log2FC <- avg_log2FC[avg_log2FC > 0.1]
+    avg_log2FC <- avg_log2FC[avg_log2FC > 0.25]
   } else {
     avg_log2FC_scaled <- (avg_log2FC - max(avg_log2FC)) / (min(avg_log2FC) - max(avg_log2FC))
-    avg_log2FC <- avg_log2FC[avg_log2FC < -0.1]
+    avg_log2FC <- avg_log2FC[avg_log2FC < -0.25]
   }
   avg_log2FC_scaled <- avg_log2FC_scaled[names(avg_log2FC_scaled) %in% names(avg_log2FC)]
   avg_log2FC_scaled <- avg_log2FC_scaled[names(avg_log2FC_scaled) %in% names(genes)]
@@ -2101,11 +2101,11 @@ group_idx[[2]] <- 2
 
 for (i in seq_along(unique(groups))) {
   if (i == 1) {
-    gene <- rownames(results)[results$Coef > 0.1]
-    avg_log2FC <- results$Coef[results$Coef > 0.1]
+    gene <- rownames(results)[results$Coef > 0.25]
+    avg_log2FC <- results$Coef[results$Coef > 0.25]
   } else {
-    gene <- rownames(results)[results$Coef < -0.1]
-    avg_log2FC <- abs(results$Coef)[results$Coef < -0.1]
+    gene <- rownames(results)[results$Coef < -0.25]
+    avg_log2FC <- abs(results$Coef)[results$Coef < -0.25]
   }
   add <- data.frame(
     cluster = rep(sub(".*\\s", "", colnames(gse_cpm)[group_idx[[i]]])[1], times = length(gene)),
@@ -2242,10 +2242,10 @@ for (i in seq_along(top_genes)) {
   # counts_cpm_scaled <- (2 * (counts_cpm - min(counts_cpm)) / (max(counts_cpm) - min(counts_cpm))) - 1
   if (i == 1) {
     avg_log2FC_scaled <- (avg_log2FC - min(avg_log2FC)) / (max(avg_log2FC) - min(avg_log2FC))
-    avg_log2FC <- avg_log2FC[avg_log2FC > 0.1]
+    avg_log2FC <- avg_log2FC[avg_log2FC > 0.25]
   } else {
     avg_log2FC_scaled <- (avg_log2FC - max(avg_log2FC)) / (min(avg_log2FC) - max(avg_log2FC))
-    avg_log2FC <- avg_log2FC[avg_log2FC < -0.1]
+    avg_log2FC <- avg_log2FC[avg_log2FC < -0.25]
   }
   avg_log2FC_scaled <- avg_log2FC_scaled[names(avg_log2FC_scaled) %in% names(avg_log2FC)]
   avg_log2FC_scaled <- avg_log2FC_scaled[names(avg_log2FC_scaled) %in% names(genes)]
@@ -2575,11 +2575,11 @@ group_idx[[2]] <- 2
 
 for (i in seq_along(unique(groups))) {
   if (i == 1) {
-    gene <- rownames(results)[results$Coef > 0.1]
-    avg_log2FC <- results$Coef[results$Coef > 0.1]
+    gene <- rownames(results)[results$Coef > 0.25]
+    avg_log2FC <- results$Coef[results$Coef > 0.25]
   } else {
-    gene <- rownames(results)[results$Coef < -0.1]
-    avg_log2FC <- abs(results$Coef)[results$Coef < -0.1]
+    gene <- rownames(results)[results$Coef < -0.25]
+    avg_log2FC <- abs(results$Coef)[results$Coef < -0.25]
   }
   add <- data.frame(
     cluster = rep(sub(".*\\s", "", colnames(gse_cpm)[group_idx[[i]]])[1], times = length(gene)),
@@ -2716,10 +2716,10 @@ for (i in seq_along(top_genes)) {
   # counts_cpm_scaled <- (2 * (counts_cpm - min(counts_cpm)) / (max(counts_cpm) - min(counts_cpm))) - 1
   if (i == 1) {
     avg_log2FC_scaled <- (avg_log2FC - min(avg_log2FC)) / (max(avg_log2FC) - min(avg_log2FC))
-    avg_log2FC <- avg_log2FC[avg_log2FC > 0.1]
+    avg_log2FC <- avg_log2FC[avg_log2FC > 0.25]
   } else {
     avg_log2FC_scaled <- (avg_log2FC - max(avg_log2FC)) / (min(avg_log2FC) - max(avg_log2FC))
-    avg_log2FC <- avg_log2FC[avg_log2FC < -0.1]
+    avg_log2FC <- avg_log2FC[avg_log2FC < -0.25]
   }
   avg_log2FC_scaled <- avg_log2FC_scaled[names(avg_log2FC_scaled) %in% names(avg_log2FC)]
   avg_log2FC_scaled <- avg_log2FC_scaled[names(avg_log2FC_scaled) %in% names(genes)]
@@ -3049,11 +3049,11 @@ group_idx[[2]] <- 2
 
 for (i in seq_along(unique(groups))) {
   if (i == 1) {
-    gene <- rownames(results)[results$Coef > 0.1]
-    avg_log2FC <- results$Coef[results$Coef > 0.1]
+    gene <- rownames(results)[results$Coef > 0.25]
+    avg_log2FC <- results$Coef[results$Coef > 0.25]
   } else {
-    gene <- rownames(results)[results$Coef < -0.1]
-    avg_log2FC <- abs(results$Coef)[results$Coef < -0.1]
+    gene <- rownames(results)[results$Coef < -0.25]
+    avg_log2FC <- abs(results$Coef)[results$Coef < -0.25]
   }
   add <- data.frame(
     cluster = rep(sub(".*\\s", "", colnames(gse_cpm)[group_idx[[i]]])[1], times = length(gene)),
@@ -3190,10 +3190,10 @@ for (i in seq_along(top_genes)) {
   # counts_cpm_scaled <- (2 * (counts_cpm - min(counts_cpm)) / (max(counts_cpm) - min(counts_cpm))) - 1
   if (i == 1) {
     avg_log2FC_scaled <- (avg_log2FC - min(avg_log2FC)) / (max(avg_log2FC) - min(avg_log2FC))
-    avg_log2FC <- avg_log2FC[avg_log2FC > 0.1]
+    avg_log2FC <- avg_log2FC[avg_log2FC > 0.25]
   } else {
     avg_log2FC_scaled <- (avg_log2FC - max(avg_log2FC)) / (min(avg_log2FC) - max(avg_log2FC))
-    avg_log2FC <- avg_log2FC[avg_log2FC < -0.1]
+    avg_log2FC <- avg_log2FC[avg_log2FC < -0.25]
   }
   avg_log2FC_scaled <- avg_log2FC_scaled[names(avg_log2FC_scaled) %in% names(avg_log2FC)]
   avg_log2FC_scaled <- avg_log2FC_scaled[names(avg_log2FC_scaled) %in% names(genes)]
@@ -3523,11 +3523,11 @@ group_idx[[2]] <- 2
 
 for (i in seq_along(unique(groups))) {
   if (i == 1) {
-    gene <- rownames(results)[results$Coef > 0.1]
-    avg_log2FC <- results$Coef[results$Coef > 0.1]
+    gene <- rownames(results)[results$Coef > 0.25]
+    avg_log2FC <- results$Coef[results$Coef > 0.25]
   } else {
-    gene <- rownames(results)[results$Coef < -0.1]
-    avg_log2FC <- abs(results$Coef)[results$Coef < -0.1]
+    gene <- rownames(results)[results$Coef < -0.25]
+    avg_log2FC <- abs(results$Coef)[results$Coef < -0.25]
   }
   add <- data.frame(
     cluster = rep(sub(".*\\s", "", colnames(gse_cpm)[group_idx[[i]]])[1], times = length(gene)),
@@ -3664,10 +3664,10 @@ for (i in seq_along(top_genes)) {
   # counts_cpm_scaled <- (2 * (counts_cpm - min(counts_cpm)) / (max(counts_cpm) - min(counts_cpm))) - 1
   if (i == 1) {
     avg_log2FC_scaled <- (avg_log2FC - min(avg_log2FC)) / (max(avg_log2FC) - min(avg_log2FC))
-    avg_log2FC <- avg_log2FC[avg_log2FC > 0.1]
+    avg_log2FC <- avg_log2FC[avg_log2FC > 0.25]
   } else {
     avg_log2FC_scaled <- (avg_log2FC - max(avg_log2FC)) / (min(avg_log2FC) - max(avg_log2FC))
-    avg_log2FC <- avg_log2FC[avg_log2FC < -0.1]
+    avg_log2FC <- avg_log2FC[avg_log2FC < -0.25]
   }
   avg_log2FC_scaled <- avg_log2FC_scaled[names(avg_log2FC_scaled) %in% names(avg_log2FC)]
   avg_log2FC_scaled <- avg_log2FC_scaled[names(avg_log2FC_scaled) %in% names(genes)]
@@ -3997,11 +3997,11 @@ group_idx[[2]] <- 2
 
 for (i in seq_along(unique(groups))) {
   if (i == 1) {
-    gene <- rownames(results)[results$Coef > 0.1]
-    avg_log2FC <- results$Coef[results$Coef > 0.1]
+    gene <- rownames(results)[results$Coef > 0.25]
+    avg_log2FC <- results$Coef[results$Coef > 0.25]
   } else {
-    gene <- rownames(results)[results$Coef < -0.1]
-    avg_log2FC <- abs(results$Coef)[results$Coef < -0.1]
+    gene <- rownames(results)[results$Coef < -0.25]
+    avg_log2FC <- abs(results$Coef)[results$Coef < -0.25]
   }
   add <- data.frame(
     cluster = rep(sub(".*\\s", "", colnames(gse_cpm)[group_idx[[i]]])[1], times = length(gene)),
@@ -4138,10 +4138,10 @@ for (i in seq_along(top_genes)) {
   # counts_cpm_scaled <- (2 * (counts_cpm - min(counts_cpm)) / (max(counts_cpm) - min(counts_cpm))) - 1
   if (i == 1) {
     avg_log2FC_scaled <- (avg_log2FC - min(avg_log2FC)) / (max(avg_log2FC) - min(avg_log2FC))
-    avg_log2FC <- avg_log2FC[avg_log2FC > 0.1]
+    avg_log2FC <- avg_log2FC[avg_log2FC > 0.25]
   } else {
     avg_log2FC_scaled <- (avg_log2FC - max(avg_log2FC)) / (min(avg_log2FC) - max(avg_log2FC))
-    avg_log2FC <- avg_log2FC[avg_log2FC < -0.1]
+    avg_log2FC <- avg_log2FC[avg_log2FC < -0.25]
   }
   avg_log2FC_scaled <- avg_log2FC_scaled[names(avg_log2FC_scaled) %in% names(avg_log2FC)]
   avg_log2FC_scaled <- avg_log2FC_scaled[names(avg_log2FC_scaled) %in% names(genes)]
@@ -4471,11 +4471,11 @@ group_idx[[2]] <- 2
 
 for (i in seq_along(unique(groups))) {
   if (i == 1) {
-    gene <- rownames(results)[results$Coef > 0.1]
-    avg_log2FC <- results$Coef[results$Coef > 0.1]
+    gene <- rownames(results)[results$Coef > 0.25]
+    avg_log2FC <- results$Coef[results$Coef > 0.25]
   } else {
-    gene <- rownames(results)[results$Coef < -0.1]
-    avg_log2FC <- abs(results$Coef)[results$Coef < -0.1]
+    gene <- rownames(results)[results$Coef < -0.25]
+    avg_log2FC <- abs(results$Coef)[results$Coef < -0.25]
   }
   add <- data.frame(
     cluster = rep(sub(".*\\s", "", colnames(gse_cpm)[group_idx[[i]]])[1], times = length(gene)),
@@ -4612,10 +4612,10 @@ for (i in seq_along(top_genes)) {
   # counts_cpm_scaled <- (2 * (counts_cpm - min(counts_cpm)) / (max(counts_cpm) - min(counts_cpm))) - 1
   if (i == 1) {
     avg_log2FC_scaled <- (avg_log2FC - min(avg_log2FC)) / (max(avg_log2FC) - min(avg_log2FC))
-    avg_log2FC <- avg_log2FC[avg_log2FC > 0.1]
+    avg_log2FC <- avg_log2FC[avg_log2FC > 0.25]
   } else {
     avg_log2FC_scaled <- (avg_log2FC - max(avg_log2FC)) / (min(avg_log2FC) - max(avg_log2FC))
-    avg_log2FC <- avg_log2FC[avg_log2FC < -0.1]
+    avg_log2FC <- avg_log2FC[avg_log2FC < -0.25]
   }
   avg_log2FC_scaled <- avg_log2FC_scaled[names(avg_log2FC_scaled) %in% names(avg_log2FC)]
   avg_log2FC_scaled <- avg_log2FC_scaled[names(avg_log2FC_scaled) %in% names(genes)]
