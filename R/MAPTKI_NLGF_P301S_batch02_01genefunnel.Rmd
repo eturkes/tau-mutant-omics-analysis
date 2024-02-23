@@ -298,13 +298,14 @@ mat <- mat[match(markers$gene, rownames(mat)), ]
 
 top_gse <- vector("list", length = length(modules))
 for (j in seq_along(top_gse)) {
-  idx <- c()
-  for (i in seq_along(unlist(strsplit(top_words[j], split = "\n")))) {
+  top_gse[[j]] <- vector("list", length = length(unlist(strsplit(top_words[j], split = "\n"))))
+  names(top_gse[[j]]) <- unlist(strsplit(top_words[j], split = "\n"))
+  for (i in seq_along(top_gse[[j]])) {
     idx <- c(
-      idx, grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
+      grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
     )
+    top_gse[[j]][[i]] <- modules[[j]][idx]
   }
-  top_gse[[j]] <- modules[[j]][idx]
 }
 
 fit <- lmFit(counts_cpm, design)
@@ -322,10 +323,10 @@ results <- results[ , -1]
 top_genes <- vector("list", length = length(modules))
 for (i in seq_along(top_genes)) {
   genes <- c()
-  for (gse_names in top_gse[[i]]) {
+  for (gse_names in unlist(top_gse[[i]])) {
     genes <- c(genes, geneIds(gene_sets[names(gene_sets) %in% gse_names])[[1]])
   }
-  genes <- table(genes) / length(top_gse[[i]])
+  genes <- table(genes) / length(unlist(top_gse[[i]]))
 
   # counts_cpm_scaled <- t(
   #   apply(counts_cpm, MARGIN = 1, FUN = function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1))
@@ -585,8 +586,8 @@ draw(
 
 ```{r, fig.height = 2, fig.width = 6}
 gene_ids <- geneIds(gene_sets)
-gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[1]]]
-gene_ids <- gene_ids[match(top_gse[[1]], names(gene_ids))]
+gene_ids <- gene_ids[names(gene_ids) %in% unlist(top_gse[[1]])]
+gene_ids <- gene_ids[match(unlist(top_gse[[1]]), names(gene_ids))]
 links_orig <- data.frame(
   source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
 )
@@ -596,24 +597,32 @@ links_orig[] <- map[unlist(links_orig)]
 links$value <- links_orig$value
 colnames(links) <- c("source", "target")
 links <- links[links$target %in% unique(names(top_genes[[1]])), ]
-links$value <- rep(1, times = nrow(links))
 dup <- which(duplicated(links[ , 1:2]))
 if (length(dup) > 0) {
   links <- links[-dup, ]
 }
-
+stack <- stack(top_gse[[1]])
+stack <- stack[stack$values %in% unique(links$source), ]
+stack <- stack[ , c(2, 1)]
+colnames(stack) <- colnames(links)
+links_orig <- links
+links <- rbind(links, stack)
+value <- c()
+for (target in stack$target) {
+  value <- c(value, length(which(links_orig$source %in% target)))
+}
+links$value <- c(rep(1, times = nrow(links_orig)), value)
 nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
 links$IDsource <- match(links$source, nodes$name) - 1
 links$IDtarget <- match(links$target, nodes$name) - 1
-
 sankeyNetwork(
   Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
   Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
 )
 
 gene_ids <- geneIds(gene_sets)
-gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[2]]]
-gene_ids <- gene_ids[match(top_gse[[2]], names(gene_ids))]
+gene_ids <- gene_ids[names(gene_ids) %in% unlist(top_gse[[2]])]
+gene_ids <- gene_ids[match(unlist(top_gse[[2]]), names(gene_ids))]
 links_orig <- data.frame(
   source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
 )
@@ -623,16 +632,24 @@ links_orig[] <- map[unlist(links_orig)]
 links$value <- links_orig$value
 colnames(links) <- c("source", "target")
 links <- links[links$target %in% unique(names(top_genes[[2]])), ]
-links$value <- rep(1, times = nrow(links))
 dup <- which(duplicated(links[ , 1:2]))
 if (length(dup) > 0) {
   links <- links[-dup, ]
 }
-
+stack <- stack(top_gse[[2]])
+stack <- stack[stack$values %in% unique(links$source), ]
+stack <- stack[ , c(2, 1)]
+colnames(stack) <- colnames(links)
+links_orig <- links
+links <- rbind(links, stack)
+value <- c()
+for (target in stack$target) {
+  value <- c(value, length(which(links_orig$source %in% target)))
+}
+links$value <- c(rep(1, times = nrow(links_orig)), value)
 nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
 links$IDsource <- match(links$source, nodes$name) - 1
 links$IDtarget <- match(links$target, nodes$name) - 1
-
 sankeyNetwork(
   Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
   Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
@@ -774,13 +791,14 @@ colnames(mat) <- levels(markers$cluster)
 
 top_gse <- vector("list", length = length(modules))
 for (j in seq_along(top_gse)) {
-  idx <- c()
-  for (i in seq_along(unlist(strsplit(top_words[j], split = "\n")))) {
+  top_gse[[j]] <- vector("list", length = length(unlist(strsplit(top_words[j], split = "\n"))))
+  names(top_gse[[j]]) <- unlist(strsplit(top_words[j], split = "\n"))
+  for (i in seq_along(top_gse[[j]])) {
     idx <- c(
-      idx, grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
+      grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
     )
+    top_gse[[j]][[i]] <- modules[[j]][idx]
   }
-  top_gse[[j]] <- modules[[j]][idx]
 }
 
 results <- as.data.frame(counts_cpm)
@@ -789,10 +807,10 @@ results$Coef <- results[ , 1] - results[ , 2]
 top_genes <- vector("list", length = length(modules))
 for (i in seq_along(top_genes)) {
   genes <- c()
-  for (gse_names in top_gse[[i]]) {
+  for (gse_names in unlist(top_gse[[i]])) {
     genes <- c(genes, geneIds(gene_sets[names(gene_sets) %in% gse_names])[[1]])
   }
-  genes <- table(genes) / length(top_gse[[i]])
+  genes <- table(genes) / length(unlist(top_gse[[i]]))
 
   # counts_cpm_scaled <- t(
   #   apply(counts_cpm, MARGIN = 1, FUN = function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1))
@@ -1042,8 +1060,8 @@ draw(
 
 ```{r, fig.height = 2, fig.width = 6}
 gene_ids <- geneIds(gene_sets)
-gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[1]]]
-gene_ids <- gene_ids[match(top_gse[[1]], names(gene_ids))]
+gene_ids <- gene_ids[names(gene_ids) %in% unlist(top_gse[[1]])]
+gene_ids <- gene_ids[match(unlist(top_gse[[1]]), names(gene_ids))]
 links_orig <- data.frame(
   source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
 )
@@ -1053,24 +1071,32 @@ links_orig[] <- map[unlist(links_orig)]
 links$value <- links_orig$value
 colnames(links) <- c("source", "target")
 links <- links[links$target %in% unique(names(top_genes[[1]])), ]
-links$value <- rep(1, times = nrow(links))
 dup <- which(duplicated(links[ , 1:2]))
 if (length(dup) > 0) {
   links <- links[-dup, ]
 }
-
+stack <- stack(top_gse[[1]])
+stack <- stack[stack$values %in% unique(links$source), ]
+stack <- stack[ , c(2, 1)]
+colnames(stack) <- colnames(links)
+links_orig <- links
+links <- rbind(links, stack)
+value <- c()
+for (target in stack$target) {
+  value <- c(value, length(which(links_orig$source %in% target)))
+}
+links$value <- c(rep(1, times = nrow(links_orig)), value)
 nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
 links$IDsource <- match(links$source, nodes$name) - 1
 links$IDtarget <- match(links$target, nodes$name) - 1
-
 sankeyNetwork(
   Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
   Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
 )
 
 gene_ids <- geneIds(gene_sets)
-gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[2]]]
-gene_ids <- gene_ids[match(top_gse[[2]], names(gene_ids))]
+gene_ids <- gene_ids[names(gene_ids) %in% unlist(top_gse[[2]])]
+gene_ids <- gene_ids[match(unlist(top_gse[[2]]), names(gene_ids))]
 links_orig <- data.frame(
   source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
 )
@@ -1080,16 +1106,24 @@ links_orig[] <- map[unlist(links_orig)]
 links$value <- links_orig$value
 colnames(links) <- c("source", "target")
 links <- links[links$target %in% unique(names(top_genes[[2]])), ]
-links$value <- rep(1, times = nrow(links))
 dup <- which(duplicated(links[ , 1:2]))
 if (length(dup) > 0) {
   links <- links[-dup, ]
 }
-
+stack <- stack(top_gse[[2]])
+stack <- stack[stack$values %in% unique(links$source), ]
+stack <- stack[ , c(2, 1)]
+colnames(stack) <- colnames(links)
+links_orig <- links
+links <- rbind(links, stack)
+value <- c()
+for (target in stack$target) {
+  value <- c(value, length(which(links_orig$source %in% target)))
+}
+links$value <- c(rep(1, times = nrow(links_orig)), value)
 nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
 links$IDsource <- match(links$source, nodes$name) - 1
 links$IDtarget <- match(links$target, nodes$name) - 1
-
 sankeyNetwork(
   Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
   Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
@@ -1231,13 +1265,14 @@ colnames(mat) <- levels(markers$cluster)
 
 top_gse <- vector("list", length = length(modules))
 for (j in seq_along(top_gse)) {
-  idx <- c()
-  for (i in seq_along(unlist(strsplit(top_words[j], split = "\n")))) {
+  top_gse[[j]] <- vector("list", length = length(unlist(strsplit(top_words[j], split = "\n"))))
+  names(top_gse[[j]]) <- unlist(strsplit(top_words[j], split = "\n"))
+  for (i in seq_along(top_gse[[j]])) {
     idx <- c(
-      idx, grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
+      grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
     )
+    top_gse[[j]][[i]] <- modules[[j]][idx]
   }
-  top_gse[[j]] <- modules[[j]][idx]
 }
 
 results <- as.data.frame(counts_cpm)
@@ -1246,10 +1281,10 @@ results$Coef <- results[ , 1] - results[ , 2]
 top_genes <- vector("list", length = length(modules))
 for (i in seq_along(top_genes)) {
   genes <- c()
-  for (gse_names in top_gse[[i]]) {
+  for (gse_names in unlist(top_gse[[i]])) {
     genes <- c(genes, geneIds(gene_sets[names(gene_sets) %in% gse_names])[[1]])
   }
-  genes <- table(genes) / length(top_gse[[i]])
+  genes <- table(genes) / length(unlist(top_gse[[i]]))
 
   # counts_cpm_scaled <- t(
   #   apply(counts_cpm, MARGIN = 1, FUN = function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1))
@@ -1499,8 +1534,8 @@ draw(
 
 ```{r, fig.height = 2, fig.width = 6}
 gene_ids <- geneIds(gene_sets)
-gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[1]]]
-gene_ids <- gene_ids[match(top_gse[[1]], names(gene_ids))]
+gene_ids <- gene_ids[names(gene_ids) %in% unlist(top_gse[[1]])]
+gene_ids <- gene_ids[match(unlist(top_gse[[1]]), names(gene_ids))]
 links_orig <- data.frame(
   source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
 )
@@ -1510,24 +1545,32 @@ links_orig[] <- map[unlist(links_orig)]
 links$value <- links_orig$value
 colnames(links) <- c("source", "target")
 links <- links[links$target %in% unique(names(top_genes[[1]])), ]
-links$value <- rep(1, times = nrow(links))
 dup <- which(duplicated(links[ , 1:2]))
 if (length(dup) > 0) {
   links <- links[-dup, ]
 }
-
+stack <- stack(top_gse[[1]])
+stack <- stack[stack$values %in% unique(links$source), ]
+stack <- stack[ , c(2, 1)]
+colnames(stack) <- colnames(links)
+links_orig <- links
+links <- rbind(links, stack)
+value <- c()
+for (target in stack$target) {
+  value <- c(value, length(which(links_orig$source %in% target)))
+}
+links$value <- c(rep(1, times = nrow(links_orig)), value)
 nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
 links$IDsource <- match(links$source, nodes$name) - 1
 links$IDtarget <- match(links$target, nodes$name) - 1
-
 sankeyNetwork(
   Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
   Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
 )
 
 gene_ids <- geneIds(gene_sets)
-gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[2]]]
-gene_ids <- gene_ids[match(top_gse[[2]], names(gene_ids))]
+gene_ids <- gene_ids[names(gene_ids) %in% unlist(top_gse[[2]])]
+gene_ids <- gene_ids[match(unlist(top_gse[[2]]), names(gene_ids))]
 links_orig <- data.frame(
   source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
 )
@@ -1537,16 +1580,24 @@ links_orig[] <- map[unlist(links_orig)]
 links$value <- links_orig$value
 colnames(links) <- c("source", "target")
 links <- links[links$target %in% unique(names(top_genes[[2]])), ]
-links$value <- rep(1, times = nrow(links))
 dup <- which(duplicated(links[ , 1:2]))
 if (length(dup) > 0) {
   links <- links[-dup, ]
 }
-
+stack <- stack(top_gse[[2]])
+stack <- stack[stack$values %in% unique(links$source), ]
+stack <- stack[ , c(2, 1)]
+colnames(stack) <- colnames(links)
+links_orig <- links
+links <- rbind(links, stack)
+value <- c()
+for (target in stack$target) {
+  value <- c(value, length(which(links_orig$source %in% target)))
+}
+links$value <- c(rep(1, times = nrow(links_orig)), value)
 nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
 links$IDsource <- match(links$source, nodes$name) - 1
 links$IDtarget <- match(links$target, nodes$name) - 1
-
 sankeyNetwork(
   Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
   Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
@@ -1688,13 +1739,14 @@ colnames(mat) <- levels(markers$cluster)
 
 top_gse <- vector("list", length = length(modules))
 for (j in seq_along(top_gse)) {
-  idx <- c()
-  for (i in seq_along(unlist(strsplit(top_words[j], split = "\n")))) {
+  top_gse[[j]] <- vector("list", length = length(unlist(strsplit(top_words[j], split = "\n"))))
+  names(top_gse[[j]]) <- unlist(strsplit(top_words[j], split = "\n"))
+  for (i in seq_along(top_gse[[j]])) {
     idx <- c(
-      idx, grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
+      grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
     )
+    top_gse[[j]][[i]] <- modules[[j]][idx]
   }
-  top_gse[[j]] <- modules[[j]][idx]
 }
 
 results <- as.data.frame(counts_cpm)
@@ -1703,10 +1755,10 @@ results$Coef <- results[ , 1] - results[ , 2]
 top_genes <- vector("list", length = length(modules))
 for (i in seq_along(top_genes)) {
   genes <- c()
-  for (gse_names in top_gse[[i]]) {
+  for (gse_names in unlist(top_gse[[i]])) {
     genes <- c(genes, geneIds(gene_sets[names(gene_sets) %in% gse_names])[[1]])
   }
-  genes <- table(genes) / length(top_gse[[i]])
+  genes <- table(genes) / length(unlist(top_gse[[i]]))
 
   # counts_cpm_scaled <- t(
   #   apply(counts_cpm, MARGIN = 1, FUN = function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1))
@@ -1956,8 +2008,8 @@ draw(
 
 ```{r, fig.height = 2, fig.width = 6}
 gene_ids <- geneIds(gene_sets)
-gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[1]]]
-gene_ids <- gene_ids[match(top_gse[[1]], names(gene_ids))]
+gene_ids <- gene_ids[names(gene_ids) %in% unlist(top_gse[[1]])]
+gene_ids <- gene_ids[match(unlist(top_gse[[1]]), names(gene_ids))]
 links_orig <- data.frame(
   source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
 )
@@ -1967,24 +2019,32 @@ links_orig[] <- map[unlist(links_orig)]
 links$value <- links_orig$value
 colnames(links) <- c("source", "target")
 links <- links[links$target %in% unique(names(top_genes[[1]])), ]
-links$value <- rep(1, times = nrow(links))
 dup <- which(duplicated(links[ , 1:2]))
 if (length(dup) > 0) {
   links <- links[-dup, ]
 }
-
+stack <- stack(top_gse[[1]])
+stack <- stack[stack$values %in% unique(links$source), ]
+stack <- stack[ , c(2, 1)]
+colnames(stack) <- colnames(links)
+links_orig <- links
+links <- rbind(links, stack)
+value <- c()
+for (target in stack$target) {
+  value <- c(value, length(which(links_orig$source %in% target)))
+}
+links$value <- c(rep(1, times = nrow(links_orig)), value)
 nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
 links$IDsource <- match(links$source, nodes$name) - 1
 links$IDtarget <- match(links$target, nodes$name) - 1
-
 sankeyNetwork(
   Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
   Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
 )
 
 gene_ids <- geneIds(gene_sets)
-gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[2]]]
-gene_ids <- gene_ids[match(top_gse[[2]], names(gene_ids))]
+gene_ids <- gene_ids[names(gene_ids) %in% unlist(top_gse[[2]])]
+gene_ids <- gene_ids[match(unlist(top_gse[[2]]), names(gene_ids))]
 links_orig <- data.frame(
   source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
 )
@@ -1994,16 +2054,24 @@ links_orig[] <- map[unlist(links_orig)]
 links$value <- links_orig$value
 colnames(links) <- c("source", "target")
 links <- links[links$target %in% unique(names(top_genes[[2]])), ]
-links$value <- rep(1, times = nrow(links))
 dup <- which(duplicated(links[ , 1:2]))
 if (length(dup) > 0) {
   links <- links[-dup, ]
 }
-
+stack <- stack(top_gse[[2]])
+stack <- stack[stack$values %in% unique(links$source), ]
+stack <- stack[ , c(2, 1)]
+colnames(stack) <- colnames(links)
+links_orig <- links
+links <- rbind(links, stack)
+value <- c()
+for (target in stack$target) {
+  value <- c(value, length(which(links_orig$source %in% target)))
+}
+links$value <- c(rep(1, times = nrow(links_orig)), value)
 nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
 links$IDsource <- match(links$source, nodes$name) - 1
 links$IDtarget <- match(links$target, nodes$name) - 1
-
 sankeyNetwork(
   Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
   Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
@@ -2145,13 +2213,14 @@ colnames(mat) <- levels(markers$cluster)
 
 top_gse <- vector("list", length = length(modules))
 for (j in seq_along(top_gse)) {
-  idx <- c()
-  for (i in seq_along(unlist(strsplit(top_words[j], split = "\n")))) {
+  top_gse[[j]] <- vector("list", length = length(unlist(strsplit(top_words[j], split = "\n"))))
+  names(top_gse[[j]]) <- unlist(strsplit(top_words[j], split = "\n"))
+  for (i in seq_along(top_gse[[j]])) {
     idx <- c(
-      idx, grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
+      grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
     )
+    top_gse[[j]][[i]] <- modules[[j]][idx]
   }
-  top_gse[[j]] <- modules[[j]][idx]
 }
 
 results <- as.data.frame(counts_cpm)
@@ -2160,10 +2229,10 @@ results$Coef <- results[ , 1] - results[ , 2]
 top_genes <- vector("list", length = length(modules))
 for (i in seq_along(top_genes)) {
   genes <- c()
-  for (gse_names in top_gse[[i]]) {
+  for (gse_names in unlist(top_gse[[i]])) {
     genes <- c(genes, geneIds(gene_sets[names(gene_sets) %in% gse_names])[[1]])
   }
-  genes <- table(genes) / length(top_gse[[i]])
+  genes <- table(genes) / length(unlist(top_gse[[i]]))
 
   # counts_cpm_scaled <- t(
   #   apply(counts_cpm, MARGIN = 1, FUN = function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1))
@@ -2413,8 +2482,8 @@ draw(
 
 ```{r, fig.height = 2, fig.width = 6}
 gene_ids <- geneIds(gene_sets)
-gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[1]]]
-gene_ids <- gene_ids[match(top_gse[[1]], names(gene_ids))]
+gene_ids <- gene_ids[names(gene_ids) %in% unlist(top_gse[[1]])]
+gene_ids <- gene_ids[match(unlist(top_gse[[1]]), names(gene_ids))]
 links_orig <- data.frame(
   source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
 )
@@ -2424,24 +2493,32 @@ links_orig[] <- map[unlist(links_orig)]
 links$value <- links_orig$value
 colnames(links) <- c("source", "target")
 links <- links[links$target %in% unique(names(top_genes[[1]])), ]
-links$value <- rep(1, times = nrow(links))
 dup <- which(duplicated(links[ , 1:2]))
 if (length(dup) > 0) {
   links <- links[-dup, ]
 }
-
+stack <- stack(top_gse[[1]])
+stack <- stack[stack$values %in% unique(links$source), ]
+stack <- stack[ , c(2, 1)]
+colnames(stack) <- colnames(links)
+links_orig <- links
+links <- rbind(links, stack)
+value <- c()
+for (target in stack$target) {
+  value <- c(value, length(which(links_orig$source %in% target)))
+}
+links$value <- c(rep(1, times = nrow(links_orig)), value)
 nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
 links$IDsource <- match(links$source, nodes$name) - 1
 links$IDtarget <- match(links$target, nodes$name) - 1
-
 sankeyNetwork(
   Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
   Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
 )
 
 gene_ids <- geneIds(gene_sets)
-gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[2]]]
-gene_ids <- gene_ids[match(top_gse[[2]], names(gene_ids))]
+gene_ids <- gene_ids[names(gene_ids) %in% unlist(top_gse[[2]])]
+gene_ids <- gene_ids[match(unlist(top_gse[[2]]), names(gene_ids))]
 links_orig <- data.frame(
   source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
 )
@@ -2451,16 +2528,24 @@ links_orig[] <- map[unlist(links_orig)]
 links$value <- links_orig$value
 colnames(links) <- c("source", "target")
 links <- links[links$target %in% unique(names(top_genes[[2]])), ]
-links$value <- rep(1, times = nrow(links))
 dup <- which(duplicated(links[ , 1:2]))
 if (length(dup) > 0) {
   links <- links[-dup, ]
 }
-
+stack <- stack(top_gse[[2]])
+stack <- stack[stack$values %in% unique(links$source), ]
+stack <- stack[ , c(2, 1)]
+colnames(stack) <- colnames(links)
+links_orig <- links
+links <- rbind(links, stack)
+value <- c()
+for (target in stack$target) {
+  value <- c(value, length(which(links_orig$source %in% target)))
+}
+links$value <- c(rep(1, times = nrow(links_orig)), value)
 nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
 links$IDsource <- match(links$source, nodes$name) - 1
 links$IDtarget <- match(links$target, nodes$name) - 1
-
 sankeyNetwork(
   Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
   Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
@@ -2602,13 +2687,14 @@ colnames(mat) <- levels(markers$cluster)
 
 top_gse <- vector("list", length = length(modules))
 for (j in seq_along(top_gse)) {
-  idx <- c()
-  for (i in seq_along(unlist(strsplit(top_words[j], split = "\n")))) {
+  top_gse[[j]] <- vector("list", length = length(unlist(strsplit(top_words[j], split = "\n"))))
+  names(top_gse[[j]]) <- unlist(strsplit(top_words[j], split = "\n"))
+  for (i in seq_along(top_gse[[j]])) {
     idx <- c(
-      idx, grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
+      grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
     )
+    top_gse[[j]][[i]] <- modules[[j]][idx]
   }
-  top_gse[[j]] <- modules[[j]][idx]
 }
 
 results <- as.data.frame(counts_cpm)
@@ -2617,10 +2703,10 @@ results$Coef <- results[ , 1] - results[ , 2]
 top_genes <- vector("list", length = length(modules))
 for (i in seq_along(top_genes)) {
   genes <- c()
-  for (gse_names in top_gse[[i]]) {
+  for (gse_names in unlist(top_gse[[i]])) {
     genes <- c(genes, geneIds(gene_sets[names(gene_sets) %in% gse_names])[[1]])
   }
-  genes <- table(genes) / length(top_gse[[i]])
+  genes <- table(genes) / length(unlist(top_gse[[i]]))
 
   # counts_cpm_scaled <- t(
   #   apply(counts_cpm, MARGIN = 1, FUN = function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1))
@@ -2870,8 +2956,8 @@ draw(
 
 ```{r, fig.height = 2, fig.width = 6}
 gene_ids <- geneIds(gene_sets)
-gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[1]]]
-gene_ids <- gene_ids[match(top_gse[[1]], names(gene_ids))]
+gene_ids <- gene_ids[names(gene_ids) %in% unlist(top_gse[[1]])]
+gene_ids <- gene_ids[match(unlist(top_gse[[1]]), names(gene_ids))]
 links_orig <- data.frame(
   source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
 )
@@ -2881,24 +2967,32 @@ links_orig[] <- map[unlist(links_orig)]
 links$value <- links_orig$value
 colnames(links) <- c("source", "target")
 links <- links[links$target %in% unique(names(top_genes[[1]])), ]
-links$value <- rep(1, times = nrow(links))
 dup <- which(duplicated(links[ , 1:2]))
 if (length(dup) > 0) {
   links <- links[-dup, ]
 }
-
+stack <- stack(top_gse[[1]])
+stack <- stack[stack$values %in% unique(links$source), ]
+stack <- stack[ , c(2, 1)]
+colnames(stack) <- colnames(links)
+links_orig <- links
+links <- rbind(links, stack)
+value <- c()
+for (target in stack$target) {
+  value <- c(value, length(which(links_orig$source %in% target)))
+}
+links$value <- c(rep(1, times = nrow(links_orig)), value)
 nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
 links$IDsource <- match(links$source, nodes$name) - 1
 links$IDtarget <- match(links$target, nodes$name) - 1
-
 sankeyNetwork(
   Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
   Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
 )
 
 gene_ids <- geneIds(gene_sets)
-gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[2]]]
-gene_ids <- gene_ids[match(top_gse[[2]], names(gene_ids))]
+gene_ids <- gene_ids[names(gene_ids) %in% unlist(top_gse[[2]])]
+gene_ids <- gene_ids[match(unlist(top_gse[[2]]), names(gene_ids))]
 links_orig <- data.frame(
   source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
 )
@@ -2908,16 +3002,24 @@ links_orig[] <- map[unlist(links_orig)]
 links$value <- links_orig$value
 colnames(links) <- c("source", "target")
 links <- links[links$target %in% unique(names(top_genes[[2]])), ]
-links$value <- rep(1, times = nrow(links))
 dup <- which(duplicated(links[ , 1:2]))
 if (length(dup) > 0) {
   links <- links[-dup, ]
 }
-
+stack <- stack(top_gse[[2]])
+stack <- stack[stack$values %in% unique(links$source), ]
+stack <- stack[ , c(2, 1)]
+colnames(stack) <- colnames(links)
+links_orig <- links
+links <- rbind(links, stack)
+value <- c()
+for (target in stack$target) {
+  value <- c(value, length(which(links_orig$source %in% target)))
+}
+links$value <- c(rep(1, times = nrow(links_orig)), value)
 nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
 links$IDsource <- match(links$source, nodes$name) - 1
 links$IDtarget <- match(links$target, nodes$name) - 1
-
 sankeyNetwork(
   Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
   Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
@@ -3059,13 +3161,14 @@ colnames(mat) <- levels(markers$cluster)
 
 top_gse <- vector("list", length = length(modules))
 for (j in seq_along(top_gse)) {
-  idx <- c()
-  for (i in seq_along(unlist(strsplit(top_words[j], split = "\n")))) {
+  top_gse[[j]] <- vector("list", length = length(unlist(strsplit(top_words[j], split = "\n"))))
+  names(top_gse[[j]]) <- unlist(strsplit(top_words[j], split = "\n"))
+  for (i in seq_along(top_gse[[j]])) {
     idx <- c(
-      idx, grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
+      grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
     )
+    top_gse[[j]][[i]] <- modules[[j]][idx]
   }
-  top_gse[[j]] <- modules[[j]][idx]
 }
 
 results <- as.data.frame(counts_cpm)
@@ -3074,10 +3177,10 @@ results$Coef <- results[ , 1] - results[ , 2]
 top_genes <- vector("list", length = length(modules))
 for (i in seq_along(top_genes)) {
   genes <- c()
-  for (gse_names in top_gse[[i]]) {
+  for (gse_names in unlist(top_gse[[i]])) {
     genes <- c(genes, geneIds(gene_sets[names(gene_sets) %in% gse_names])[[1]])
   }
-  genes <- table(genes) / length(top_gse[[i]])
+  genes <- table(genes) / length(unlist(top_gse[[i]]))
 
   # counts_cpm_scaled <- t(
   #   apply(counts_cpm, MARGIN = 1, FUN = function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1))
@@ -3327,8 +3430,8 @@ draw(
 
 ```{r, fig.height = 2, fig.width = 6}
 gene_ids <- geneIds(gene_sets)
-gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[1]]]
-gene_ids <- gene_ids[match(top_gse[[1]], names(gene_ids))]
+gene_ids <- gene_ids[names(gene_ids) %in% unlist(top_gse[[1]])]
+gene_ids <- gene_ids[match(unlist(top_gse[[1]]), names(gene_ids))]
 links_orig <- data.frame(
   source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
 )
@@ -3338,24 +3441,32 @@ links_orig[] <- map[unlist(links_orig)]
 links$value <- links_orig$value
 colnames(links) <- c("source", "target")
 links <- links[links$target %in% unique(names(top_genes[[1]])), ]
-links$value <- rep(1, times = nrow(links))
 dup <- which(duplicated(links[ , 1:2]))
 if (length(dup) > 0) {
   links <- links[-dup, ]
 }
-
+stack <- stack(top_gse[[1]])
+stack <- stack[stack$values %in% unique(links$source), ]
+stack <- stack[ , c(2, 1)]
+colnames(stack) <- colnames(links)
+links_orig <- links
+links <- rbind(links, stack)
+value <- c()
+for (target in stack$target) {
+  value <- c(value, length(which(links_orig$source %in% target)))
+}
+links$value <- c(rep(1, times = nrow(links_orig)), value)
 nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
 links$IDsource <- match(links$source, nodes$name) - 1
 links$IDtarget <- match(links$target, nodes$name) - 1
-
 sankeyNetwork(
   Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
   Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
 )
 
 gene_ids <- geneIds(gene_sets)
-gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[2]]]
-gene_ids <- gene_ids[match(top_gse[[2]], names(gene_ids))]
+gene_ids <- gene_ids[names(gene_ids) %in% unlist(top_gse[[2]])]
+gene_ids <- gene_ids[match(unlist(top_gse[[2]]), names(gene_ids))]
 links_orig <- data.frame(
   source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
 )
@@ -3365,16 +3476,24 @@ links_orig[] <- map[unlist(links_orig)]
 links$value <- links_orig$value
 colnames(links) <- c("source", "target")
 links <- links[links$target %in% unique(names(top_genes[[2]])), ]
-links$value <- rep(1, times = nrow(links))
 dup <- which(duplicated(links[ , 1:2]))
 if (length(dup) > 0) {
   links <- links[-dup, ]
 }
-
+stack <- stack(top_gse[[2]])
+stack <- stack[stack$values %in% unique(links$source), ]
+stack <- stack[ , c(2, 1)]
+colnames(stack) <- colnames(links)
+links_orig <- links
+links <- rbind(links, stack)
+value <- c()
+for (target in stack$target) {
+  value <- c(value, length(which(links_orig$source %in% target)))
+}
+links$value <- c(rep(1, times = nrow(links_orig)), value)
 nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
 links$IDsource <- match(links$source, nodes$name) - 1
 links$IDtarget <- match(links$target, nodes$name) - 1
-
 sankeyNetwork(
   Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
   Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
@@ -3516,13 +3635,14 @@ colnames(mat) <- levels(markers$cluster)
 
 top_gse <- vector("list", length = length(modules))
 for (j in seq_along(top_gse)) {
-  idx <- c()
-  for (i in seq_along(unlist(strsplit(top_words[j], split = "\n")))) {
+  top_gse[[j]] <- vector("list", length = length(unlist(strsplit(top_words[j], split = "\n"))))
+  names(top_gse[[j]]) <- unlist(strsplit(top_words[j], split = "\n"))
+  for (i in seq_along(top_gse[[j]])) {
     idx <- c(
-      idx, grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
+      grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
     )
+    top_gse[[j]][[i]] <- modules[[j]][idx]
   }
-  top_gse[[j]] <- modules[[j]][idx]
 }
 
 results <- as.data.frame(counts_cpm)
@@ -3531,10 +3651,10 @@ results$Coef <- results[ , 1] - results[ , 2]
 top_genes <- vector("list", length = length(modules))
 for (i in seq_along(top_genes)) {
   genes <- c()
-  for (gse_names in top_gse[[i]]) {
+  for (gse_names in unlist(top_gse[[i]])) {
     genes <- c(genes, geneIds(gene_sets[names(gene_sets) %in% gse_names])[[1]])
   }
-  genes <- table(genes) / length(top_gse[[i]])
+  genes <- table(genes) / length(unlist(top_gse[[i]]))
 
   # counts_cpm_scaled <- t(
   #   apply(counts_cpm, MARGIN = 1, FUN = function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1))
@@ -3784,8 +3904,8 @@ draw(
 
 ```{r, fig.height = 2, fig.width = 6}
 gene_ids <- geneIds(gene_sets)
-gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[1]]]
-gene_ids <- gene_ids[match(top_gse[[1]], names(gene_ids))]
+gene_ids <- gene_ids[names(gene_ids) %in% unlist(top_gse[[1]])]
+gene_ids <- gene_ids[match(unlist(top_gse[[1]]), names(gene_ids))]
 links_orig <- data.frame(
   source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
 )
@@ -3795,24 +3915,32 @@ links_orig[] <- map[unlist(links_orig)]
 links$value <- links_orig$value
 colnames(links) <- c("source", "target")
 links <- links[links$target %in% unique(names(top_genes[[1]])), ]
-links$value <- rep(1, times = nrow(links))
 dup <- which(duplicated(links[ , 1:2]))
 if (length(dup) > 0) {
   links <- links[-dup, ]
 }
-
+stack <- stack(top_gse[[1]])
+stack <- stack[stack$values %in% unique(links$source), ]
+stack <- stack[ , c(2, 1)]
+colnames(stack) <- colnames(links)
+links_orig <- links
+links <- rbind(links, stack)
+value <- c()
+for (target in stack$target) {
+  value <- c(value, length(which(links_orig$source %in% target)))
+}
+links$value <- c(rep(1, times = nrow(links_orig)), value)
 nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
 links$IDsource <- match(links$source, nodes$name) - 1
 links$IDtarget <- match(links$target, nodes$name) - 1
-
 sankeyNetwork(
   Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
   Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
 )
 
 gene_ids <- geneIds(gene_sets)
-gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[2]]]
-gene_ids <- gene_ids[match(top_gse[[2]], names(gene_ids))]
+gene_ids <- gene_ids[names(gene_ids) %in% unlist(top_gse[[2]])]
+gene_ids <- gene_ids[match(unlist(top_gse[[2]]), names(gene_ids))]
 links_orig <- data.frame(
   source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
 )
@@ -3822,16 +3950,24 @@ links_orig[] <- map[unlist(links_orig)]
 links$value <- links_orig$value
 colnames(links) <- c("source", "target")
 links <- links[links$target %in% unique(names(top_genes[[2]])), ]
-links$value <- rep(1, times = nrow(links))
 dup <- which(duplicated(links[ , 1:2]))
 if (length(dup) > 0) {
   links <- links[-dup, ]
 }
-
+stack <- stack(top_gse[[2]])
+stack <- stack[stack$values %in% unique(links$source), ]
+stack <- stack[ , c(2, 1)]
+colnames(stack) <- colnames(links)
+links_orig <- links
+links <- rbind(links, stack)
+value <- c()
+for (target in stack$target) {
+  value <- c(value, length(which(links_orig$source %in% target)))
+}
+links$value <- c(rep(1, times = nrow(links_orig)), value)
 nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
 links$IDsource <- match(links$source, nodes$name) - 1
 links$IDtarget <- match(links$target, nodes$name) - 1
-
 sankeyNetwork(
   Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
   Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
@@ -3973,13 +4109,14 @@ colnames(mat) <- levels(markers$cluster)
 
 top_gse <- vector("list", length = length(modules))
 for (j in seq_along(top_gse)) {
-  idx <- c()
-  for (i in seq_along(unlist(strsplit(top_words[j], split = "\n")))) {
+  top_gse[[j]] <- vector("list", length = length(unlist(strsplit(top_words[j], split = "\n"))))
+  names(top_gse[[j]]) <- unlist(strsplit(top_words[j], split = "\n"))
+  for (i in seq_along(top_gse[[j]])) {
     idx <- c(
-      idx, grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
+      grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
     )
+    top_gse[[j]][[i]] <- modules[[j]][idx]
   }
-  top_gse[[j]] <- modules[[j]][idx]
 }
 
 results <- as.data.frame(counts_cpm)
@@ -3988,10 +4125,10 @@ results$Coef <- results[ , 1] - results[ , 2]
 top_genes <- vector("list", length = length(modules))
 for (i in seq_along(top_genes)) {
   genes <- c()
-  for (gse_names in top_gse[[i]]) {
+  for (gse_names in unlist(top_gse[[i]])) {
     genes <- c(genes, geneIds(gene_sets[names(gene_sets) %in% gse_names])[[1]])
   }
-  genes <- table(genes) / length(top_gse[[i]])
+  genes <- table(genes) / length(unlist(top_gse[[i]]))
 
   # counts_cpm_scaled <- t(
   #   apply(counts_cpm, MARGIN = 1, FUN = function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1))
@@ -4241,8 +4378,8 @@ draw(
 
 ```{r, fig.height = 2, fig.width = 6}
 gene_ids <- geneIds(gene_sets)
-gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[1]]]
-gene_ids <- gene_ids[match(top_gse[[1]], names(gene_ids))]
+gene_ids <- gene_ids[names(gene_ids) %in% unlist(top_gse[[1]])]
+gene_ids <- gene_ids[match(unlist(top_gse[[1]]), names(gene_ids))]
 links_orig <- data.frame(
   source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
 )
@@ -4252,24 +4389,32 @@ links_orig[] <- map[unlist(links_orig)]
 links$value <- links_orig$value
 colnames(links) <- c("source", "target")
 links <- links[links$target %in% unique(names(top_genes[[1]])), ]
-links$value <- rep(1, times = nrow(links))
 dup <- which(duplicated(links[ , 1:2]))
 if (length(dup) > 0) {
   links <- links[-dup, ]
 }
-
+stack <- stack(top_gse[[1]])
+stack <- stack[stack$values %in% unique(links$source), ]
+stack <- stack[ , c(2, 1)]
+colnames(stack) <- colnames(links)
+links_orig <- links
+links <- rbind(links, stack)
+value <- c()
+for (target in stack$target) {
+  value <- c(value, length(which(links_orig$source %in% target)))
+}
+links$value <- c(rep(1, times = nrow(links_orig)), value)
 nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
 links$IDsource <- match(links$source, nodes$name) - 1
 links$IDtarget <- match(links$target, nodes$name) - 1
-
 sankeyNetwork(
   Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
   Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
 )
 
 gene_ids <- geneIds(gene_sets)
-gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[2]]]
-gene_ids <- gene_ids[match(top_gse[[2]], names(gene_ids))]
+gene_ids <- gene_ids[names(gene_ids) %in% unlist(top_gse[[2]])]
+gene_ids <- gene_ids[match(unlist(top_gse[[2]]), names(gene_ids))]
 links_orig <- data.frame(
   source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
 )
@@ -4279,16 +4424,24 @@ links_orig[] <- map[unlist(links_orig)]
 links$value <- links_orig$value
 colnames(links) <- c("source", "target")
 links <- links[links$target %in% unique(names(top_genes[[2]])), ]
-links$value <- rep(1, times = nrow(links))
 dup <- which(duplicated(links[ , 1:2]))
 if (length(dup) > 0) {
   links <- links[-dup, ]
 }
-
+stack <- stack(top_gse[[2]])
+stack <- stack[stack$values %in% unique(links$source), ]
+stack <- stack[ , c(2, 1)]
+colnames(stack) <- colnames(links)
+links_orig <- links
+links <- rbind(links, stack)
+value <- c()
+for (target in stack$target) {
+  value <- c(value, length(which(links_orig$source %in% target)))
+}
+links$value <- c(rep(1, times = nrow(links_orig)), value)
 nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
 links$IDsource <- match(links$source, nodes$name) - 1
 links$IDtarget <- match(links$target, nodes$name) - 1
-
 sankeyNetwork(
   Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
   Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
@@ -4430,13 +4583,14 @@ colnames(mat) <- levels(markers$cluster)
 
 top_gse <- vector("list", length = length(modules))
 for (j in seq_along(top_gse)) {
-  idx <- c()
-  for (i in seq_along(unlist(strsplit(top_words[j], split = "\n")))) {
+  top_gse[[j]] <- vector("list", length = length(unlist(strsplit(top_words[j], split = "\n"))))
+  names(top_gse[[j]]) <- unlist(strsplit(top_words[j], split = "\n"))
+  for (i in seq_along(top_gse[[j]])) {
     idx <- c(
-      idx, grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
+      grep(paste0("\\b", unlist(strsplit(top_words[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
     )
+    top_gse[[j]][[i]] <- modules[[j]][idx]
   }
-  top_gse[[j]] <- modules[[j]][idx]
 }
 
 results <- as.data.frame(counts_cpm)
@@ -4445,10 +4599,10 @@ results$Coef <- results[ , 1] - results[ , 2]
 top_genes <- vector("list", length = length(modules))
 for (i in seq_along(top_genes)) {
   genes <- c()
-  for (gse_names in top_gse[[i]]) {
+  for (gse_names in unlist(top_gse[[i]])) {
     genes <- c(genes, geneIds(gene_sets[names(gene_sets) %in% gse_names])[[1]])
   }
-  genes <- table(genes) / length(top_gse[[i]])
+  genes <- table(genes) / length(unlist(top_gse[[i]]))
 
   # counts_cpm_scaled <- t(
   #   apply(counts_cpm, MARGIN = 1, FUN = function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1))
@@ -4698,8 +4852,8 @@ draw(
 
 ```{r, fig.height = 2, fig.width = 6}
 gene_ids <- geneIds(gene_sets)
-gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[1]]]
-gene_ids <- gene_ids[match(top_gse[[1]], names(gene_ids))]
+gene_ids <- gene_ids[names(gene_ids) %in% unlist(top_gse[[1]])]
+gene_ids <- gene_ids[match(unlist(top_gse[[1]]), names(gene_ids))]
 links_orig <- data.frame(
   source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
 )
@@ -4709,24 +4863,32 @@ links_orig[] <- map[unlist(links_orig)]
 links$value <- links_orig$value
 colnames(links) <- c("source", "target")
 links <- links[links$target %in% unique(names(top_genes[[1]])), ]
-links$value <- rep(1, times = nrow(links))
 dup <- which(duplicated(links[ , 1:2]))
 if (length(dup) > 0) {
   links <- links[-dup, ]
 }
-
+stack <- stack(top_gse[[1]])
+stack <- stack[stack$values %in% unique(links$source), ]
+stack <- stack[ , c(2, 1)]
+colnames(stack) <- colnames(links)
+links_orig <- links
+links <- rbind(links, stack)
+value <- c()
+for (target in stack$target) {
+  value <- c(value, length(which(links_orig$source %in% target)))
+}
+links$value <- c(rep(1, times = nrow(links_orig)), value)
 nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
 links$IDsource <- match(links$source, nodes$name) - 1
 links$IDtarget <- match(links$target, nodes$name) - 1
-
 sankeyNetwork(
   Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
   Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
 )
 
 gene_ids <- geneIds(gene_sets)
-gene_ids <- gene_ids[names(gene_ids) %in% top_gse[[2]]]
-gene_ids <- gene_ids[match(top_gse[[2]], names(gene_ids))]
+gene_ids <- gene_ids[names(gene_ids) %in% unlist(top_gse[[2]])]
+gene_ids <- gene_ids[match(unlist(top_gse[[2]]), names(gene_ids))]
 links_orig <- data.frame(
   source = rep(names(gene_ids), times = lengths(gene_ids)), target = gene_ids %>% map_dfr(as_tibble)
 )
@@ -4736,16 +4898,24 @@ links_orig[] <- map[unlist(links_orig)]
 links$value <- links_orig$value
 colnames(links) <- c("source", "target")
 links <- links[links$target %in% unique(names(top_genes[[2]])), ]
-links$value <- rep(1, times = nrow(links))
 dup <- which(duplicated(links[ , 1:2]))
 if (length(dup) > 0) {
   links <- links[-dup, ]
 }
-
+stack <- stack(top_gse[[2]])
+stack <- stack[stack$values %in% unique(links$source), ]
+stack <- stack[ , c(2, 1)]
+colnames(stack) <- colnames(links)
+links_orig <- links
+links <- rbind(links, stack)
+value <- c()
+for (target in stack$target) {
+  value <- c(value, length(which(links_orig$source %in% target)))
+}
+links$value <- c(rep(1, times = nrow(links_orig)), value)
 nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
 links$IDsource <- match(links$source, nodes$name) - 1
 links$IDtarget <- match(links$target, nodes$name) - 1
-
 sankeyNetwork(
   Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
   Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
@@ -4759,4 +4929,3 @@ This is the concluding section of the document. Here we output the `sessionInfo`
 ```{r}
 sessionInfo()
 ```
-
