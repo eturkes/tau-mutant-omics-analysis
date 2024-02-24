@@ -875,7 +875,8 @@ word_cloud = function(x, width = NULL, dict = c()){
            "prospective", "monophosphoramidase", "diphosphoinositol", "individual",
            "sense", "recognizable", "monophosphoramidate", "monophosphate",
            "roots", "resides", "polyphosphate", "ingression",
-           "ctp", "multilayered", "column", "anatomical"),
+           "ctp", "multilayered", "column", "anatomical",
+           "tryptophan", "concomitant", "triphosphate", "undergo"),
            dict,
            c("mitosis", "heme", "spermiogenesis", "prolactin",
              "trophoblast", "adipose", "hepatocyte", "follicles",
@@ -959,7 +960,8 @@ word_cloud = function(x, width = NULL, dict = c()){
              "cones", "acrosomic", "chondrocyte", "peripheral",
              "blastocyst", "cardiac", "otic", "gastrulation",
              "heart", "pericardium", "pulmonary", "vena",
-             "chordates"))
+             "chordates", "melanogaster", "vessel", "vessels",
+             "ovary", "ovum", "progesterone"))
            # c("cyclins", "cyclin", "crosslinking", "crosslink",
            #   "crosslinks", "transcript", "transcripts"))
            # c("cerevisiae", "saccharomyces", "skeleton", "fiber",
