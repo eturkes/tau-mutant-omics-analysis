@@ -468,7 +468,7 @@ for (j in seq_along(top_gse_left)) {
     idx <- c(
       grep(paste0("\\b", unlist(strsplit(top_words_left[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
     )
-    top_gse_left[[j]][[i]] <- modules[[j]][idx]
+    top_gse_left[[j]][[i]] <- modules[[j]]
   }
 }
 
@@ -642,7 +642,7 @@ for (j in seq_along(top_gse_right)) {
     idx <- c(
       grep(paste0("\\b", unlist(strsplit(top_words_right[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
     )
-    top_gse_right[[j]][[i]] <- modules[[j]][idx]
+    top_gse_right[[j]][[i]] <- modules[[j]]
   }
 }
 
@@ -1204,7 +1204,7 @@ for (j in seq_along(top_gse_left)) {
     idx <- c(
       grep(paste0("\\b", unlist(strsplit(top_words_left[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
     )
-    top_gse_left[[j]][[i]] <- modules[[j]][idx]
+    top_gse_left[[j]][[i]] <- modules[[j]]
   }
 }
 
@@ -1378,7 +1378,7 @@ for (j in seq_along(top_gse_right)) {
     idx <- c(
       grep(paste0("\\b", unlist(strsplit(top_words_right[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
     )
-    top_gse_right[[j]][[i]] <- modules[[j]][idx]
+    top_gse_right[[j]][[i]] <- modules[[j]]
   }
 }
 
@@ -1940,7 +1940,7 @@ for (j in seq_along(top_gse_left)) {
     idx <- c(
       grep(paste0("\\b", unlist(strsplit(top_words_left[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
     )
-    top_gse_left[[j]][[i]] <- modules[[j]][idx]
+    top_gse_left[[j]][[i]] <- modules[[j]]
   }
 }
 
@@ -2114,7 +2114,7 @@ for (j in seq_along(top_gse_right)) {
     idx <- c(
       grep(paste0("\\b", unlist(strsplit(top_words_right[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
     )
-    top_gse_right[[j]][[i]] <- modules[[j]][idx]
+    top_gse_right[[j]][[i]] <- modules[[j]]
   }
 }
 
@@ -2676,7 +2676,7 @@ for (j in seq_along(top_gse_left)) {
     idx <- c(
       grep(paste0("\\b", unlist(strsplit(top_words_left[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
     )
-    top_gse_left[[j]][[i]] <- modules[[j]][idx]
+    top_gse_left[[j]][[i]] <- modules[[j]]
   }
 }
 
@@ -2850,7 +2850,7 @@ for (j in seq_along(top_gse_right)) {
     idx <- c(
       grep(paste0("\\b", unlist(strsplit(top_words_right[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
     )
-    top_gse_right[[j]][[i]] <- modules[[j]][idx]
+    top_gse_right[[j]][[i]] <- modules[[j]]
   }
 }
 
@@ -3412,7 +3412,7 @@ for (j in seq_along(top_gse_left)) {
     idx <- c(
       grep(paste0("\\b", unlist(strsplit(top_words_left[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
     )
-    top_gse_left[[j]][[i]] <- modules[[j]][idx]
+    top_gse_left[[j]][[i]] <- modules[[j]]
   }
 }
 
@@ -3586,7 +3586,7 @@ for (j in seq_along(top_gse_right)) {
     idx <- c(
       grep(paste0("\\b", unlist(strsplit(top_words_right[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
     )
-    top_gse_right[[j]][[i]] <- modules[[j]][idx]
+    top_gse_right[[j]][[i]] <- modules[[j]]
   }
 }
 
@@ -4148,7 +4148,7 @@ for (j in seq_along(top_gse_left)) {
     idx <- c(
       grep(paste0("\\b", unlist(strsplit(top_words_left[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
     )
-    top_gse_left[[j]][[i]] <- modules[[j]][idx]
+    top_gse_left[[j]][[i]] <- modules[[j]]
   }
 }
 
@@ -4322,7 +4322,7 @@ for (j in seq_along(top_gse_right)) {
     idx <- c(
       grep(paste0("\\b", unlist(strsplit(top_words_right[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
     )
-    top_gse_right[[j]][[i]] <- modules[[j]][idx]
+    top_gse_right[[j]][[i]] <- modules[[j]]
   }
 }
 
@@ -4884,7 +4884,7 @@ for (j in seq_along(top_gse_left)) {
     idx <- c(
       grep(paste0("\\b", unlist(strsplit(top_words_left[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
     )
-    top_gse_left[[j]][[i]] <- modules[[j]][idx]
+    top_gse_left[[j]][[i]] <- modules[[j]]
   }
 }
 
@@ -5058,7 +5058,7 @@ for (j in seq_along(top_gse_right)) {
     idx <- c(
       grep(paste0("\\b", unlist(strsplit(top_words_right[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
     )
-    top_gse_right[[j]][[i]] <- modules[[j]][idx]
+    top_gse_right[[j]][[i]] <- modules[[j]]
   }
 }
 
@@ -5620,7 +5620,7 @@ for (j in seq_along(top_gse_left)) {
     idx <- c(
       grep(paste0("\\b", unlist(strsplit(top_words_left[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
     )
-    top_gse_left[[j]][[i]] <- modules[[j]][idx]
+    top_gse_left[[j]][[i]] <- modules[[j]]
   }
 }
 
@@ -5794,7 +5794,7 @@ for (j in seq_along(top_gse_right)) {
     idx <- c(
       grep(paste0("\\b", unlist(strsplit(top_words_right[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
     )
-    top_gse_right[[j]][[i]] <- modules[[j]][idx]
+    top_gse_right[[j]][[i]] <- modules[[j]]
   }
 }
 
@@ -6356,7 +6356,7 @@ for (j in seq_along(top_gse_left)) {
     idx <- c(
       grep(paste0("\\b", unlist(strsplit(top_words_left[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
     )
-    top_gse_left[[j]][[i]] <- modules[[j]][idx]
+    top_gse_left[[j]][[i]] <- modules[[j]]
   }
 }
 
@@ -6530,7 +6530,7 @@ for (j in seq_along(top_gse_right)) {
     idx <- c(
       grep(paste0("\\b", unlist(strsplit(top_words_right[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
     )
-    top_gse_right[[j]][[i]] <- modules[[j]][idx]
+    top_gse_right[[j]][[i]] <- modules[[j]]
   }
 }
 
@@ -7092,7 +7092,7 @@ for (j in seq_along(top_gse_left)) {
     idx <- c(
       grep(paste0("\\b", unlist(strsplit(top_words_left[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
     )
-    top_gse_left[[j]][[i]] <- modules[[j]][idx]
+    top_gse_left[[j]][[i]] <- modules[[j]]
   }
 }
 
@@ -7266,7 +7266,7 @@ for (j in seq_along(top_gse_right)) {
     idx <- c(
       grep(paste0("\\b", unlist(strsplit(top_words_right[j], split = "\n"))[i], "\\b"), x = unlist(top_words_list[[j]]))
     )
-    top_gse_right[[j]][[i]] <- modules[[j]][idx]
+    top_gse_right[[j]][[i]] <- modules[[j]]
   }
 }
 
