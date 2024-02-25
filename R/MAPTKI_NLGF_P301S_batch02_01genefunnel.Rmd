@@ -515,7 +515,10 @@ for (i in seq_along(top_genes_left)) {
   avg_log2FC_scaled <- avg_log2FC_scaled[order(avg_log2FC_scaled, decreasing = TRUE)]
   matches_sub <- matches_sub[order(matches_sub, decreasing = TRUE)]
 
-  comb <- c(aggr[1], avg_log2FC_scaled[1], genes[1], matches_sub[1])
+  comb <- aggr[1]
+  comb <- c(comb, avg_log2FC_scaled[names(avg_log2FC_scaled) %notin% names(comb)][1])
+  comb <- c(comb, genes[names(genes) %notin% names(comb)][1])
+  comb <- c(comb, matches_sub[names(matches_sub) %notin% names(comb)][1])
 
   counts_cpm_sub <- counts_cpm_sub[match(names(comb), rownames(counts_cpm_sub)), , drop = FALSE]
   # genes <- genes[match(names(comb), names(genes))]
@@ -711,7 +714,10 @@ for (i in seq_along(top_genes_right)) {
   avg_log2FC_scaled <- avg_log2FC_scaled[order(avg_log2FC_scaled, decreasing = TRUE)]
   matches_sub <- matches_sub[order(matches_sub, decreasing = TRUE)]
 
-  comb <- c(aggr[1], avg_log2FC_scaled[1], genes[1], matches_sub[1])
+  comb <- aggr[1]
+  comb <- c(comb, avg_log2FC_scaled[names(avg_log2FC_scaled) %notin% names(comb)][1])
+  comb <- c(comb, genes[names(genes) %notin% names(comb)][1])
+  comb <- c(comb, matches_sub[names(matches_sub) %notin% names(comb)][1])
 
   counts_cpm_sub <- counts_cpm_sub[match(names(comb), rownames(counts_cpm_sub)), , drop = FALSE]
   # genes <- genes[match(names(comb), names(genes))]
