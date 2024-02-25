@@ -804,7 +804,7 @@ draw(
     column_names_side = "top",
     row_title = top_words_left,
     column_names_gp = gpar(fontsize = 3.5),
-    row_title_gp = gpar(fontsize = 4.5, font = 2),
+    row_title_gp = gpar(fontsize = 5),
     row_title_rot = 0,
     column_names_rot = 45,
     heatmap_legend_param = list(
@@ -907,7 +907,7 @@ draw(
     column_names_side = "top",
     row_title = top_words_right,
     column_names_gp = gpar(fontsize = 3.5),
-    row_title_gp = gpar(fontsize = 4.5, font = 2),
+    row_title_gp = gpar(fontsize = 5),
     row_title_rot = 0,
     column_names_rot = 45,
     heatmap_legend_param = list(
