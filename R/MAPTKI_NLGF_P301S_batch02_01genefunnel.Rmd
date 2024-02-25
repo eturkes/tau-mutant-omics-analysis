@@ -481,9 +481,9 @@ for (i in seq_along(top_genes_left)) {
   # }
   avg_log2FC_scaled <- avg_log2FC_all_scaled[names(avg_log2FC_all_scaled) %in% names(avg_log2FC)]
   avg_log2FC_scaled <- avg_log2FC_scaled[names(avg_log2FC_scaled) %in% names(genes)]
-  genes <- genes[names(genes) %in% names(avg_log2FC_scaled)]
-  avg_log2FC_scaled <- avg_log2FC_scaled[match(names(genes), names(avg_log2FC_scaled))]
-  counts_cpm_sub <- counts_cpm[rownames(counts_cpm) %in% names(avg_log2FC_scaled), , drop = FALSE]
+  # genes <- genes[names(genes) %in% names(avg_log2FC_scaled)]
+  # avg_log2FC_scaled <- avg_log2FC_scaled[match(names(genes), names(avg_log2FC_scaled))]
+  counts_cpm_sub <- counts_cpm[rownames(counts_cpm) %in% names(genes), , drop = FALSE]
   counts_cpm_sub <- counts_cpm_sub[match(names(genes), rownames(counts_cpm_sub)), , drop = FALSE]
 
   counts_cpm_sub <- SingleCellExperiment(assays = list(counts = counts_cpm_sub))
@@ -497,14 +497,28 @@ for (i in seq_along(top_genes_left)) {
   counts_cpm_sub <- counts(counts_cpm_sub)
 
   matches_sub <- module_membership_norm_scaled[names(module_membership_norm_scaled) %in% names(genes)]
-  matches_sub <- matches_sub[match(names(genes), names(matches_sub))]
+  # matches_sub <- matches_sub[match(names(genes), names(matches_sub))]
   # matches_sub <- (matches_sub - min(matches_sub)) / (max(matches_sub) - min(matches_sub))
 
-  comb <- genes * avg_log2FC_scaled * matches_sub
-  comb <- comb[order(comb, decreasing = TRUE)]
+  matching <- intersect(intersect(names(genes), names(avg_log2FC_scaled)), names(matches_sub))
+  genes_int <- genes[names(genes) %in% matching]
+  avg_log2FC_scaled_int <- avg_log2FC_scaled[names(avg_log2FC_scaled) %in% matching]
+  matches_sub_int <- matches_sub[names(matches_sub) %in% matching]
+
+  avg_log2FC_scaled_int <- avg_log2FC_scaled_int[match(names(genes_int), names(avg_log2FC_scaled_int))]
+  matches_sub_int <- matches_sub_int[match(names(genes_int), names(matches_sub_int))]
+
+  aggr <- genes_int * avg_log2FC_scaled_int * matches_sub_int
+  aggr <- aggr[order(aggr, decreasing = TRUE)]
+
+  genes <- genes[order(genes, decreasing = TRUE)]
+  avg_log2FC_scaled <- avg_log2FC_scaled[order(avg_log2FC_scaled, decreasing = TRUE)]
+  matches_sub <- matches_sub[order(matches_sub, decreasing = TRUE)]
+
+  comb <- c(aggr[1], avg_log2FC_scaled[1], genes[1], matches_sub[1])
 
   counts_cpm_sub <- counts_cpm_sub[match(names(comb), rownames(counts_cpm_sub)), , drop = FALSE]
-  genes <- genes[match(names(comb), names(genes))]
+  # genes <- genes[match(names(comb), names(genes))]
   # avg_log2FC <- abs(avg_log2FC[names(avg_log2FC) %in% names(counts_cpm_sub)])
   # avg_log2FC <- avg_log2FC[match(names(comb), names(avg_log2FC))]
 
@@ -663,9 +677,9 @@ for (i in seq_along(top_genes_right)) {
   # }
   avg_log2FC_scaled <- avg_log2FC_all_scaled_rev[names(avg_log2FC_all_scaled_rev) %in% names(avg_log2FC)]
   avg_log2FC_scaled <- avg_log2FC_scaled[names(avg_log2FC_scaled) %in% names(genes)]
-  genes <- genes[names(genes) %in% names(avg_log2FC_scaled)]
-  avg_log2FC_scaled <- avg_log2FC_scaled[match(names(genes), names(avg_log2FC_scaled))]
-  counts_cpm_sub <- counts_cpm[rownames(counts_cpm) %in% names(avg_log2FC_scaled), , drop = FALSE]
+  # genes <- genes[names(genes) %in% names(avg_log2FC_scaled)]
+  # avg_log2FC_scaled <- avg_log2FC_scaled[match(names(genes), names(avg_log2FC_scaled))]
+  counts_cpm_sub <- counts_cpm[rownames(counts_cpm) %in% names(genes), , drop = FALSE]
   counts_cpm_sub <- counts_cpm_sub[match(names(genes), rownames(counts_cpm_sub)), , drop = FALSE]
 
   counts_cpm_sub <- SingleCellExperiment(assays = list(counts = counts_cpm_sub))
@@ -679,14 +693,28 @@ for (i in seq_along(top_genes_right)) {
   counts_cpm_sub <- counts(counts_cpm_sub)
 
   matches_sub <- module_membership_norm_scaled[names(module_membership_norm_scaled) %in% names(genes)]
-  matches_sub <- matches_sub[match(names(genes), names(matches_sub))]
+  # matches_sub <- matches_sub[match(names(genes), names(matches_sub))]
   # matches_sub <- (matches_sub - min(matches_sub)) / (max(matches_sub) - min(matches_sub))
 
-  comb <- genes * avg_log2FC_scaled * matches_sub
-  comb <- comb[order(comb, decreasing = TRUE)]
+  matching <- intersect(intersect(names(genes), names(avg_log2FC_scaled)), names(matches_sub))
+  genes_int <- genes[names(genes) %in% matching]
+  avg_log2FC_scaled_int <- avg_log2FC_scaled[names(avg_log2FC_scaled) %in% matching]
+  matches_sub_int <- matches_sub[names(matches_sub) %in% matching]
+
+  avg_log2FC_scaled_int <- avg_log2FC_scaled_int[match(names(genes_int), names(avg_log2FC_scaled_int))]
+  matches_sub_int <- matches_sub_int[match(names(genes_int), names(matches_sub_int))]
+
+  aggr <- genes_int * avg_log2FC_scaled_int * matches_sub_int
+  aggr <- aggr[order(aggr, decreasing = TRUE)]
+
+  genes <- genes[order(genes, decreasing = TRUE)]
+  avg_log2FC_scaled <- avg_log2FC_scaled[order(avg_log2FC_scaled, decreasing = TRUE)]
+  matches_sub <- matches_sub[order(matches_sub, decreasing = TRUE)]
+
+  comb <- c(aggr[1], avg_log2FC_scaled[1], genes[1], matches_sub[1])
 
   counts_cpm_sub <- counts_cpm_sub[match(names(comb), rownames(counts_cpm_sub)), , drop = FALSE]
-  genes <- genes[match(names(comb), names(genes))]
+  # genes <- genes[match(names(comb), names(genes))]
   # avg_log2FC <- abs(avg_log2FC[names(avg_log2FC) %in% names(counts_cpm_sub)])
   # avg_log2FC <- avg_log2FC[match(names(comb), names(avg_log2FC))]
 
