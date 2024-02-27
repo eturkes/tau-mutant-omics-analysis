@@ -880,7 +880,7 @@ word_cloud = function(x, width = NULL, dict = c()){
            "coenzyme", "coenzymes", "enzyme", "enzymes",
            "factor", "factors", "cofactors", "cofactor",
            "feii", "ferrous", "earliest", "fully",
-           "prot"),
+           "prot", "c4b"),
            dict,
            c("mitosis", "heme", "spermiogenesis", "prolactin",
              "trophoblast", "adipose", "hepatocyte", "follicles",
@@ -981,9 +981,12 @@ word_cloud = function(x, width = NULL, dict = c()){
   txt = Corpus(VectorSource(txt))
   txt = tm_map(txt, PlainTextDocument)
   txt = tm_map(txt, removePunctuation)
-  txt = tm_map(txt, removeNumbers)
+  txt = tm_map(txt, removePunctuation, ucp = TRUE)
   txt = tm_map(txt, content_transformer(tolower))
-  txt = tm_map(txt, removeWords, c(t.rW))
+  txt = tm_map(txt, stripWhitespace)
+  # txt = tm_map(txt, stemDocument)
+  txt = tm_map(txt, removeWordsCustom, c(t.rW, stopwords("english"), stopwords("SMART")))
+  # txt = tm_map(txt, removeNumbers)
   # corpus = txt
   # txt = tm_map(txt, stemDocument)
   # txt = tm_map(txt, stemCompletion, corpus)
@@ -998,3 +1001,11 @@ word_cloud = function(x, width = NULL, dict = c()){
   }
   gsub("[[:space:]]?NA[[:space:]]?", "", word_freqs)
 }
+
+removeWordsCustom <- content_transformer({function(txt, words, n = 30000L) {
+  l <- cumsum(nchar(words)+c(0, rep(1, length(words)-1)))
+  groups <- cut(l, breaks = seq(1,ceiling(tail(l, 1)/n)*n+1, by = n))
+  regexes <- sapply(split(words, groups), function(words) sprintf("(*UCP)\\b(%s)\\b", paste(sort(words, decreasing = TRUE), collapse = "|")))
+  for (regex in regexes)  txt <- gsub(regex, "", txt, perl = TRUE)
+  return(txt)
+}})
