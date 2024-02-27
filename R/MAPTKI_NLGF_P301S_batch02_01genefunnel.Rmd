@@ -89,6 +89,8 @@ genotype <- "MAPTKI_NLGF_P301S"
 batch <- 2
 step <- 1
 
+colour <- colorRamp2(c(0, 5, 10), c("#0077BB", "#FFFFFF", "#CC3311"))
+
 cache_dir <- file.path("..", "cache", genotype, paste0("0", batch), paste0("0", step))
 if (!dir.exists(cache_dir)) {
   dir.create(cache_dir, recursive = TRUE)
@@ -138,7 +140,7 @@ if (file.exists(rds)) {
 }
 ```
 
-# Analysis
+# Gene Set Clustering
 
 ```{r}
 gene_sets_def <- gene_sets
@@ -200,6 +202,74 @@ for (i in seq_along(stats)) {
   }
 }
 optimal_k <- which.max(stats)
+
+cluster_colours <- cols25(optimal_k)
+clustering <- color_branches(dendro, k = optimal_k, col = cluster_colours)
+
+cluster_labels <- cluster_list[[optimal_k]]
+cluster_labels <- unlist(map(lapply(cluster_labels, FUN = names), .f = 1))
+```
+
+# All Cell-types
+
+```{r, fig.height = 6, fig.width = 4}
+gse_cpm <- log1p(cpm(gse))
+counts_cpm <- log1p(cpm(counts))
+
+groups <- factor(sub(".*\\s", "", colnames(gse_cpm)), levels = unique(sub(".*\\s", "", colnames(gse_cpm))))
+
+top_anno <- HeatmapAnnotation(
+  Genotype = anno_block(
+    gp = gpar(fill = c("lightgray", "darkgray"), lwd = 0.5),
+    labels = unique(groups),
+    labels_gp = gpar(fontsize = 4),
+    height = unit(2, "mm")
+  )
+)
+
+left_anno <-  HeatmapAnnotation(
+  cluster_labels = anno_block(
+    gp = gpar(col = cluster_colours),
+    labels = seq(optimal_k),
+    labels_rot = 0,
+    labels_gp = gpar(fontsize = 4),
+    width = unit(1.5, "mm")
+  ),
+  which = "row"
+)
+
+set.seed(1)
+draw(
+  Heatmap(
+    gse_cpm,
+    col = colour,
+    column_labels = sub("\\s+[^ ]+$", "", colnames(gse_cpm)),
+    column_split = factor(groups, levels = unique(groups)),
+    top_annotation = top_anno,
+    left_annotation = left_anno,
+    cluster_rows = clustering,
+    row_split = optimal_k,
+    rect_gp = gpar(col = "darkgray", lwd = 0.25),
+    border_gp = gpar(lwd = 0.5),
+    border = TRUE,
+    row_gap = unit(1.75, "mm"),
+    column_title = NULL,
+    show_row_names = FALSE,
+    column_names_side = "top",
+    column_names_rot = 45,
+    column_names_gp = gpar(fontsize = 3.5),
+    cluster_columns = FALSE,
+    row_title = cluster_labels,
+    row_title_rot = 0,
+    row_title_gp = gpar(fontsize = 5),
+    heatmap_legend_param = list(
+      title = "Log + 1", direction = "horizontal", title_position = "topcenter",
+      legend_width = unit(2, "cm"), title_gp = gpar(fontsize = 4), labels_gp = gpar(fontsize = 3),
+      grid_height = unit(0.1, "cm"), at = c(0, 2, 4, 6, 8, 10)
+    )
+  ),
+  heatmap_legend_side = "top"
+)
 ```
 
 # References
