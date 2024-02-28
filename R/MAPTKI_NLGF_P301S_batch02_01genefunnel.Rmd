@@ -289,10 +289,10 @@ for (i in seq_along(levels(groups))) {
   gene_set_overlap <- computeGeneSetsOverlapMax(gene_sets_sub, uniqGenes = unique(unlist(geneIds(gene_sets_sub))))
   clustering[[i]] <- hclust(get_dist(gene_set_overlap, "spearman"), method = "ward.D2")
 
-  modules_with_hubs <- vector("list", 12)
+  modules_with_hubs <- vector("list", 25)
   modules_with_hubs[[1]] <- 0
   hub_gene_list <- list(gene_anno)
-  for (l in 2:12) {
+  for (l in 2:25) {
     set.seed(1)
     heatmap <- Heatmap(
       mat, cluster_rows = clustering[[i]], cluster_columns = FALSE, show_column_names = FALSE,
@@ -327,7 +327,7 @@ for (i in seq_along(levels(groups))) {
     }
     modules_with_hubs[[l]] <- length(which(lengths(hub_gene_list) >= 4)) / l
   }
-  optimal_k <- c(optimal_k, 13 - which.max(rev(modules_with_hubs)))
+  optimal_k <- c(optimal_k, 26 - which.max(rev(modules_with_hubs)))
 }
 module_colors <- cols25(sum(optimal_k))
 clustering_left <- color_branches(clustering[[1]], k = optimal_k[1], col = module_colors[seq(optimal_k[1])])
@@ -338,7 +338,7 @@ heatmap_left <- Heatmap(
   show_row_names = FALSE, show_heatmap_legend = FALSE, row_split = optimal_k[1]
 )
 clustering_right <- color_branches(
-  clustering[[2]], k = optimal_k[2], col = module_colors[seq(from = optimal_k[1] + 1, to = sum(optimal_k))]
+  clustering[[2]], k = optimal_k[2], col = module_colors[seq(optimal_k[2])]
 )
 mat_right <- gse_cpm[rownames(gse_cpm) %in% module_direction[[2]], , drop = FALSE]
 set.seed(1)
@@ -436,7 +436,6 @@ for (i in seq_along(top_words_list)) {
 }
 
 optimal_k_left <- markers_left$cluster
-module_colours <- cols25(length(unique(optimal_k_left)))
 
 mat <- gse_cpm
 mat <- mat[rownames(mat) %in% markers_left$gene, ]
@@ -635,7 +634,6 @@ for (i in seq_along(top_words_list)) {
 }
 
 optimal_k_right <- markers_right$cluster
-module_colours <- cols25(length(unique(optimal_k_right)))
 
 mat <- gse_cpm
 mat <- mat[rownames(mat) %in% markers_right$gene, ]
@@ -910,7 +908,7 @@ top_anno <- HeatmapAnnotation(
 
 row_anno_right <-  HeatmapAnnotation(
   top_words_right = anno_block(
-    gp = gpar(col = module_colors[seq(from = optimal_k[1] + 1, to = sum(optimal_k))]),
+    gp = gpar(col = module_colors[seq(optimal_k[2])]),
     labels = seq(length(unique(optimal_k_right))),
     labels_rot = 0,
     labels_gp = gpar(fontsize = 4),
@@ -1227,10 +1225,10 @@ for (i in seq_along(levels(groups))) {
   gene_set_overlap <- computeGeneSetsOverlapMax(gene_sets_sub, uniqGenes = unique(unlist(geneIds(gene_sets_sub))))
   clustering[[i]] <- hclust(get_dist(gene_set_overlap, "spearman"), method = "ward.D2")
 
-  modules_with_hubs <- vector("list", 12)
+  modules_with_hubs <- vector("list", 25)
   modules_with_hubs[[1]] <- 0
   hub_gene_list <- list(gene_anno)
-  for (l in 2:12) {
+  for (l in 2:25) {
     set.seed(1)
     heatmap <- Heatmap(
       mat, cluster_rows = clustering[[i]], cluster_columns = FALSE, show_column_names = FALSE,
@@ -1265,9 +1263,9 @@ for (i in seq_along(levels(groups))) {
     }
     modules_with_hubs[[l]] <- length(which(lengths(hub_gene_list) >= 4)) / l
   }
-  optimal_k <- c(optimal_k, 13 - which.max(rev(modules_with_hubs)))
+  optimal_k <- c(optimal_k, 26 - which.max(rev(modules_with_hubs)))
 }
-module_colors <- cols25(sum(optimal_k))
+module_colors <- cols25(25)
 clustering_left <- color_branches(clustering[[1]], k = optimal_k[1], col = module_colors[seq(optimal_k[1])])
 mat_left <- gse_cpm[rownames(gse_cpm) %in% module_direction[[1]], , drop = FALSE]
 set.seed(1)
@@ -1276,7 +1274,7 @@ heatmap_left <- Heatmap(
   show_row_names = FALSE, show_heatmap_legend = FALSE, row_split = optimal_k[1]
 )
 clustering_right <- color_branches(
-  clustering[[2]], k = optimal_k[2], col = module_colors[seq(from = optimal_k[1] + 1, to = sum(optimal_k))]
+  clustering[[2]], k = optimal_k[2], col = module_colors[seq(optimal_k[2])]
 )
 mat_right <- gse_cpm[rownames(gse_cpm) %in% module_direction[[2]], , drop = FALSE]
 set.seed(1)
@@ -1374,7 +1372,6 @@ for (i in seq_along(top_words_list)) {
 }
 
 optimal_k_left <- markers_left$cluster
-module_colours <- cols25(length(unique(optimal_k_left)))
 
 mat <- gse_cpm
 mat <- mat[rownames(mat) %in% markers_left$gene, ]
@@ -1573,7 +1570,6 @@ for (i in seq_along(top_words_list)) {
 }
 
 optimal_k_right <- markers_right$cluster
-module_colours <- cols25(length(unique(optimal_k_right)))
 
 mat <- gse_cpm
 mat <- mat[rownames(mat) %in% markers_right$gene, ]
@@ -1848,7 +1844,7 @@ top_anno <- HeatmapAnnotation(
 
 row_anno_right <-  HeatmapAnnotation(
   top_words_right = anno_block(
-    gp = gpar(col = module_colors[seq(from = optimal_k[1] + 1, to = sum(optimal_k))]),
+    gp = gpar(col = module_colors[seq(optimal_k[2])]),
     labels = seq(length(unique(optimal_k_right))),
     labels_rot = 0,
     labels_gp = gpar(fontsize = 4),
