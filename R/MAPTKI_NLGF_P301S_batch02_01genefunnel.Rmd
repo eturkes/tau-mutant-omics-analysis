@@ -1102,10 +1102,10 @@ sankeyNetwork(
 )
 ```
 
-# Cortical Glutamatergic
+## Microglia
 
 ```{r}
-ctype <- "Cortical Glutamatergic"
+ctype <- "Microglia"
 
 keep <- grep(ctype, x = colnames(gse))
 gse_cpm <- log1p(cpm(gse[ , keep]))
