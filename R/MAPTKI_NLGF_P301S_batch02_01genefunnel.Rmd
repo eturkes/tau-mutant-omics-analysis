@@ -281,7 +281,7 @@ module_membership_norm_scaled <-
 module_membership_thresh <- median(module_membership_norm_calc)
 module_membership_thresh <- summary(as.numeric(module_membership_norm_calc))[5][[1]]
 
-optimal_k <- vector("numeric", length = length(levels(groups)))
+optimal_k <- c()
 clustering <- vector("list", length = length(levels(groups)))
 for (i in seq_along(levels(groups))) {
   mat <- gse_cpm[rownames(gse_cpm) %in% module_direction[[i]], i, drop = FALSE]
@@ -300,41 +300,35 @@ for (i in seq_along(levels(groups))) {
     )
     modules <- suppressWarnings(row_order(heatmap))
     hub_gene_list <- vector("list", length(modules))
-    
-    dict_list <- vector("list", length = length(modules))
-    for (j in seq_along(dict_list)) {
-      dict_list[[j]] <- suppressWarnings(word_cloud(rownames(mat)[modules[[j]]]))
-      dict_list[[j]] <- strsplit(paste(unlist(dict_list[[j]]), collapse = " "), "\\s+")[[1]]
-      dict_list[[j]] <- unique(dict_list[[j]])
-    }
-    dict <- table(unlist(dict_list))
-    dict <- names(dict[dict == length(dict_list)])
+    for (m in seq_along(modules)) {
+      module_sets <- rownames(mat)[modules[[m]]]
+      modules_up <- module_sets[module_sets %in% module_direction[[i]]]
+      module_hub_genes <- vector()
 
-    word_list <- vector("list", length = length(modules))
-    for (j in seq_along(word_list)) {
-
-      for (k in seq_along(modules[[j]])) {
-        word_list[[j]][[k]] <- suppressWarnings(word_cloud(rownames(mat)[modules[[j]][k]], dict = dict))
-        word_list[[j]][[k]] <- strsplit(paste(unlist(word_list[[j]][[k]]), collapse = " "), "\\s+")[[1]]
+      if (length(modules_up) == 0) {
+      } else {
+        module_gene_sets_sub <- gene_sets[names(gene_sets) %in% modules_up]
+        frequent_genes <- as.data.frame(table(unlist(geneIds(module_gene_sets_sub))))
+        module_membership_norm_tmp <- module_membership_norm[
+          rownames(module_membership_norm) %in% frequent_genes$Var1,
+        ]
+        module_membership_norm_tmp <- abs(rowSums(module_membership_norm_tmp))
+        hub_gene_all_GO_sub <- hub_gene_all_GO[
+          names(hub_gene_all_GO) %in% names(module_membership_norm_tmp)
+        ]
+        hub_gene_all_GO_sub <- hub_gene_all_GO_sub[match(names(module_membership_norm_tmp), names(hub_gene_all_GO_sub))]
+        module_membership_norm_tmp <- (module_membership_norm_tmp / hub_gene_all_GO_sub) * module_membership_norm_tmp
+        module_membership_norm_tmp <- module_membership_norm_tmp[module_membership_norm_tmp >= module_membership_thresh]
+        module_hub_genes <- names(module_membership_norm_tmp)
+        module_hub_genes <- module_hub_genes[module_hub_genes %in% rownames(results_list[[i]])]
       }
 
-      modules_with_hubs[[l]][[j]] <- table(unlist(word_list[[j]]))
-      modules_with_hubs[[l]][[j]] <- modules_with_hubs[[l]][[j]][order(modules_with_hubs[[l]][[j]], decreasing = TRUE)]
+      hub_gene_list[[m]] <- module_hub_genes
     }
+    modules_with_hubs[[l]] <- length(which(lengths(hub_gene_list) >= 4)) / l
   }
-  stats <- vector("numeric", length = length(modules_with_hubs))
-  for (j in seq_along(stats)) {
-    if (j != 1) {
-      scores <- vector("numeric", length = length(modules_with_hubs[[j]]))
-      for (k in seq_along(scores)) {
-        scores[k] <- max(modules_with_hubs[[j]][[k]])
-      }
-      stats[j] <- mean(scores)
-    }
-  }
-  optimal_k[i] <- 14 - which.max(rev(stats))
+  optimal_k <- c(optimal_k, 14 - which.max(rev(modules_with_hubs)))
 }
-
 module_colors <- cols25(sum(optimal_k))
 clustering_left <- color_branches(clustering[[1]], k = optimal_k[1], col = module_colors[seq(optimal_k[1])])
 mat_left <- gse_cpm[rownames(gse_cpm) %in% module_direction[[1]], , drop = FALSE]
@@ -1266,7 +1260,7 @@ for (i in seq_along(levels(groups))) {
         module_hub_genes <- names(module_membership_norm_tmp)
         module_hub_genes <- module_hub_genes[module_hub_genes %in% rownames(results_list[[i]])]
       }
-      
+
       hub_gene_list[[m]] <- module_hub_genes
     }
     modules_with_hubs[[l]] <- length(which(lengths(hub_gene_list) >= 4)) / l
