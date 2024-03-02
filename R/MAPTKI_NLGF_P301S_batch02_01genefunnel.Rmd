@@ -610,10 +610,22 @@ for (i in seq_along(top_words_list)) {
     tmp[j] <- sum(markers_sub$avg_log2FC[log2FC])
   }
   tmp <- tmp[order(tmp, decreasing = TRUE)]
-  # dup <- which(duplicated(tmp))
-  # if (length(dup) > 0) {
-  #   tmp <- tmp[-dup]
-  # }
+  remove <- c()
+  for (j in seq_along(tmp)) {
+    dup <- grep(names(tmp)[j], x = names(tmp))
+    if (length(dup) > 1) {
+      tmp[dup[1]] <- sum(tmp[dup])
+      remove <- c(remove, dup[-1])
+    }
+  }
+  if (length(remove) > 0) {
+    tmp <- tmp[-remove]
+  }
+  tmp <- tmp[order(tmp, decreasing = TRUE)]
+  dup <- which(duplicated(tmp))
+  if (length(dup) > 0) {
+    tmp <- tmp[-dup]
+  }
   tmp <- names(tmp)
   if (length(tmp) >= 1) {
     tmp <- tmp[1:1]
@@ -809,6 +821,18 @@ for (i in seq_along(top_words_list)) {
     # tmp[j] <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
     log2FC <- grep(paste0("\\b", names(tmp)[j], "\\b"), unlist(top_words_list[[i]]))
     tmp[j] <- sum(markers_sub$avg_log2FC[log2FC])
+  }
+  tmp <- tmp[order(tmp, decreasing = TRUE)]
+  remove <- c()
+  for (j in seq_along(tmp)) {
+    dup <- grep(names(tmp)[j], x = names(tmp))
+    if (length(dup) > 1) {
+      tmp[dup[1]] <- sum(tmp[dup])
+      remove <- c(remove, dup[-1])
+    }
+  }
+  if (length(remove) > 0) {
+    tmp <- tmp[-remove]
   }
   tmp <- tmp[order(tmp, decreasing = TRUE)]
   dup <- which(duplicated(tmp))

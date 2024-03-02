@@ -888,7 +888,8 @@ word_cloud = function(x, width = NULL, dict = c()){
              "elevate", "constitutes", "chch", "tertiary",
              "methylosome", "nitricoxide", "affecting", "oacetylglucosaminyltransferase",
              "proteinlserine", "proteinlthreonine", "proteinonacetyldglucosaminyllserine", "proteinonacetyldglucosaminyllthreonine",
-             "aminodeoxyglucopyranose", "aminodeoxysugar"),
+             "aminodeoxyglucopyranose", "aminodeoxysugar", "inhibitory", "excitatory",
+             "stimulus", "mammalian", "resorbed", "variant"),
            dict,
            c("mitosis", "heme", "spermiogenesis", "prolactin",
              "trophoblast", "adipose", "hepatocyte", "follicles",
@@ -976,7 +977,8 @@ word_cloud = function(x, width = NULL, dict = c()){
              "ovary", "ovum", "progesterone", "protozoan",
              "cisplatin", "branchial", "coproporphyrinogen", "bacterium",
              "grampositive", "protoporphyrinogen", "glossopharyngeal", "dentinogenesis",
-             "larynx", "muscles", "collagens", "chitin"))
+             "larynx", "muscles", "collagens", "chitin",
+             "estrous", "therian", "females", "endometrium"))
   # c("cyclins", "cyclin", "crosslinking", "crosslink",
   #   "crosslinks", "transcript", "transcripts"))
   # c("cerevisiae", "saccharomyces", "skeleton", "fiber",
