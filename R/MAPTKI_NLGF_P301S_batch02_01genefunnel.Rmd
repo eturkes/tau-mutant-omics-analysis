@@ -194,7 +194,6 @@ for (i in seq_along(unique(groups))) {
   markers <- rbind(markers, add)
 }
 markers$cluster <- factor(markers$cluster, levels = unique(markers$cluster))
-datatable_download_exp(markers)
 # markers$number <- seq(markers$gene)
 
 # gene_sets_sub <- gene_sets[names(gene_sets) %in% markers$gene]
@@ -275,7 +274,7 @@ hub_gene_all_GO <- table(unlist(geneIds(gene_sets)))
 hub_gene_all_GO <- hub_gene_all_GO[names(hub_gene_all_GO) %in% rownames(module_membership_norm)]
 
 module_membership_norm_calc <-
-  (abs(rowSums(module_membership_norm)) / hub_gene_all_GO) * abs(rowSums(module_membership_norm))
+  (abs(rowSums(module_membership_norm)) / hub_gene_all_GO) * rowSums(module_membership_norm)
 module_membership_norm_scaled <-
   (module_membership_norm_calc - min(module_membership_norm_calc)) /
   (max(module_membership_norm_calc) - min(module_membership_norm_calc))
@@ -296,13 +295,13 @@ for (i in seq_along(levels(groups))) {
   modules_with_hubs[[1]] <- 0
   modules_with_hubs[[2]] <- 0
   modules_with_hubs[[3]] <- 0
-  modules_with_hubs[[4]] <- 0
-  modules_with_hubs[[5]] <- 0
-  modules_with_hubs[[6]] <- 0
-  modules_with_hubs[[7]] <- 0
-  modules_with_hubs[[8]] <- 0
-  modules_with_hubs[[9]] <- 0
-  for (l in 10:26) {
+  # modules_with_hubs[[4]] <- 0
+  # modules_with_hubs[[5]] <- 0
+  # modules_with_hubs[[6]] <- 0
+  # modules_with_hubs[[7]] <- 0
+  # modules_with_hubs[[8]] <- 0
+  # modules_with_hubs[[9]] <- 0
+  for (l in 4:26) {
     set.seed(1)
     heatmap <- Heatmap(
       mat, cluster_rows = clustering[[i]], cluster_columns = FALSE, show_column_names = FALSE,
@@ -319,22 +318,53 @@ for (i in seq_along(levels(groups))) {
       } else {
         module_gene_sets_sub <- gene_sets[names(gene_sets) %in% modules_up]
         frequent_genes <- as.data.frame(table(unlist(geneIds(module_gene_sets_sub))))
-        frequent_genes <- frequent_genes[frequent_genes$Var1 %in% rownames(module_membership_norm), ]
-        module_membership_norm_sub <- module_membership_norm[
-          rownames(module_membership_norm) %in% frequent_genes$Var1,
-        ]
+
+        module_membership_norm_sub <- module_membership_norm[rownames(module_membership_norm) %in% frequent_genes$Var1, ]
         module_membership_norm_sub <- module_membership_norm_sub[
           match(frequent_genes$Var1, rownames(module_membership_norm_sub)),
         ]
+        if (i == 1) {
+          module_membership_norm_sub$up <- frequent_genes$Freq
+        } else {
+          module_membership_norm_sub$down <- frequent_genes$Freq * -1
+        }
         hub_gene_all_GO_sub <- hub_gene_all_GO[names(hub_gene_all_GO) %in% frequent_genes$Var1]
-        hub_gene_all_GO_sub <- hub_gene_all_GO_sub[match(frequent_genes$Var1, names(hub_gene_all_GO_sub))]
-        frequent_genes$Freq <-
-          (frequent_genes$Freq / rowSums(abs(module_membership_norm_sub))) *
-            (frequent_genes$Freq / hub_gene_all_GO_sub) *
-            (sqrt(frequent_genes$Freq / length(modules_up)))
-            # (frequent_genes$Freq / nrow(mat))
+        tmp <- (abs(rowSums(module_membership_norm_sub)) / hub_gene_all_GO_sub) * rowSums(module_membership_norm_sub)
+        frequent_genes$Freq <- frequent_genes$Freq * tmp * (frequent_genes$Freq / nrow(mat)) * (frequent_genes$Freq / length(modules_up))
+
+        # frequent_genes <- frequent_genes[frequent_genes$Var1 %in% names(module_membership_norm_calc), ]
+        # module_membership_norm_sub <- module_membership_norm_calc[
+        #   names(module_membership_norm_calc) %in% frequent_genes$Var1
+        # ]
+        # module_membership_norm_sub <- module_membership_norm_sub[
+        #   match(frequent_genes$Var1, names(module_membership_norm_sub))
+        # ]
+        # hub_gene_all_GO_sub <- hub_gene_all_GO[names(hub_gene_all_GO) %in% frequent_genes$Var1]
+        # hub_gene_all_GO_sub <- hub_gene_all_GO_sub[match(frequent_genes$Var1, names(hub_gene_all_GO_sub))]
+        # frequent_genes$Freq <-
+          # (frequent_genes$Freq / rowSums(abs(module_membership_norm_sub))) *
+          # (frequent_genes$Freq / hub_gene_all_GO_sub) *
+          # (frequent_genes$Freq * module_membership_norm_sub) / (length(modules_up) ^ 3) #/ nrow(mat)
+          # (frequent_genes$Freq / length(modules_up))
+          # (frequent_genes$Freq / nrow(mat))
+          # (frequent_genes$Freq / length(modules_up)) *
+          # (frequent_genes$Freq / nrow(mat))
+          # frequent_genes$Freq /
+          #   rowSums(abs(module_membership_norm_sub)) / hub_gene_all_GO_sub / length(modules_up) / nrow(mat)
         # module_membership_norm_tmp <- module_membership_norm_tmp[module_membership_norm_tmp >= module_membership_thresh]
         # module_hub_genes <- names(module_membership_norm_tmp)
+        if (i == 1) {
+          remove <- which(frequent_genes$Freq <= 0)
+          if (length(remove) > 0) {
+            frequent_genes <- frequent_genes[-remove, ]
+          }
+        } else {
+          remove <- which(frequent_genes$Freq >= 0)
+          if (length(remove) > 0) {
+            frequent_genes <- frequent_genes[-remove, ]
+          }
+        }
+        frequent_genes$Freq <- abs(frequent_genes$Freq)
         frequent_genes <- frequent_genes[order(frequent_genes$Freq, decreasing = TRUE), ]
         frequent_genes <- frequent_genes[frequent_genes$Var1 %in% rownames(results_list[[i]]), ]
       }
@@ -345,6 +375,7 @@ for (i in seq_along(levels(groups))) {
   }
   optimal_k <- c(optimal_k, 27 - which.max(rev(modules_with_hubs)))
 }
+
 clustering_left <- color_branches(clustering[[1]], k = optimal_k[1], col = module_colors[seq(optimal_k[1])])
 mat_left <- gse_cpm[rownames(gse_cpm) %in% module_direction[[1]], , drop = FALSE]
 set.seed(1)
@@ -363,22 +394,42 @@ for (m in seq_along(modules)) {
   } else {
     module_gene_sets_sub <- gene_sets[names(gene_sets) %in% modules_up]
     frequent_genes <- as.data.frame(table(unlist(geneIds(module_gene_sets_sub))))
-    frequent_genes <- frequent_genes[frequent_genes$Var1 %in% rownames(module_membership_norm), ]
-    module_membership_norm_sub <- module_membership_norm[
-      rownames(module_membership_norm) %in% frequent_genes$Var1,
-    ]
+    
+    module_membership_norm_sub <- module_membership_norm[rownames(module_membership_norm) %in% frequent_genes$Var1, ]
     module_membership_norm_sub <- module_membership_norm_sub[
       match(frequent_genes$Var1, rownames(module_membership_norm_sub)),
     ]
+    module_membership_norm_sub$up <- frequent_genes$Freq
     hub_gene_all_GO_sub <- hub_gene_all_GO[names(hub_gene_all_GO) %in% frequent_genes$Var1]
-    hub_gene_all_GO_sub <- hub_gene_all_GO_sub[match(frequent_genes$Var1, names(hub_gene_all_GO_sub))]
-    frequent_genes$Freq <-
-      (frequent_genes$Freq / rowSums(abs(module_membership_norm_sub))) *
-        (frequent_genes$Freq / hub_gene_all_GO_sub) *
-        (sqrt(frequent_genes$Freq / length(modules_up)))
-      # (frequent_genes$Freq / nrow(mat))
+    tmp <- (abs(rowSums(module_membership_norm_sub)) / hub_gene_all_GO_sub) * rowSums(module_membership_norm_sub)
+    frequent_genes$Freq <- frequent_genes$Freq * tmp * (frequent_genes$Freq / nrow(mat)) * (frequent_genes$Freq / length(modules_up))
+
+    # frequent_genes <- frequent_genes[frequent_genes$Var1 %in% names(module_membership_norm_calc), ]
+    # module_membership_norm_sub <- module_membership_norm_calc[
+    #   names(module_membership_norm_calc) %in% frequent_genes$Var1
+    # ]
+    # module_membership_norm_sub <- module_membership_norm_sub[
+    #   match(frequent_genes$Var1, names(module_membership_norm_sub))
+    # ]
+    # hub_gene_all_GO_sub <- hub_gene_all_GO[names(hub_gene_all_GO) %in% frequent_genes$Var1]
+    # hub_gene_all_GO_sub <- hub_gene_all_GO_sub[match(frequent_genes$Var1, names(hub_gene_all_GO_sub))]
+    # frequent_genes$Freq <-
+    # (frequent_genes$Freq / rowSums(abs(module_membership_norm_sub))) *
+    # (frequent_genes$Freq / hub_gene_all_GO_sub) *
+    # (frequent_genes$Freq * module_membership_norm_sub) / (length(modules_up) ^ 3) #/ nrow(mat)
+    # (frequent_genes$Freq / length(modules_up))
+    # (frequent_genes$Freq / nrow(mat))
+    # (frequent_genes$Freq / length(modules_up)) *
+    # (frequent_genes$Freq / nrow(mat))
+    # frequent_genes$Freq /
+    #   rowSums(abs(module_membership_norm_sub)) / hub_gene_all_GO_sub / length(modules_up) / nrow(mat)
     # module_membership_norm_tmp <- module_membership_norm_tmp[module_membership_norm_tmp >= module_membership_thresh]
     # module_hub_genes <- names(module_membership_norm_tmp)
+    remove <- which(frequent_genes$Freq <= 0)
+    if (length(remove) > 0) {
+      frequent_genes <- frequent_genes[-remove, ]
+    }
+    frequent_genes$Freq <- abs(frequent_genes$Freq)
     frequent_genes <- frequent_genes[order(frequent_genes$Freq, decreasing = TRUE), ]
     frequent_genes <- frequent_genes[frequent_genes$Var1 %in% rownames(results_list[[1]]), ]
   }
@@ -406,22 +457,42 @@ for (m in seq_along(modules)) {
   } else {
     module_gene_sets_sub <- gene_sets[names(gene_sets) %in% modules_up]
     frequent_genes <- as.data.frame(table(unlist(geneIds(module_gene_sets_sub))))
-    frequent_genes <- frequent_genes[frequent_genes$Var1 %in% rownames(module_membership_norm), ]
-    module_membership_norm_sub <- module_membership_norm[
-      rownames(module_membership_norm) %in% frequent_genes$Var1,
-    ]
+    
+    module_membership_norm_sub <- module_membership_norm[rownames(module_membership_norm) %in% frequent_genes$Var1, ]
     module_membership_norm_sub <- module_membership_norm_sub[
       match(frequent_genes$Var1, rownames(module_membership_norm_sub)),
     ]
+    module_membership_norm_sub$down <- frequent_genes$Freq * -1
     hub_gene_all_GO_sub <- hub_gene_all_GO[names(hub_gene_all_GO) %in% frequent_genes$Var1]
-    hub_gene_all_GO_sub <- hub_gene_all_GO_sub[match(frequent_genes$Var1, names(hub_gene_all_GO_sub))]
-    frequent_genes$Freq <-
-      (frequent_genes$Freq / rowSums(abs(module_membership_norm_sub))) *
-        (frequent_genes$Freq / hub_gene_all_GO_sub) *
-        (sqrt(frequent_genes$Freq / length(modules_up)))
-      # (frequent_genes$Freq / nrow(mat))
+    tmp <- (abs(rowSums(module_membership_norm_sub)) / hub_gene_all_GO_sub) * rowSums(module_membership_norm_sub)
+    frequent_genes$Freq <- frequent_genes$Freq * tmp * (frequent_genes$Freq / nrow(mat)) * (frequent_genes$Freq / length(modules_up))
+
+    # frequent_genes <- frequent_genes[frequent_genes$Var1 %in% names(module_membership_norm_calc), ]
+    # module_membership_norm_sub <- module_membership_norm_calc[
+    #   names(module_membership_norm_calc) %in% frequent_genes$Var1
+    # ]
+    # module_membership_norm_sub <- module_membership_norm_sub[
+    #   match(frequent_genes$Var1, names(module_membership_norm_sub))
+    # ]
+    # hub_gene_all_GO_sub <- hub_gene_all_GO[names(hub_gene_all_GO) %in% frequent_genes$Var1]
+    # hub_gene_all_GO_sub <- hub_gene_all_GO_sub[match(frequent_genes$Var1, names(hub_gene_all_GO_sub))]
+    # frequent_genes$Freq <-
+    # (frequent_genes$Freq / rowSums(abs(module_membership_norm_sub))) *
+    # (frequent_genes$Freq / hub_gene_all_GO_sub) *
+    # (frequent_genes$Freq * module_membership_norm_sub) / (length(modules_up) ^ 3) #/ nrow(mat)
+    # (frequent_genes$Freq / length(modules_up))
+    # (frequent_genes$Freq / nrow(mat))
+    # (frequent_genes$Freq / length(modules_up)) *
+    # (frequent_genes$Freq / nrow(mat))
+    # frequent_genes$Freq /
+    #   rowSums(abs(module_membership_norm_sub)) / hub_gene_all_GO_sub / length(modules_up) / nrow(mat)
     # module_membership_norm_tmp <- module_membership_norm_tmp[module_membership_norm_tmp >= module_membership_thresh]
     # module_hub_genes <- names(module_membership_norm_tmp)
+    remove <- which(frequent_genes$Freq >= 0)
+    if (length(remove) > 0) {
+      frequent_genes <- frequent_genes[-remove, ]
+    }
+    frequent_genes$Freq <- abs(frequent_genes$Freq)
     frequent_genes <- frequent_genes[order(frequent_genes$Freq, decreasing = TRUE), ]
     frequent_genes <- frequent_genes[frequent_genes$Var1 %in% rownames(results_list[[2]]), ]
   }
@@ -500,10 +571,10 @@ for (i in seq_along(top_words_list)) {
     tmp[j] <- sum(markers_sub$avg_log2FC[log2FC])
   }
   tmp <- tmp[order(tmp, decreasing = TRUE)]
-  dup <- which(duplicated(tmp))
-  if (length(dup) > 0) {
-    tmp <- tmp[-dup]
-  }
+  # dup <- which(duplicated(tmp))
+  # if (length(dup) > 0) {
+  #   tmp <- tmp[-dup]
+  # }
   tmp <- names(tmp)
   if (length(tmp) >= 1) {
     tmp <- tmp[1:1]
@@ -832,7 +903,7 @@ for (i in seq_along(top_genes_right)) {
 names(top_genes_right) <- seq(max(as.numeric(markers_right$cluster)))
 ```
 
-```{r, fig.height = 5, fig.width = 3}
+```{r, fig.height = 3, fig.width = 3}
 panel_fun <- function(index, nm) {
   pushViewport(viewport(xscale = c(0, 10)))
   grid.rect(
