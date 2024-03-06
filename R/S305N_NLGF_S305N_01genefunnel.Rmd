@@ -1284,9 +1284,10 @@ top_anno <- HeatmapAnnotation(
   Genotype = anno_block(
     gp = gpar(fill = c("lightgray", "darkgray"), lwd = 0.5),
     labels = unique(groups),
-    labels_gp = gpar(fontsize = 4),
+    labels_gp = gpar(fontsize = 3),
     height = unit(2, "mm")
-  )
+  ),
+  gap = unit(0.5, "mm")
 )
 
 row_anno_left <-  HeatmapAnnotation(
@@ -1298,6 +1299,17 @@ row_anno_left <-  HeatmapAnnotation(
     width = unit(1.5, "mm")
   ),
   which = "row"
+)
+
+right_anno <- rowAnnotation(
+  foo = anno_mark(
+    at = which(rownames(mat_left) %in% unlist(top_gse_left)),
+    labels = rownames(mat_left)[which(rownames(mat_left) %in% unlist(top_gse_left))],
+    link_gp = gpar(lwd = 0.3),
+    labels_gp = gpar(fontsize = 3),
+    link_width = unit(0.3, "mm"),
+    padding = unit(0.25, "mm")
+  )
 )
 
 set.seed(1)
@@ -1320,7 +1332,8 @@ draw(
     rect_gp = gpar(col = "darkgray", lwd = 0.05),
     border_gp = gpar(lwd = 0.5),
     border = TRUE,
-    row_gap = unit(1.75, "mm"),
+    row_gap = unit(0.5, "mm"),
+    column_gap = unit(0.5, "mm"),
     column_names_side = "top",
     row_title = top_words_left,
     row_title_gp = gpar(fontsize = 5),
@@ -1361,9 +1374,10 @@ top_anno <- HeatmapAnnotation(
   Genotype = anno_block(
     gp = gpar(fill = c("lightgray", "darkgray"), lwd = 0.5),
     labels = unique(groups),
-    labels_gp = gpar(fontsize = 4),
+    labels_gp = gpar(fontsize = 3),
     height = unit(2, "mm")
-  )
+  ),
+  gap = unit(0.5, "mm")
 )
 
 row_anno_right <-  HeatmapAnnotation(
@@ -1375,6 +1389,17 @@ row_anno_right <-  HeatmapAnnotation(
     width = unit(1.5, "mm")
   ),
   which = "row"
+)
+
+right_anno <- rowAnnotation(
+  foo = anno_mark(
+    at = which(rownames(mat_right) %in% unlist(top_gse_right)),
+    labels = rownames(mat_right)[which(rownames(mat_right) %in% unlist(top_gse_right))],
+    link_gp = gpar(lwd = 0.3),
+    labels_gp = gpar(fontsize = 3),
+    link_width = unit(0.3, "mm"),
+    padding = unit(0.25, "mm")
+  )
 )
 
 set.seed(1)
@@ -1397,7 +1422,8 @@ draw(
     rect_gp = gpar(col = "darkgray", lwd = 0.05),
     border_gp = gpar(lwd = 0.5),
     border = TRUE,
-    row_gap = unit(1.75, "mm"),
+    row_gap = unit(0.5, "mm"),
+    column_gap = unit(0.5, "mm"),
     column_names_side = "top",
     row_title = top_words_right,
     row_title_gp = gpar(fontsize = 5),
