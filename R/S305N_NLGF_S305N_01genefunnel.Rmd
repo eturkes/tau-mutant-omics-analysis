@@ -977,7 +977,7 @@ for (i in seq_along(top_genes_right)) {
 names(top_genes_right) <- seq(max(as.numeric(markers_right$cluster)))
 ```
 
-```{r, fig.height = 2, fig.width = 5.5}
+```{r, fig.height = 2, fig.width = 4}
 top_genes_left_words <- top_genes_left
 names(top_genes_left_words) <- top_words_left
 gene_ids <- geneIds(gene_sets)
@@ -1012,7 +1012,7 @@ links$IDsource <- match(links$source, nodes$name) - 1
 links$IDtarget <- match(links$target, nodes$name) - 1
 sankeyNetwork(
   Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
-  Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
+  Value = "value", NodeID = "name", fontSize = 20
 )
 
 top_genes_right_words <- top_genes_right
@@ -1049,11 +1049,11 @@ links$IDsource <- match(links$source, nodes$name) - 1
 links$IDtarget <- match(links$target, nodes$name) - 1
 sankeyNetwork(
   Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
-  Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
+  Value = "value", NodeID = "name", fontSize = 20
 )
 ```
 
-```{r, fig.height = 5, fig.width = 6}
+```{r, fig.height = 6, fig.width = 4}
 gene_ids <- geneIds(gene_sets)
 gene_ids <- gene_ids[names(gene_ids) %in% unlist(top_gse_left_all)]
 gene_ids <- gene_ids[match(unlist(top_gse_left_all), names(gene_ids))]
@@ -1070,27 +1070,27 @@ dup <- which(duplicated(links[ , 1:2]))
 if (length(dup) > 0) {
   links <- links[-dup, ]
 }
-stack <- rbindlist(lapply(top_gse_left_all, FUN = stack))
-stack <- stack[stack$values %in% unique(links$source), ]
-stack <- stack[ , c(2, 1)]
-colnames(stack) <- colnames(links)
-links_orig <- links
-links <- rbind(links, stack)
-value <- c()
-for (target in stack$target) {
-  value <- c(value, length(which(links_orig$source %in% target)))
-}
-links$value <- c(rep(1, times = nrow(links_orig)), value)
+# stack <- rbindlist(lapply(top_gse_left_all, FUN = stack))
+# stack <- stack[stack$values %in% unique(links$source), ]
+# stack <- stack[ , c(2, 1)]
+# colnames(stack) <- colnames(links)
+# links_orig <- links
+# links <- rbind(links, stack)
+# value <- c()
+# for (target in stack$target) {
+#   value <- c(value, length(which(links_orig$source %in% target)))
+# }
+links$value <- rep(1, times = nrow(links))
 nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
 links$IDsource <- match(links$source, nodes$name) - 1
 links$IDtarget <- match(links$target, nodes$name) - 1
 sankeyNetwork(
   Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
-  Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
+  Value = "value", NodeID = "name", fontSize = 20
 )
 
-for (i in seq_along(unique(links_orig$target))) {
-  links_sub <- links_orig[links_orig$target %in% names(top_genes_left[[i]][1]), ]
+for (i in seq_along(unique(links$target))) {
+  links_sub <- links[links$target %in% names(top_genes_left[[i]][1]), ]
   links_sub <- links_sub[links_sub$source %in% top_gse_left_all[[i]][[1]], ]
   if (i == 1) {
     links_pruned <- links_sub
@@ -1127,27 +1127,27 @@ dup <- which(duplicated(links[ , 1:2]))
 if (length(dup) > 0) {
   links <- links[-dup, ]
 }
-stack <- rbindlist(lapply(top_gse_right_all, FUN = stack))
-stack <- stack[stack$values %in% unique(links$source), ]
-stack <- stack[ , c(2, 1)]
-colnames(stack) <- colnames(links)
-links_orig <- links
-links <- rbind(links, stack)
-value <- c()
-for (target in stack$target) {
-  value <- c(value, length(which(links_orig$source %in% target)))
-}
-links$value <- c(rep(1, times = nrow(links_orig)), value)
+# stack <- rbindlist(lapply(top_gse_right_all, FUN = stack))
+# stack <- stack[stack$values %in% unique(links$source), ]
+# stack <- stack[ , c(2, 1)]
+# colnames(stack) <- colnames(links)
+# links_orig <- links
+# links <- rbind(links, stack)
+# value <- c()
+# for (target in stack$target) {
+#   value <- c(value, length(which(links_orig$source %in% target)))
+# }
+links$value <- rep(1, times = nrow(links))
 nodes <- data.frame(name = c(as.character(links$source), as.character(links$target)) %>% unique())
 links$IDsource <- match(links$source, nodes$name) - 1
 links$IDtarget <- match(links$target, nodes$name) - 1
 sankeyNetwork(
   Links = links, Nodes = nodes, Source = "IDsource", Target = "IDtarget",
-  Value = "value", NodeID = "name", sinksRight = FALSE, fontSize = 20
+  Value = "value", NodeID = "name", fontSize = 20
 )
 
-for (i in seq_along(unique(links_orig$target))) {
-  links_sub <- links_orig[links_orig$target %in% names(top_genes_right[[i]][1]), ]
+for (i in seq_along(unique(links$target))) {
+  links_sub <- links[links$target %in% names(top_genes_right[[i]][1]), ]
   links_sub <- links_sub[links_sub$source %in% top_gse_right_all[[i]][[1]], ]
   if (i == 1) {
     links_pruned <- links_sub
