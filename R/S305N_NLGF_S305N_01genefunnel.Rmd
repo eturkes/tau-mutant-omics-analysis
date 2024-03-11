@@ -473,7 +473,7 @@ for (m in seq_along(modules)) {
     frequent_genes <- frequent_genes[order(frequent_genes$Freq, decreasing = TRUE), ]
   }
 
-  hub_gene_list_left[[m]] <- as.vector(frequent_genes$Var1)[1]
+  hub_gene_list_left[[m]] <- as.vector(frequent_genes$Var1)
 }
 
 clustering_right <- color_branches(
@@ -549,7 +549,7 @@ for (m in seq_along(modules)) {
     frequent_genes <- frequent_genes[order(frequent_genes$Freq, decreasing = TRUE), ]
   }
 
-  hub_gene_list_right[[m]] <- as.vector(frequent_genes$Var1)[1]
+  hub_gene_list_right[[m]] <- as.vector(frequent_genes$Var1)
 }
 
 markers_left <- markers[markers$gene %in% module_direction[[1]], ]
@@ -558,11 +558,15 @@ modules <- order_left
 module_names <- modules
 names(order_left) <- seq(length(order_left))
 markers_tmp <- markers_left[unlist(order_left), ]
-markers_tmp$cluster <- unlist(lapply(seq_along(order_left), function(i) {rep(names(order_left)[i], length(order_left[[i]]))}))
+markers_tmp$cluster <- unlist(
+  lapply(seq_along(order_left), function(i) {rep(names(order_left)[i], length(order_left[[i]]))})
+)
 markers_tmp <- markers_tmp[match(markers_left$gene, markers_tmp$gene), ]
 markers_left$cluster <- factor(markers_tmp$cluster, levels = seq(max(as.numeric(markers_tmp$cluster))))
 # markers_left$number <- seq(markers_left$gene)
 # markers_left$cluster <- unlist(suppressWarnings(row_order(heatmap_left)))
+
+optimal_k_left <- markers_left$cluster
 
 go_anno <- select(GO.db, markers_left$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
 for (l in seq_along(module_names)) {
@@ -616,7 +620,9 @@ for (i in seq_along(top_words_list)) {
   top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
   genes <- gene_sets[names(gene_sets) %in% modules[[i]]]
   genes <- geneIds(genes[match(modules[[i]], names(genes))])
-  idx <- colSums(sapply(genes, "%in%", x = c(hub_gene_list_left[[i]], NA, NA))) > 0
+  idx <- colSums(
+    sapply(genes, "%in%", x = c(hub_gene_list_left[[i]][1:round(length(which(optimal_k_left == i)) / 10)], NA, NA))
+  ) > 0
   top_words_tmp_sub <- top_words_tmp_sub[idx, ]
   markers_sub <- markers_left[which(markers_left$cluster == levels(markers_left$cluster)[i]), , drop = FALSE]
   markers_sub <- markers_sub[match(modules[[i]], markers_sub$gene), , drop = FALSE]
@@ -653,8 +659,9 @@ for (i in seq_along(top_words_list)) {
   if (length(remove) > 0) {
     tmp <- tmp[-remove]
   }
-  if (length(tmp) > round(nrow(top_words_tmp_sub) / 6)) {
-    tmp <- tmp[seq(round(nrow(top_words_tmp_sub) / 6))]
+  tmp <- tmp[order(tmp, decreasing = TRUE)]
+  if (length(tmp) > round(nrow(top_words_tmp_sub) / 10)) {
+    tmp <- tmp[seq(round(nrow(top_words_tmp_sub) / 10))]
   }
   if (length(tmp) == 1) {
     tmp[1] <- 5
@@ -680,8 +687,6 @@ for (i in seq_along(top_words_list)) {
   # }
   top_words_left[[i]] <- data.frame(words = names(tmp), fontsize = as.vector(tmp))
 }
-
-optimal_k_left <- markers_left$cluster
 
 mat <- gse_cpm
 mat <- mat[rownames(mat) %in% markers_left$gene, ]
@@ -773,6 +778,8 @@ for (i in seq_along(top_genes_left)) {
   matches_sub_int <- matches_sub_int[order(matches_sub_int, decreasing = TRUE)]
 
   comb <- genes_int * avg_log2FC_scaled_int * matches_sub_int
+  comb <- comb[names(comb) %in% hub_gene_list_left[[i]][1:round(length(which(optimal_k_left == i)) / 10)]]
+  comb <- comb[match(hub_gene_list_left[[i]][1:round(length(which(optimal_k_left == i)) / 10)], names(comb))]
   # comb <- c(comb, avg_log2FC_scaled_int[names(avg_log2FC_scaled_int) %notin% names(comb)][1])
   # comb <- c(comb, genes_int[names(genes_int) %notin% names(comb)][1])
   # comb <- c(comb, matches_sub_int[names(matches_sub_int) %notin% names(comb)][1])
@@ -801,11 +808,15 @@ modules <- order_right
 module_names <- modules
 names(order_right) <- seq(length(order_right))
 markers_tmp <- markers_right[unlist(order_right), ]
-markers_tmp$cluster <- unlist(lapply(seq_along(order_right), function(i) {rep(names(order_right)[i], length(order_right[[i]]))}))
+markers_tmp$cluster <- unlist(
+  lapply(seq_along(order_right), function(i) {rep(names(order_right)[i], length(order_right[[i]]))})
+)
 markers_tmp <- markers_tmp[match(markers_right$gene, markers_tmp$gene), ]
 markers_right$cluster <- factor(markers_tmp$cluster, levels = seq(max(as.numeric(markers_tmp$cluster))))
 # markers_right$number <- seq(markers_right$gene)
 # markers_right$cluster <- unlist(suppressWarnings(row_order(heatmap_right)))
+
+optimal_k_right <- markers_right$cluster
 
 go_anno <- select(GO.db, markers_right$gene, c("GOID", "TERM", "DEFINITION"), "TERM")
 for (l in seq_along(module_names)) {
@@ -859,7 +870,9 @@ for (i in seq_along(top_words_list)) {
   top_words_tmp_sub <- top_words_tmp[top_words_tmp$module == i, ]
   genes <- gene_sets[names(gene_sets) %in% modules[[i]]]
   genes <- geneIds(genes[match(modules[[i]], names(genes))])
-  idx <- colSums(sapply(genes, "%in%", x = c(hub_gene_list_right[[i]], NA, NA))) > 0
+  idx <- colSums(
+    sapply(genes, "%in%", x = c(hub_gene_list_right[[i]][1:round(length(which(optimal_k_right == i)) / 10)], NA, NA))
+  ) > 0
   top_words_tmp_sub <- top_words_tmp_sub[idx, ]
   markers_sub <- markers_right[which(markers_right$cluster == levels(markers_right$cluster)[i]), , drop = FALSE]
   markers_sub <- markers_sub[match(modules[[i]], markers_sub$gene), , drop = FALSE]
@@ -896,8 +909,9 @@ for (i in seq_along(top_words_list)) {
   if (length(remove) > 0) {
     tmp <- tmp[-remove]
   }
-  if (length(tmp) > round(nrow(top_words_tmp_sub) / 6)) {
-    tmp <- tmp[seq(round(nrow(top_words_tmp_sub) / 6))]
+  tmp <- tmp[order(tmp, decreasing = TRUE)]
+  if (length(tmp) > round(nrow(top_words_tmp_sub) / 10)) {
+    tmp <- tmp[seq(round(nrow(top_words_tmp_sub) / 10))]
   }
   if (length(tmp) == 1) {
     tmp[1] <- 5
@@ -923,8 +937,6 @@ for (i in seq_along(top_words_list)) {
   # }
   top_words_right[[i]] <- data.frame(words = names(tmp), fontsize = as.vector(tmp))
 }
-
-optimal_k_right <- markers_right$cluster
 
 mat <- gse_cpm
 mat <- mat[rownames(mat) %in% markers_right$gene, ]
@@ -1016,6 +1028,8 @@ for (i in seq_along(top_genes_right)) {
   matches_sub_int <- matches_sub_int[order(matches_sub_int, decreasing = TRUE)]
 
   comb <- genes_int * avg_log2FC_scaled_int * matches_sub_int
+  comb <- comb[names(comb) %in% hub_gene_list_right[[i]][1:round(length(which(optimal_k_right == i)) / 10)]]
+  comb <- comb[match(hub_gene_list_right[[i]][1:round(length(which(optimal_k_right == i)) / 10)], names(comb))]
   # comb <- c(comb, avg_log2FC_scaled_int[names(avg_log2FC_scaled_int) %notin% names(comb)][1])
   # comb <- c(comb, genes_int[names(genes_int) %notin% names(comb)][1])
   # comb <- c(comb, matches_sub_int[names(matches_sub_int) %notin% names(comb)][1])
