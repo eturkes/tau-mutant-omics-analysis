@@ -1037,9 +1037,7 @@ for (i in seq_along(top_genes_right)) {
 
 names(top_genes_right) <- seq(max(as.numeric(markers_right$cluster)))
 names(top_words_right) <- levels(optimal_k_right)
-```
 
-```{r, fig.height = 2, fig.width = 2.1}
 top_anno <- HeatmapAnnotation(
   groups = anno_block(
     gp = gpar(fill = c("lightgray", "lightgray"), lwd = 0.5),
@@ -1048,7 +1046,9 @@ top_anno <- HeatmapAnnotation(
     height = unit(2, "mm")
   )
 )
+```
 
+```{r, fig.height = 2, fig.width = 2.1}
 left_anno <-  HeatmapAnnotation(
   clusters = anno_block(
     gp = gpar(col = module_colors[seq(optimal_k[1])], lwd = 0.5),
@@ -1103,15 +1103,6 @@ draw(
   heatmap_legend_side = "top"
 )
 
-top_anno <- HeatmapAnnotation(
-  groups = anno_block(
-    gp = gpar(fill = c("lightgray", "lightgray"), lwd = 0.5),
-    labels = unique(groups),
-    labels_gp = gpar(fontsize = 4),
-    height = unit(2, "mm")
-  )
-)
-
 left_anno <-  HeatmapAnnotation(
   clusters = anno_block(
     gp = gpar(col = module_colors[seq(optimal_k[2])], lwd = 0.5),
@@ -1153,6 +1144,110 @@ draw(
     border_gp = gpar(lwd = 0.5),
     border = TRUE,
     row_title = NULL,
+    row_gap = unit(0.5, "mm"),
+    column_gap = unit(0.5, "mm"),
+    column_names_side = "top",
+    column_names_rot = 45,
+    heatmap_legend_param = list(
+      title = "Log + 1", direction = "horizontal", title_position = "topcenter",
+      legend_width = unit(1.5, "cm"), title_gp = gpar(fontsize = 4), labels_gp = gpar(fontsize = 3),
+      grid_height = unit(0.1, "cm"), at = c(0, 2, 4, 6, 8, 10)
+    )
+  ),
+  heatmap_legend_side = "top"
+)
+```
+
+```{r, fig.height = 2, fig.width = 2.5}
+mat_left_sub <- mat_left[rownames(mat_left) %in% unlist(top_gse_left), ]
+mat_left_sub <- mat_left_sub[match(unique(unlist(top_gse_left)), rownames(mat_left_sub)), ]
+
+module_idx <- sapply(rownames(mat_left_sub), FUN = find_index, list_of_lists = top_gse_left)
+
+left_anno <-  HeatmapAnnotation(
+  clusters = anno_block(
+    gp = gpar(col = module_colors[seq(optimal_k[1])], lwd = 0.5),
+    labels = seq(length(unique(optimal_k_left))),
+    labels_rot = 0,
+    labels_gp = gpar(fontsize = 3),
+    width = unit(1.2, "mm")
+  ),
+  which = "row"
+)
+
+set.seed(1)
+draw(
+  Heatmap(
+    mat_left_sub,
+    col = colour,
+    column_labels = sub("\\s+[^ ]+$", "", colnames(mat_left_sub)),
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
+    column_split = factor(groups, levels = unique(groups)),
+    row_split = module_idx,
+    show_column_names = FALSE,
+    left_annotation = left_anno,
+    column_title = ctype,
+    column_title_gp = gpar(fontsize = 5),
+    top_annotation = top_anno,
+    rect_gp = gpar(col = "darkgray", lwd = 0.01),
+    border_gp = gpar(lwd = 0.5),
+    border = TRUE,
+    row_title = NULL,
+    row_names_gp = gpar(fontsize = 3),
+    row_names_max_width = max_text_width(rownames(mat_left_sub)),
+    row_names_side = "left",
+    row_gap = unit(0.5, "mm"),
+    column_gap = unit(0.5, "mm"),
+    column_names_side = "top",
+    column_names_rot = 45,
+    heatmap_legend_param = list(
+      title = "Log + 1", direction = "horizontal", title_position = "topcenter",
+      legend_width = unit(1.5, "cm"), title_gp = gpar(fontsize = 4), labels_gp = gpar(fontsize = 3),
+      grid_height = unit(0.1, "cm"), at = c(0, 2, 4, 6, 8, 10)
+    )
+  ),
+  heatmap_legend_side = "top"
+)
+
+mat_right_sub <- mat_right[rownames(mat_right) %in% unlist(top_gse_right), ]
+mat_right_sub <- mat_right_sub[match(unique(unlist(top_gse_right)), rownames(mat_right_sub)), ]
+
+module_idx <- sapply(rownames(mat_right_sub), FUN = find_index, list_of_lists = top_gse_right)
+
+left_anno <-  HeatmapAnnotation(
+  clusters = anno_block(
+    gp = gpar(col = module_colors[seq(optimal_k[2])], lwd = 0.5),
+    labels = seq(length(unique(optimal_k_right))),
+    labels_rot = 0,
+    labels_gp = gpar(fontsize = 3),
+    width = unit(1.2, "mm")
+  ),
+  which = "row"
+)
+
+set.seed(1)
+draw(
+  Heatmap(
+    mat_right_sub,
+    col = colour,
+    column_labels = sub("\\s+[^ ]+$", "", colnames(mat_right_sub)),
+    cluster_columns = FALSE,
+    cluster_rows = FALSE,
+    column_split = factor(groups, levels = unique(groups)),
+    row_split = module_idx,
+    show_column_names = FALSE,
+    left_annotation = left_anno,
+    column_title = ctype,
+    column_title_gp = gpar(fontsize = 5),
+    top_annotation = top_anno,
+    rect_gp = gpar(col = "darkgray", lwd = 0.01),
+    border_gp = gpar(lwd = 0.5),
+    border = TRUE,
+    row_title = NULL,
+    row_names_gp = gpar(fontsize = 3),
+    row_names_max_width = max_text_width(rownames(mat_right_sub)),
+    row_names_side = "left",
     row_gap = unit(0.5, "mm"),
     column_gap = unit(0.5, "mm"),
     column_names_side = "top",

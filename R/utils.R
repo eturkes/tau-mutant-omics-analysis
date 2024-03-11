@@ -1113,3 +1113,12 @@ removeWordsCustom <- content_transformer({function(txt, words, n = 30000L) {
   for (regex in regexes)  txt <- gsub(regex, "", txt, perl = TRUE)
   return(txt)
 }})
+
+find_index <- function(element, list_of_lists) {
+  for (i in seq_along(list_of_lists)) {
+    if (any(sapply(list_of_lists[[i]], function(x) element %in% x))) {
+      return(i)
+    }
+  }
+  return(NA) # Return NA if the element is not found in any list
+}
