@@ -1,0 +1,303 @@
+---
+title: "Otero-Garcia - Batch 01 - 02 GeneFunnel"
+author:
+  - name: "Emir Turkes"
+date: '`r strftime(Sys.time(), format = "%B %d, %Y")`'
+link-citations: true
+output:
+  html_document:
+    code_folding: hide
+    number_sections: true
+    theme: lumen
+    highlight: haddock
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+knit: (function(inputFile, encoding) {
+  rmarkdown::render(
+    inputFile, encoding = encoding,
+    output_file = file.path("..", "results", "oterogarcia_batch01_02genefunnel.html")
+  )})
+---
+
+<style type="text/css">
+body {font-size: 16px;}
+h1.title {font-size: 35px;}
+h1 {font-size: 24px;}
+h2 {font-size: 22px;}
+h3 {font-size: 20px;}
+.toc-content {padding-left: 0px; padding-right: 0px;}
+div.tocify {width: 100%;}
+.tocify-subheader .tocify-item {font-size: 0.95em; padding-left: 25px; text-indent: 0;}
+.tocify-subheader .tocify-subheader .tocify-item {font-size: 0.95em; padding-left: 35px; text-indent: 0;}
+div.main-container {max-width: none; width: 100%;}
+</style>
+
+*This file is a part of [tau-mutant-omics-analysis](https://github.com/eturkes/tau-mutant-omics-analysis).*
+
+The table of contents in the top left is clickable and can be used to quickly navigate the document.
+To toggle the visibility of code, use the `CODE` toggles at the top right of chunks.
+The toggle at the start of the document controls the visibility of all chunks.
+
+```{r}
+#    This file is part of tau-mutant-omics-analysis.
+#    Copyright (C) 2023-2024  Emir Turkes, Naoto Watamura, UK DRI at UCL
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#    Emir Turkes can be contacted at emir.turkes@eturkes.com
+
+# Load required packages, suppressing startup messages.
+# -----------------------------------------------------
+library(conflicted)
+conflicts_prefer(AnnotationDbi::select, DT::JS, edgeR::cpm, .quiet = TRUE)
+packages <- c(
+  "GSEABase", "GSVA", "Seurat", "biomaRt", "parallelly", "dplyr", "scuttle", "GO.db", "tm", "pals", "ComplexHeatmap",
+  "DT", "circlize", "edgeR", "purrr", "networkD3", "tm"
+)
+invisible(suppressPackageStartupMessages(lapply(packages, FUN = library, character.only = TRUE)))
+# -----------------------------------------------------
+
+# Define global settings.
+# -----------------------
+knitr::opts_chunk$set(fig.width = 10, fig.height = 7, dpi = 300)
+# -----------------------
+
+# Define functions.
+# -----------------
+source("utils.R")
+
+`%notin%` <- Negate(`%in%`)
+# -----------------
+
+# Useful variables.
+# -----------------
+sample <- "oterogarcia"
+batch <- 1
+step <- 2
+
+cache_dir <- file.path("..", "cache", sample, paste0("0", batch), paste0("0", step))
+if (!dir.exists(cache_dir)) {
+  dir.create(cache_dir, recursive = TRUE)
+}
+# -----------------
+```
+
+# Prep
+
+```{r}
+rds <- file.path("..", "cache", "filtered_gene_sets_hsapiens.rds")
+if (file.exists(rds)) {
+  gene_sets <- readRDS(rds)
+} else {
+
+  gene_sets <- getGmt(
+    file.path("..", "data", "gene-sets", "gprofiler_hsapiens.ENSG_2024.03.12", "hsapiens.GO.comb.ENSG.gmt")
+  )
+  keep <- filterGeneSets(gene_sets, min.sz = 2, max.sz = 1000)
+  gene_sets <- gene_sets[names(gene_sets) %in% names(keep)]
+
+  for (i in seq(length(gene_sets@.Data))) {
+    go_id <- gene_sets[[i]]@setName
+    suppressWarnings(gene_sets[[i]]@setName <- gene_sets[[i]]@shortDescription)
+    suppressWarnings(gene_sets[[i]]@shortDescription <- go_id)
+  }
+
+  remove <- grep("regulation of", names(gene_sets))
+  if (length(remove) > 0) {
+    gene_sets <- gene_sets[-remove]
+  }
+
+  overlap <- computeGeneSetsOverlapMax(gene_sets, uniqGenes = unique(unlist(geneIds(gene_sets))))
+  tmp <- rowSums(overlap)
+  tmp <- tmp[order(tmp, decreasing = TRUE)]
+  gene_sets_sorted <- gene_sets[match(names(tmp), names(gene_sets))]
+
+  overlap <- computeGeneSetsOverlapMax(gene_sets_sorted, uniqGenes = unique(unlist(geneIds(gene_sets_sorted))))
+  overlap[upper.tri(overlap)] <- 0
+  diag(overlap) <- 0
+  keep <- apply(overlap, MARGIN = 1, FUN = max)
+  keep <- keep[keep <= 0.25]
+  gene_sets <- gene_sets[names(gene_sets) %in% names(keep)]
+
+  rm(overlap, gene_sets_sorted)
+  saveRDS(gene_sets, rds)
+}
+
+rds <- file.path(cache_dir, "seurat_cleaned.rds")
+rds2 <- file.path(cache_dir, "gene_anno.rds")
+if (file.exists(rds) & file.exists(rds2)) {
+  seurat <- readRDS(rds)
+  gene_anno <- readRDS(rds2)
+} else {
+
+  seurat <- readRDS(file.path(cache_dir, "..", "01", "seurat_annotated.rds"))
+  # DefaultAssay(seurat) <- "RNA"
+  # seurat[["SCT"]] <- NULL
+
+  mart <- useEnsembl("ensembl", "hsapiens_gene_ensembl")
+  attributes <- c("external_gene_name", "ensembl_gene_id")
+  gene_anno <- getBM(attributes, filters = "ensembl_gene_id", values = unique(unlist(geneIds(gene_sets))), mart = mart)
+  add <- which(gene_anno$external_gene_name == "")
+  for (idx in add) {
+    gene_anno[idx, 1] <- gene_anno[idx, 2]
+  }
+
+  dup <- gene_anno[
+    duplicated(gene_anno$external_gene_name) | duplicated(gene_anno$external_gene_name, fromLast = TRUE),
+  ]
+  if (nrow(dup) > 0) {
+    for (i in seq(nrow(dup))) {
+      for (j in seq(nrow(gene_anno))) {
+        if (dup$ensembl_gene_id[i] == gene_anno$ensembl_gene_id[j]) {
+          gene_anno$external_gene_name[j] <- paste(
+            gene_anno$external_gene_name[j], gene_anno$ensembl_gene_id[j], sep = "-"
+          )
+        }
+      }
+    }
+  }
+
+  gene_anno_sub <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(seurat), ]
+
+  counts_mat <- GetAssayData(seurat, layer = "counts")
+  counts_mat <- counts_mat[rownames(counts_mat) %in% gene_anno_sub$ensembl_gene_id, ]
+  gene_anno_sub <- gene_anno_sub[match(rownames(counts_mat), gene_anno_sub$ensembl_gene_id), ]
+  # rownames(counts_mat) <- gene_anno_sub$ensembl_gene_id
+
+  data_mat <- GetAssayData(seurat)
+  data_mat <- data_mat[rownames(data_mat) %in% gene_anno_sub$ensembl_gene_id, ]
+  gene_anno_sub <- gene_anno_sub[match(rownames(data_mat), gene_anno_sub$ensembl_gene_id), ]
+  # rownames(data_mat) <- gene_anno_sub$ensembl_gene_id
+
+  add <- unique(gene_anno$ensembl_gene_id[which(gene_anno$ensembl_gene_id %notin% rownames(counts_mat))])
+  counts_null_mat <- matrix(0, nrow = length(add), ncol = ncol(counts_mat))
+  rownames(counts_null_mat) <- add
+  colnames(counts_null_mat) <- colnames(counts_mat)
+  data_null_mat <- counts_null_mat
+
+  set.seed(1)
+  col <- sample(seq(ncol(counts_null_mat)), size = length(add), replace = TRUE)
+  for (i in seq_along(add)) {
+    counts_null_mat[i, col[i]] <- 0
+    data_null_mat[i, col[i]] <- log1p(0)
+  }
+
+  counts_mat <- rbind(counts_mat, counts_null_mat)
+  data_mat <- rbind(data_mat, data_null_mat)
+  seurat <- CreateSeuratObject(counts = counts_mat, data = data_mat, assay = "RNA", meta.data = seurat[[]])
+  gene_anno <- gene_anno[match(rownames(seurat), gene_anno$ensembl_gene_id), ]
+
+  rm(counts_mat, data_mat, counts_null_mat, data_null_mat, mart, dup, gene_anno_sub)
+  gc()
+  seurat <- SCTransform(seurat, vst.flavor = "v2", min_cells = 0, verbose = FALSE)
+
+  mat <- GetAssayData(seurat, layer = "counts")
+  mat[is.na(mat)] <- 0
+  seurat <- SetAssayData(seurat, layer = "counts", new.data = mat)
+  mat <- GetAssayData(seurat, layer = "data")
+  mat[is.na(mat)] <- 0
+  seurat <- SetAssayData(seurat, layer = "data", new.data = mat)
+
+  saveRDS(gene_anno, rds2)
+  saveRDS(seurat, rds)
+}
+
+keep <- which(seurat$Cell.Types == "Ex01_CUX2-LAMP5 (L2-L3)")
+seurat <- seurat[ , keep]
+
+remove <- which(seurat$SORT == "MAP2control")
+seurat <- seurat[ , -remove]
+
+# remove <- grep("Unknown", x = seurat$annotations_short)
+# if (length(remove) > 0) {
+#   seurat <- seurat[ , -remove]
+# }
+# 
+# seurat$annotations_short <- factor(
+#   seurat$annotations_short,
+#   levels = c(
+#       "Dentate Gyrus Glutamatergic", "Hippocampal Glutamatergic", "Cortical Glutamatergic", "GABAergic", "Endothelial",
+#       "Astrocyte", "OPC", "Oligodendrocyte", "Microglia"
+#   )
+# )
+
+seurat$Sample.ID <- factor(seurat$Sample.ID, levels = c(paste0("AD-MAP2-", rep(1:8)), paste0("AD-AT8-", rep(1:8))))
+
+rds <- file.path(cache_dir, "pseudobulk_counts.rds")
+if (file.exists(rds)) {
+  pseudobulk_counts <- readRDS(rds)
+} else {
+  pseudobulk_counts <- as.SingleCellExperiment(seurat, assay = "SCT")
+  pseudobulk_counts <- suppressWarnings(
+    aggregateAcrossCells(
+      pseudobulk_counts, colData(pseudobulk_counts)[ , "Sample.ID"],
+      use_exprs_values = "counts", statistics = "sum"
+    )
+  )
+  logcounts(pseudobulk_counts) <- log1p(counts(pseudobulk_counts))
+  saveRDS(pseudobulk_counts, file = rds)
+}
+
+plot(density(counts(pseudobulk_counts)))
+plot(density(logcounts(pseudobulk_counts)))
+
+counts <- counts(pseudobulk_counts)
+gene_ids <- geneIds(gene_sets)
+
+rds <- file.path(cache_dir, "pseudobulk_gse.rds")
+if (file.exists(rds)) {
+  pseudobulk_gse <- readRDS(rds)
+} else {
+
+  mat <- matrix(NA, nrow = length(gene_sets) + 1, ncol = 1)
+  for (j in seq(ncol(pseudobulk_counts))) {
+    tmp <- matrix(NA, nrow = 1, ncol = 1)
+    for (i in seq_along(gene_sets)) {
+      idx <- which(rownames(pseudobulk_counts) %in% geneIds(gene_sets[[i]]))
+      idx <- counts(pseudobulk_counts)[idx, j]
+      sum <- sum(idx)
+      var <- exp(sd(idx) / sum)
+      if (is.na(var)) {
+        var <- 1
+      }
+      length <- sqrt(length(idx))
+      score <- sum / var / length
+      tmp <- rbind(tmp, score)
+    }
+    mat <- cbind(mat, tmp)
+  }
+  mat <- mat[-1, -1]
+
+  pseudobulk_gse <- pseudobulk_counts[1:nrow(mat), ]
+  rownames(pseudobulk_gse) <- names(gene_sets)
+  counts(pseudobulk_gse, withDimnames = FALSE) <- mat
+  logcounts(pseudobulk_gse, withDimnames = FALSE) <- log1p(counts(pseudobulk_gse))
+
+  saveRDS(pseudobulk_gse, file = rds)
+}
+
+plot(density(counts(pseudobulk_gse)))
+plot(density(logcounts(pseudobulk_gse)))
+```
+
+# References
+
+This is the concluding section of the document. Here we output the `sessionInfo` and create a bibliography for works cited.
+
+```{r}
+sessionInfo()
+```

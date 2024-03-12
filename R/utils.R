@@ -1069,8 +1069,11 @@ word_cloud = function(x, width = NULL, dict = c()){
              "steps", "versus", "communicating", "fills", "cystine",
              "maintenance", "ascorbate", "gammaglutamyl", "participates",
              "prolongation", "retinoids", "trace", "unrelated",
-             "serve", "systems"),
-             c("invades", "somatic"))
+             "serve", "systems", "aminocarbamoylpropanoic", "estrogen",
+             "recoiling", "bloodnerve", "gpi", "benzaldehyde",
+             "benzoate", "virus", "asparagine", "atfcreb", "colorless",
+             "gas", "monoxide"),
+             c("invades", "somatic", "adhere"))
   # c("cyclins", "cyclin", "crosslinking", "crosslink",
   #   "crosslinks", "transcript", "transcripts"))
   # c("cerevisiae", "saccharomyces", "skeleton", "fiber",
