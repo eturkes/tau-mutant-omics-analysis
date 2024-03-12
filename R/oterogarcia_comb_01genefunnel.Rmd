@@ -627,8 +627,8 @@ for (i in seq_along(top_words_list)) {
     tmp <- tmp[-remove]
   }
   tmp <- tmp[order(tmp, decreasing = TRUE)]
-  if (length(tmp) > round(nrow(top_words_tmp_sub) / 5)) {
-    tmp <- tmp[seq(round(nrow(top_words_tmp_sub) / 5))]
+  if (length(tmp) > round(nrow(top_words_tmp_sub) / 4)) {
+    tmp <- tmp[seq(round(nrow(top_words_tmp_sub) / 4))]
   }
   if (length(tmp) == 1) {
     tmp[1] <- 4
@@ -885,8 +885,8 @@ for (i in seq_along(top_words_list)) {
     tmp <- tmp[-remove]
   }
   tmp <- tmp[order(tmp, decreasing = TRUE)]
-  if (length(tmp) > round(nrow(top_words_tmp_sub) / 5)) {
-    tmp <- tmp[seq(round(nrow(top_words_tmp_sub) / 5))]
+  if (length(tmp) > round(nrow(top_words_tmp_sub) / 4)) {
+    tmp <- tmp[seq(round(nrow(top_words_tmp_sub) / 4))]
   }
   if (length(tmp) == 1) {
     tmp[1] <- 4
@@ -1088,7 +1088,7 @@ right_anno <-  HeatmapAnnotation(
   word_cloud = anno_textbox(
     optimal_k_left, text = top_words_left, add_new_line = TRUE, line_space = unit(0.4, "mm"),
     padding = unit(c(0.5, 0.1, 0.25, 0.5), "mm"),
-    background_gp = gpar(fill = "transparent"),
+    background_gp = gpar(fill = "transparent", lwd = 0.75),
   ),
   width = unit(1.8, "cm")
 )
@@ -1100,7 +1100,7 @@ left_anno <- rowAnnotation(
     link_gp = gpar(lwd = 0.3),
     labels_gp = gpar(fontsize = 3),
     link_width = unit(0.3, "mm"),
-    padding = unit(0.25, "mm"),
+    padding = unit(0.3, "mm"),
     side = "left"
   )
 )
@@ -1174,7 +1174,7 @@ right_anno <-  HeatmapAnnotation(
   word_cloud = anno_textbox(
     optimal_k_right, text = top_words_right, add_new_line = TRUE, line_space = unit(0.4, "mm"),
     padding = unit(c(0.5, 0.1, 0.25, 0.5), "mm"),
-    background_gp = gpar(fill = "transparent"),
+    background_gp = gpar(fill = "transparent", lwd = 0.75),
   ),
   width = unit(2.1, "cm")
 )
@@ -1186,7 +1186,7 @@ left_anno <- rowAnnotation(
     link_gp = gpar(lwd = 0.3),
     labels_gp = gpar(fontsize = 3),
     link_width = unit(0.3, "mm"),
-    padding = unit(0.25, "mm"),
+    padding = unit(0.3, "mm"),
     side = "left"
   )
 )
