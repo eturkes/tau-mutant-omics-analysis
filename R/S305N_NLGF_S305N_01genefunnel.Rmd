@@ -66,7 +66,7 @@ library(conflicted)
 conflicts_prefer(AnnotationDbi::select, edgeR::cpm, DT::JS, base::intersect, reshape2::melt, .quiet = TRUE)
 packages <- c(
   "GSEABase", "Seurat", "ggplot2", "dplyr", "ggrepel", "scuttle", "GO.db", "tm", "pals", "ComplexHeatmap", "edgeR",
-  "DT", "circlize", "purrr", "networkD3", "factoextra", "reshape2", "dendextend", "data.table"
+  "DT", "circlize", "purrr", "networkD3", "factoextra", "reshape2", "dendextend", "data.table", "scales"
 )
 invisible(suppressPackageStartupMessages(lapply(packages, FUN = library, character.only = TRUE)))
 # -----------------------------------------------------
@@ -579,7 +579,8 @@ top_words_tmp <- data.frame(
   gene_sets = unlist(module_names), module = rep(seq_along(module_names), lapply(module_names, length))
 )
 top_words_list <- vector("list", length = length(unique(top_words_tmp$module)))
-top_words_left <- c()
+top_words_left <- top_words_list
+top_words_left_title <- c()
 
 dict_list <- top_words_list
 for (i in seq_along(top_words_list)) {
@@ -686,6 +687,7 @@ for (i in seq_along(top_words_list)) {
   #   tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 1, dict = dict))
   # }
   top_words_left[[i]] <- data.frame(words = names(tmp), fontsize = as.vector(tmp))
+  top_words_left_title <- c(top_words_left_title, paste(paste0(names(tmp), "\n"), collapse = ""))
 }
 
 mat <- gse_cpm
@@ -716,6 +718,7 @@ for (j in seq_along(top_gse_left)) {
 }
 
 top_genes_left <- vector("list", length = length(modules))
+top_genes_left_all <- top_genes_left
 for (i in seq_along(top_genes_left)) {
   genes <- c()
   # for (gse_names in c(unlist(top_gse_left[[i]]), unlist(top_gse_left_all[[i]]))) {
@@ -779,7 +782,10 @@ for (i in seq_along(top_genes_left)) {
 
   comb <- genes_int * avg_log2FC_scaled_int * matches_sub_int
   comb <- comb[names(comb) %in% hub_gene_list_left[[i]][1:round(length(which(optimal_k_left == i)) / 10)]]
-  comb <- comb[match(hub_gene_list_left[[i]][1:round(length(which(optimal_k_left == i)) / 10)], names(comb))]
+  hub_gene_list_sub <- hub_gene_list_left[[i]][1:round(length(which(optimal_k_left == i)) / 10)][
+    hub_gene_list_left[[i]][1:round(length(which(optimal_k_left == i)) / 10)] %in% names(comb)
+  ]
+  comb <- comb[match(hub_gene_list_sub, names(comb))]
   # comb <- c(comb, avg_log2FC_scaled_int[names(avg_log2FC_scaled_int) %notin% names(comb)][1])
   # comb <- c(comb, genes_int[names(genes_int) %notin% names(comb)][1])
   # comb <- c(comb, matches_sub_int[names(matches_sub_int) %notin% names(comb)][1])
@@ -797,6 +803,8 @@ for (i in seq_along(top_genes_left)) {
       gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes_left[[i]])[1]), ]$external_gene_name, times = 1
     ), "darkgray", "lightgray"
   )
+
+  top_genes_left_all[[i]] <- names(comb)
 }
 
 names(top_genes_left) <- seq(max(as.numeric(markers_left$cluster)))
@@ -830,6 +838,7 @@ top_words_tmp <- data.frame(
 )
 top_words_list <- vector("list", length = length(unique(top_words_tmp$module)))
 top_words_right <- top_words_list
+top_words_right_title <- c()
 
 dict_list <- top_words_list
 for (i in seq_along(top_words_list)) {
@@ -936,6 +945,7 @@ for (i in seq_along(top_words_list)) {
   #   tmp <- suppressWarnings(word_cloud(top_words_tmp_sub$gene_set, 1, dict = dict))
   # }
   top_words_right[[i]] <- data.frame(words = names(tmp), fontsize = as.vector(tmp))
+  top_words_right_title <- c(top_words_right_title, paste(paste0(names(tmp), "\n"), collapse = ""))
 }
 
 mat <- gse_cpm
@@ -966,6 +976,7 @@ for (j in seq_along(top_gse_right)) {
 }
 
 top_genes_right <- vector("list", length = length(modules))
+top_genes_right_all <- top_genes_right
 for (i in seq_along(top_genes_right)) {
   genes <- c()
   # for (gse_names in c(unlist(top_gse_right[[i]]), unlist(top_gse_right_all[[i]]))) {
@@ -1029,7 +1040,10 @@ for (i in seq_along(top_genes_right)) {
 
   comb <- genes_int * avg_log2FC_scaled_int * matches_sub_int
   comb <- comb[names(comb) %in% hub_gene_list_right[[i]][1:round(length(which(optimal_k_right == i)) / 10)]]
-  comb <- comb[match(hub_gene_list_right[[i]][1:round(length(which(optimal_k_right == i)) / 10)], names(comb))]
+  hub_gene_list_sub <- hub_gene_list_right[[i]][1:round(length(which(optimal_k_right == i)) / 10)][
+    hub_gene_list_right[[i]][1:round(length(which(optimal_k_right == i)) / 10)] %in% names(comb)
+  ]
+  comb <- comb[match(hub_gene_list_sub, names(comb))]
   # comb <- c(comb, avg_log2FC_scaled_int[names(avg_log2FC_scaled_int) %notin% names(comb)][1])
   # comb <- c(comb, genes_int[names(genes_int) %notin% names(comb)][1])
   # comb <- c(comb, matches_sub_int[names(matches_sub_int) %notin% names(comb)][1])
@@ -1045,24 +1059,48 @@ for (i in seq_along(top_genes_right)) {
   names(top_genes_right[[i]]) <- c(
     rep(
       gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes_right[[i]])[1]), ]$external_gene_name, times = 1
-    ), "darkgray", "lightgray"
+    ), "lightgray", "darkgray"
   )
+
+  top_genes_right_all[[i]] <- names(comb)
 }
 
 names(top_genes_right) <- seq(max(as.numeric(markers_right$cluster)))
 names(top_words_right) <- levels(optimal_k_right)
 
+anno_colour <- hue_pal()(2)
 top_anno <- HeatmapAnnotation(
+  Replicate = paste0("Replicate ", rep(1:2, times = 2)),
   groups = anno_block(
-    gp = gpar(fill = c("lightgray", "lightgray"), lwd = 0.5),
+    gp = gpar(fill = c("lightgray", "darkgray"), lwd = 0.5),
     labels = unique(groups),
     labels_gp = gpar(fontsize = 4),
     height = unit(2, "mm")
-  )
+  ),
+  col = list(Replicate = c("Replicate 1" = anno_colour[1], "Replicate 2" = anno_colour[2])),
+  simple_anno_size = unit(1, "mm"),
+  show_legend = FALSE,
+  annotation_name_gp = gpar(fontsize = 4)
 )
 ```
 
-```{r, fig.height = 2, fig.width = 2.1}
+```{r, fig.height = 3, fig.width = 3.5}
+panel_fun <- function(index, nm) {
+  pushViewport(viewport(xscale = c(0, 10)))
+  grid.rect(
+    x = 0, y = 0.5, width = top_genes_left[[nm]][3] / 10,
+    height = 1, just = "left", gp = gpar(fill = names(top_genes_left[[nm]][3]), lwd = 0.5)
+  )
+  grid.rect(
+    x = 0, y = 0.5, width = top_genes_left[[nm]][2] / 10,
+    height = 1, just = "left", gp = gpar(fill = names(top_genes_left[[nm]][2]), lwd = 0.5)
+  )
+
+  grid.text(y = 0.5, names(top_genes_left[[nm]])[1], gp = gpar(fontsize = 4, font = 3), x = 0.03, just = "left")
+  grid.xaxis(gp = gpar(fontsize = 2, lwd = 0.5), main = FALSE, label = FALSE)
+  popViewport()
+}
+
 left_anno <-  HeatmapAnnotation(
   clusters = anno_block(
     gp = gpar(col = module_colors[seq(optimal_k[1])], lwd = 0.5),
@@ -1071,16 +1109,22 @@ left_anno <-  HeatmapAnnotation(
     labels_gp = gpar(fontsize = 3),
     width = unit(1.2, "mm")
   ),
+  top_genes = anno_link(
+    align_to = optimal_k_left, which = "row", panel_fun = panel_fun,
+    link_width = unit(0, "mm"), gap = unit(0.75, "mm"), width = unit(5, "mm")
+  ),
   which = "row"
 )
 
 right_anno <- rowAnnotation(
-  word_cloud = anno_textbox(
-    optimal_k_left, text = top_words_left, add_new_line = TRUE, line_space = unit(0.4, "mm"),
-    padding = unit(c(0.5, 0.1, 0.25, 1), "mm"),
-    background_gp = gpar(fill = "transparent"),
-  ),
-  width = unit(1.5, "cm")
+  top_gse = anno_mark(
+    at = which(rownames(mat_left) %in% unlist(top_gse_left)),
+    labels = rownames(mat_left)[which(rownames(mat_left) %in% unlist(top_gse_left))],
+    link_gp = gpar(lwd = 0.3),
+    labels_gp = gpar(fontsize = 3),
+    link_width = unit(0.3, "mm"),
+    padding = unit(0.25, "mm")
+  )
 )
 
 set.seed(1)
@@ -1100,11 +1144,13 @@ draw(
     left_annotation = left_anno,
     right_annotation = right_anno,
     top_annotation = top_anno,
-    rect_gp = gpar(col = "darkgray", lwd = 0.01),
+    rect_gp = gpar(col = "lightgray", lwd = 0.1),
     border_gp = gpar(lwd = 0.5),
     border = TRUE,
-    row_title = NULL,
-    row_gap = unit(0.5, "mm"),
+    row_title = top_words_left_title,
+    row_title_gp = gpar(fontsize = 4),
+    row_title_rot = 0,
+    row_gap = unit(0.75, "mm"),
     column_gap = unit(0.5, "mm"),
     column_names_side = "top",
     column_names_rot = 45,
@@ -1114,8 +1160,24 @@ draw(
       grid_height = unit(0.1, "cm"), at = c(0, 2, 4, 6, 8, 10)
     )
   ),
-  heatmap_legend_side = "top"
+  heatmap_legend_side = "top",
 )
+
+panel_fun <- function(index, nm) {
+  pushViewport(viewport(xscale = c(0, 10)))
+  grid.rect(
+    x = 0, y = 0.5, width = top_genes_right[[nm]][2] / 10,
+    height = 1, just = "left", gp = gpar(fill = names(top_genes_right[[nm]][2]), lwd = 0.5)
+  )
+  grid.rect(
+    x = 0, y = 0.5, width = top_genes_right[[nm]][3] / 10,
+    height = 1, just = "left", gp = gpar(fill = names(top_genes_right[[nm]][3]), lwd = 0.5)
+  )
+
+  grid.text(y = 0.5, names(top_genes_right[[nm]])[1], gp = gpar(fontsize = 4, font = 3), x = 0.03, just = "left")
+  grid.xaxis(gp = gpar(fontsize = 2, lwd = 0.5), main = FALSE, label = FALSE)
+  popViewport()
+}
 
 left_anno <-  HeatmapAnnotation(
   clusters = anno_block(
@@ -1125,16 +1187,22 @@ left_anno <-  HeatmapAnnotation(
     labels_gp = gpar(fontsize = 3),
     width = unit(1.2, "mm")
   ),
+  top_genes = anno_link(
+    align_to = optimal_k_right, which = "row", panel_fun = panel_fun,
+    link_width = unit(0, "mm"), gap = unit(0.75, "mm"), width = unit(5, "mm")
+  ),
   which = "row"
 )
 
 right_anno <- rowAnnotation(
-  word_cloud = anno_textbox(
-    optimal_k_right, text = top_words_right, add_new_line = TRUE, line_space = unit(0.4, "mm"),
-    padding = unit(c(0.5, 0.1, 0.25, 1), "mm"),
-    background_gp = gpar(fill = "transparent"),
-  ),
-  width = unit(1.5, "cm")
+  top_gse = anno_mark(
+    at = which(rownames(mat_right) %in% unlist(top_gse_right)),
+    labels = rownames(mat_right)[which(rownames(mat_right) %in% unlist(top_gse_right))],
+    link_gp = gpar(lwd = 0.3),
+    labels_gp = gpar(fontsize = 3),
+    link_width = unit(0.3, "mm"),
+    padding = unit(0.25, "mm")
+  )
 )
 
 set.seed(1)
@@ -1154,11 +1222,13 @@ draw(
     left_annotation = left_anno,
     right_annotation = right_anno,
     top_annotation = top_anno,
-    rect_gp = gpar(col = "darkgray", lwd = 0.01),
+    rect_gp = gpar(col = "lightgray", lwd = 0.1),
     border_gp = gpar(lwd = 0.5),
     border = TRUE,
-    row_title = NULL,
-    row_gap = unit(0.5, "mm"),
+    row_title = top_words_right_title,
+    row_title_gp = gpar(fontsize = 4),
+    row_title_rot = 0,
+    row_gap = unit(0.75, "mm"),
     column_gap = unit(0.5, "mm"),
     column_names_side = "top",
     column_names_rot = 45,
@@ -1168,111 +1238,7 @@ draw(
       grid_height = unit(0.1, "cm"), at = c(0, 2, 4, 6, 8, 10)
     )
   ),
-  heatmap_legend_side = "top"
-)
-```
-
-```{r, fig.height = 2, fig.width = 2.5}
-mat_left_sub <- mat_left[rownames(mat_left) %in% unlist(top_gse_left), ]
-mat_left_sub <- mat_left_sub[match(unique(unlist(top_gse_left)), rownames(mat_left_sub)), ]
-
-module_idx <- sapply(rownames(mat_left_sub), FUN = find_index, list_of_lists = top_gse_left)
-
-left_anno <-  HeatmapAnnotation(
-  clusters = anno_block(
-    gp = gpar(col = module_colors[seq(optimal_k[1])], lwd = 0.5),
-    labels = seq(length(unique(optimal_k_left))),
-    labels_rot = 0,
-    labels_gp = gpar(fontsize = 3),
-    width = unit(1.2, "mm")
-  ),
-  which = "row"
-)
-
-set.seed(1)
-draw(
-  Heatmap(
-    mat_left_sub,
-    col = colour,
-    column_labels = sub("\\s+[^ ]+$", "", colnames(mat_left_sub)),
-    cluster_columns = FALSE,
-    cluster_rows = FALSE,
-    column_split = factor(groups, levels = unique(groups)),
-    row_split = module_idx,
-    show_column_names = FALSE,
-    left_annotation = left_anno,
-    column_title = ctype,
-    column_title_gp = gpar(fontsize = 5),
-    top_annotation = top_anno,
-    rect_gp = gpar(col = "darkgray", lwd = 0.01),
-    border_gp = gpar(lwd = 0.5),
-    border = TRUE,
-    row_title = NULL,
-    row_names_gp = gpar(fontsize = 3),
-    row_names_max_width = max_text_width(rownames(mat_left_sub)),
-    row_names_side = "left",
-    row_gap = unit(0.5, "mm"),
-    column_gap = unit(0.5, "mm"),
-    column_names_side = "top",
-    column_names_rot = 45,
-    heatmap_legend_param = list(
-      title = "Log + 1", direction = "horizontal", title_position = "topcenter",
-      legend_width = unit(1.5, "cm"), title_gp = gpar(fontsize = 4), labels_gp = gpar(fontsize = 3),
-      grid_height = unit(0.1, "cm"), at = c(0, 2, 4, 6, 8, 10)
-    )
-  ),
-  heatmap_legend_side = "top"
-)
-
-mat_right_sub <- mat_right[rownames(mat_right) %in% unlist(top_gse_right), ]
-mat_right_sub <- mat_right_sub[match(unique(unlist(top_gse_right)), rownames(mat_right_sub)), ]
-
-module_idx <- sapply(rownames(mat_right_sub), FUN = find_index, list_of_lists = top_gse_right)
-
-left_anno <-  HeatmapAnnotation(
-  clusters = anno_block(
-    gp = gpar(col = module_colors[seq(optimal_k[2])], lwd = 0.5),
-    labels = seq(length(unique(optimal_k_right))),
-    labels_rot = 0,
-    labels_gp = gpar(fontsize = 3),
-    width = unit(1.2, "mm")
-  ),
-  which = "row"
-)
-
-set.seed(1)
-draw(
-  Heatmap(
-    mat_right_sub,
-    col = colour,
-    column_labels = sub("\\s+[^ ]+$", "", colnames(mat_right_sub)),
-    cluster_columns = FALSE,
-    cluster_rows = FALSE,
-    column_split = factor(groups, levels = unique(groups)),
-    row_split = module_idx,
-    show_column_names = FALSE,
-    left_annotation = left_anno,
-    column_title = ctype,
-    column_title_gp = gpar(fontsize = 5),
-    top_annotation = top_anno,
-    rect_gp = gpar(col = "darkgray", lwd = 0.01),
-    border_gp = gpar(lwd = 0.5),
-    border = TRUE,
-    row_title = NULL,
-    row_names_gp = gpar(fontsize = 3),
-    row_names_max_width = max_text_width(rownames(mat_right_sub)),
-    row_names_side = "left",
-    row_gap = unit(0.5, "mm"),
-    column_gap = unit(0.5, "mm"),
-    column_names_side = "top",
-    column_names_rot = 45,
-    heatmap_legend_param = list(
-      title = "Log + 1", direction = "horizontal", title_position = "topcenter",
-      legend_width = unit(1.5, "cm"), title_gp = gpar(fontsize = 4), labels_gp = gpar(fontsize = 3),
-      grid_height = unit(0.1, "cm"), at = c(0, 2, 4, 6, 8, 10)
-    )
-  ),
-  heatmap_legend_side = "top"
+  heatmap_legend_side = "top",
 )
 ```
 
