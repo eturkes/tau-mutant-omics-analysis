@@ -118,10 +118,10 @@ module_colors <- cols25(25)
 
 # GSE
 
-## BA9 Layer 2/3 EX Neurons
+## BA9 EX Neurons
 
 ```{r, fig.width = 8, fig.height = 6, dpi = 72}
-ctype <- "BA9 Layer 2/3 EX Neurons"
+ctype <- "BA9 EX Neurons"
 
 gse_cpm <- log1p(cpm(gse))
 counts_cpm <- log1p(cpm(counts))
@@ -144,7 +144,7 @@ write.fit(
 results <- read.delim(file.path(cache_dir, "results.tsv"))
 rownames(results) <- results$X
 results <- results[ , -1]
-results <- results[results$P.value < 0.05, ]
+results <- results[results$P.value.adj < 0.05, ]
 
 # keep <- rownames(gse_cpm[rowSums(gse_cpm > 0) >= 1, ])
 # gse_zscore <- t(scale(t(gse_cpm[keep, ])))
@@ -188,7 +188,7 @@ write.fit(
 results <- read.delim(file.path(cache_dir, "results.tsv"))
 rownames(results) <- results$X
 results <- results[ , -1]
-results <- results[results$P.value < 0.05, ]
+results <- results[results$P.value.adj < 0.05, ]
 results_up <- results[results$Coef > 0, ]
 results_down <- results[results$Coef < -0, ]
 results_list <- list(results_up, results_down)
@@ -271,15 +271,15 @@ for (i in seq_along(levels(groups))) {
 
   modules_with_hubs <- vector("list", 26)
   modules_with_hubs[[1]] <- 0
-  modules_with_hubs[[2]] <- 0
-  modules_with_hubs[[3]] <- 0
-  modules_with_hubs[[4]] <- 0
-  modules_with_hubs[[5]] <- 0
-  modules_with_hubs[[6]] <- 0
-  modules_with_hubs[[7]] <- 0
+  # modules_with_hubs[[2]] <- 0
+  # modules_with_hubs[[3]] <- 0
+  # modules_with_hubs[[4]] <- 0
+  # modules_with_hubs[[5]] <- 0
+  # modules_with_hubs[[6]] <- 0
+  # modules_with_hubs[[7]] <- 0
   # modules_with_hubs[[8]] <- 0
   # modules_with_hubs[[9]] <- 0
-  for (l in 8:26) {
+  for (l in 2:26) {
     set.seed(1)
     heatmap <- Heatmap(
       mat, cluster_rows = clustering[[i]], cluster_columns = FALSE, show_column_names = FALSE,
@@ -360,13 +360,17 @@ for (i in seq_along(levels(groups))) {
         frequent_genes <- frequent_genes[order(frequent_genes$Freq, decreasing = TRUE), ]
       }
 
-      hub_gene_list[[m]] <- frequent_genes$Freq[1]
+      hub_gene_list[[m]] <- frequent_genes$Freq[1:ceiling(length(modules_up) / 15)]
+      if (any(is.na(hub_gene_list[[m]]))) {
+        hub_gene_list[[m]] <- hub_gene_list[[m]][-which(is.na(hub_gene_list[[m]]))]
+      }
     }
-    modules_with_hubs[[l]] <- min(unlist(hub_gene_list))
+    modules_with_hubs[[l]] <- mean(unlist(hub_gene_list))
   }
   print(plot(unlist(modules_with_hubs)))
   optimal_k <- c(optimal_k, 27 - which.max(rev(modules_with_hubs)))
 }
+# optimal_k <- c(5, 7)
 
 clustering_left <- color_branches(clustering[[1]], k = optimal_k[1], col = module_colors[seq(optimal_k[1])])
 mat_left <- gse_cpm[rownames(gse_cpm) %in% module_direction[[1]], , drop = FALSE]
@@ -439,7 +443,10 @@ for (m in seq_along(modules)) {
     frequent_genes <- frequent_genes[order(frequent_genes$Freq, decreasing = TRUE), ]
   }
 
-  hub_gene_list_left[[m]] <- as.vector(frequent_genes$Var1)
+  hub_gene_list_left[[m]] <- as.vector(frequent_genes$Var1)[1:ceiling(length(modules_up) / 15)]
+  if (any(is.na(hub_gene_list_left[[m]]))) {
+    hub_gene_list_left[[m]] <- hub_gene_list_left[[m]][-which(is.na(hub_gene_list_left[[m]]))]
+  }
 }
 
 clustering_right <- color_branches(
@@ -515,7 +522,10 @@ for (m in seq_along(modules)) {
     frequent_genes <- frequent_genes[order(frequent_genes$Freq, decreasing = TRUE), ]
   }
 
-  hub_gene_list_right[[m]] <- as.vector(frequent_genes$Var1)
+  hub_gene_list_right[[m]] <- as.vector(frequent_genes$Var1)[1:ceiling(length(modules_up) / 15)]
+  if (any(is.na(hub_gene_list_right[[m]]))) {
+    hub_gene_list_right[[m]] <- hub_gene_list_right[[m]][-which(is.na(hub_gene_list_right[[m]]))]
+  }
 }
 
 markers_left <- markers[markers$gene %in% module_direction[[1]], ]
@@ -563,8 +573,8 @@ for (i in seq_along(top_words_list)) {
   dict_list[[i]] <- unique(tmp)
 }
 dict <- table(unlist(dict_list))
-dict <- names(dict[dict > round(length(dict_list) / 2)])
-# dict <- names(dict[dict > round(sqrt(length(dict_list)))])
+dict <- names(dict[dict > ceiling(length(dict_list) / 2)])
+# dict <- names(dict[dict > ceiling(sqrt(length(dict_list)))])
 # dict <- names(dict[dict == length(dict_list)])
 
 dict_list <- top_words_list
@@ -588,8 +598,8 @@ for (i in seq_along(top_words_list)) {
   genes <- gene_sets[names(gene_sets) %in% modules[[i]]]
   genes <- geneIds(genes[match(modules[[i]], names(genes))])
   idx <- colSums(
-    sapply(genes, "%in%", x = c(hub_gene_list_left[[i]][1], NA, NA))
-  ) > 0
+    sapply(genes, "%in%", x = c(hub_gene_list_left[[i]], NA, NA))
+  ) >= ceiling(length(hub_gene_list_left[[i]]) / 5)
   top_words_tmp_sub <- top_words_tmp_sub[idx, ]
   markers_sub <- markers_left[which(markers_left$cluster == levels(markers_left$cluster)[i]), , drop = FALSE]
   markers_sub <- markers_sub[match(modules[[i]], markers_sub$gene), , drop = FALSE]
@@ -617,7 +627,7 @@ for (i in seq_along(top_words_list)) {
   }
   remove <- c()
   for (j in seq_along(tmp)) {
-    dup <- grep(names(tmp)[j], x = names(tmp))
+    dup <- grep(substr(names(tmp)[j], 1, ceiling(nchar(names(tmp)[j]) / 2)), x = names(tmp))
     if (length(dup) > 1) {
       tmp[dup[1]] <- sum(tmp[dup])
       remove <- c(remove, dup[-1])
@@ -627,8 +637,8 @@ for (i in seq_along(top_words_list)) {
     tmp <- tmp[-remove]
   }
   tmp <- tmp[order(tmp, decreasing = TRUE)]
-  if (length(tmp) > round(nrow(top_words_tmp_sub) / 4)) {
-    tmp <- tmp[seq(round(nrow(top_words_tmp_sub) / 4))]
+  if (length(tmp) > ceiling(nrow(top_words_tmp_sub) / 5)) {
+    tmp <- tmp[seq(ceiling(nrow(top_words_tmp_sub) / 5))]
   }
   if (length(tmp) == 1) {
     tmp[1] <- 4
@@ -675,6 +685,12 @@ for (j in seq_along(top_gse_left)) {
       grep(names(top_gse_left[[j]])[i], x = unlist(top_words_list[[j]]))
     )
     top_gse_left[[j]][[i]] <- modules[[j]][idx]
+    genes <- geneIds(gene_sets[names(gene_sets) %in% top_gse_left[[j]][[i]]])
+    genes <- genes[match(top_gse_left[[j]][[i]], names(genes))]
+    idx <- colSums(
+      sapply(genes, "%in%", x = c(hub_gene_list_left[[j]], NA, NA))
+    ) >= ceiling(length(hub_gene_list_left[[j]]) / 5)
+    top_gse_left[[j]][[i]] <- top_gse_left[[j]][[i]][idx]
     top_gse_left_all[[j]][[i]] <- modules[[j]]
     idx <- c(
       grep(names(top_gse_left[[j]])[i], x = unlist(top_words_list_all[[j]]))
@@ -747,9 +763,9 @@ for (i in seq_along(top_genes_left)) {
   matches_sub_int <- matches_sub_int[order(matches_sub_int, decreasing = TRUE)]
 
   comb <- genes_int * avg_log2FC_scaled_int * matches_sub_int
-  comb <- comb[names(comb) %in% hub_gene_list_left[[i]][1]]
-  hub_gene_list_sub <- hub_gene_list_left[[i]][1][
-    hub_gene_list_left[[i]][1] %in% names(comb)
+  comb <- comb[names(comb) %in% hub_gene_list_left[[i]]]
+  hub_gene_list_sub <- hub_gene_list_left[[i]][
+    hub_gene_list_left[[i]] %in% names(comb)
   ]
   comb <- comb[match(hub_gene_list_sub, names(comb))]
   # comb <- c(comb, avg_log2FC_scaled_int[names(avg_log2FC_scaled_int) %notin% names(comb)][1])
@@ -762,13 +778,17 @@ for (i in seq_along(top_genes_left)) {
   # avg_log2FC <- avg_log2FC[match(names(comb), names(avg_log2FC))]
 
   top_genes_left[[i]] <- c(
-    comb[1], counts_cpm_sub[1, 2], counts_cpm_sub[1, 2 - 1]
+    comb, counts_cpm_sub[ , 2, drop = FALSE], counts_cpm_sub[ , 2 - 1, drop = FALSE]
   )
-  names(top_genes_left[[i]]) <- c(
-    rep(
-      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes_left[[i]])[1]), ]$external_gene_name, times = 1
-    ), "darkgray", "lightgray"
-  )
+  # names(top_genes_left[[i]]) <- c(
+  #   rep(
+  #     gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes_left[[i]])[1]), ]$external_gene_name, times = 1
+  #   ), "darkgray", "lightgray"
+  # )
+
+  idx <- grep("ENSG", x = names(top_genes_left[[i]]))
+  add <- gene_anno[gene_anno$ensembl_gene_id %in% names(top_genes_left[[i]])[idx], ]$external_gene_name
+  names(top_genes_left[[i]]) <- c(add, rep("darkgray", times = length(add)), rep("lightgray", times = length(add)))
 
   top_genes_left_all[[i]] <- names(comb)
 }
@@ -821,8 +841,8 @@ for (i in seq_along(top_words_list)) {
   dict_list[[i]] <- unique(tmp)
 }
 dict <- table(unlist(dict_list))
-dict <- names(dict[dict > round(length(dict_list) / 2)])
-# dict <- names(dict[dict > round(sqrt(length(dict_list)))])
+dict <- names(dict[dict > ceiling(length(dict_list) / 2)])
+# dict <- names(dict[dict > ceiling(sqrt(length(dict_list)))])
 # dict <- names(dict[dict == length(dict_list)])
 
 dict_list <- top_words_list
@@ -846,8 +866,8 @@ for (i in seq_along(top_words_list)) {
   genes <- gene_sets[names(gene_sets) %in% modules[[i]]]
   genes <- geneIds(genes[match(modules[[i]], names(genes))])
   idx <- colSums(
-    sapply(genes, "%in%", x = c(hub_gene_list_right[[i]][1], NA, NA))
-  ) > 0
+    sapply(genes, "%in%", x = c(hub_gene_list_right[[i]], NA, NA))
+  )  >= ceiling(length(hub_gene_list_right[[i]]) / 5)
   top_words_tmp_sub <- top_words_tmp_sub[idx, ]
   markers_sub <- markers_right[which(markers_right$cluster == levels(markers_right$cluster)[i]), , drop = FALSE]
   markers_sub <- markers_sub[match(modules[[i]], markers_sub$gene), , drop = FALSE]
@@ -875,7 +895,7 @@ for (i in seq_along(top_words_list)) {
   }
   remove <- c()
   for (j in seq_along(tmp)) {
-    dup <- grep(names(tmp)[j], x = names(tmp))
+    dup <- grep(substr(names(tmp)[j], 1, ceiling(nchar(names(tmp)[j]) / 2)), x = names(tmp))
     if (length(dup) > 1) {
       tmp[dup[1]] <- sum(tmp[dup])
       remove <- c(remove, dup[-1])
@@ -885,8 +905,8 @@ for (i in seq_along(top_words_list)) {
     tmp <- tmp[-remove]
   }
   tmp <- tmp[order(tmp, decreasing = TRUE)]
-  if (length(tmp) > round(nrow(top_words_tmp_sub) / 4)) {
-    tmp <- tmp[seq(round(nrow(top_words_tmp_sub) / 4))]
+  if (length(tmp) > ceiling(nrow(top_words_tmp_sub) / 5)) {
+    tmp <- tmp[seq(ceiling(nrow(top_words_tmp_sub) / 5))]
   }
   if (length(tmp) == 1) {
     tmp[1] <- 4
@@ -933,6 +953,12 @@ for (j in seq_along(top_gse_right)) {
       grep(names(top_gse_right[[j]])[i], x = unlist(top_words_list[[j]]))
     )
     top_gse_right[[j]][[i]] <- modules[[j]][idx]
+    genes <- geneIds(gene_sets[names(gene_sets) %in% top_gse_right[[j]][[i]]])
+    genes <- genes[match(top_gse_right[[j]][[i]], names(genes))]
+    idx <- colSums(
+      sapply(genes, "%in%", x = c(hub_gene_list_right[[j]], NA, NA))
+    ) >= ceiling(length(hub_gene_list_right[[j]]) / 5)
+    top_gse_right[[j]][[i]] <- top_gse_right[[j]][[i]][idx]
     top_gse_right_all[[j]][[i]] <- modules[[j]]
     idx <- c(
       grep(names(top_gse_right[[j]])[i], x = unlist(top_words_list_all[[j]]))
@@ -1005,9 +1031,9 @@ for (i in seq_along(top_genes_right)) {
   matches_sub_int <- matches_sub_int[order(matches_sub_int, decreasing = TRUE)]
 
   comb <- genes_int * avg_log2FC_scaled_int * matches_sub_int
-  comb <- comb[names(comb) %in% hub_gene_list_right[[i]][1]]
-  hub_gene_list_sub <- hub_gene_list_right[[i]][1][
-    hub_gene_list_right[[i]][1] %in% names(comb)
+  comb <- comb[names(comb) %in% hub_gene_list_right[[i]]]
+  hub_gene_list_sub <- hub_gene_list_right[[i]][
+    hub_gene_list_right[[i]] %in% names(comb)
   ]
   comb <- comb[match(hub_gene_list_sub, names(comb))]
   # comb <- c(comb, avg_log2FC_scaled_int[names(avg_log2FC_scaled_int) %notin% names(comb)][1])
@@ -1020,13 +1046,17 @@ for (i in seq_along(top_genes_right)) {
   # avg_log2FC <- avg_log2FC[match(names(comb), names(avg_log2FC))]
 
   top_genes_right[[i]] <- c(
-    comb[1], counts_cpm_sub[1, 2], counts_cpm_sub[1, 2 - 1]
+    comb, counts_cpm_sub[ , 2, drop = FALSE], counts_cpm_sub[ , 2 - 1, drop = FALSE]
   )
-  names(top_genes_right[[i]]) <- c(
-    rep(
-      gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes_right[[i]])[1]), ]$external_gene_name, times = 1
-    ), "darkgray", "lightgray"
-  )
+  # names(top_genes_right[[i]]) <- c(
+  #   rep(
+  #     gene_anno[which(gene_anno$ensembl_gene_id == names(top_genes_right[[i]])[1]), ]$external_gene_name, times = 1
+  #   ), "darkgray", "lightgray"
+  # )
+
+  idx <- grep("ENSG", x = names(top_genes_right[[i]]))
+  add <- gene_anno[gene_anno$ensembl_gene_id %in% names(top_genes_right[[i]])[idx], ]$external_gene_name
+  names(top_genes_right[[i]]) <- c(add, rep("darkgray", times = length(add)), rep("lightgray", times = length(add)))
 
   top_genes_right_all[[i]] <- names(comb)
 }
@@ -1055,19 +1085,110 @@ top_anno <- HeatmapAnnotation(
 )
 ```
 
-```{r, fig.height = 2.5, fig.width = 2.5}
+```{r, fig.height = 2.75, fig.width = 3}
 panel_fun <- function(index, nm) {
   pushViewport(viewport(xscale = c(0, 10)))
-  grid.rect(
-    x = 0, y = 0.5, width = top_genes_left[[nm]][3] / 10,
-    height = 1, just = "left", gp = gpar(fill = names(top_genes_left[[nm]][3]), lwd = 0.5)
-  )
-  grid.rect(
-    x = 0, y = 0.5, width = top_genes_left[[nm]][2] / 10,
-    height = 1, just = "left", gp = gpar(fill = names(top_genes_left[[nm]][2]), lwd = 0.5)
-  )
 
-  grid.text(y = 0.5, names(top_genes_left[[nm]])[1], gp = gpar(fontsize = 3, font = 3), x = 0.05, just = "left")
+  if (length(top_genes_left[[nm]]) == 3) {
+    grid.rect(
+      x = 0, y = 0.5, width = top_genes_left[[nm]][3] / 10,
+      height = 1, just = "left", gp = gpar(fill = names(top_genes_left[[nm]][3]), lwd = 0.5)
+    )
+    grid.rect(
+      x = 0, y = 0.5, width = top_genes_left[[nm]][2] / 10,
+      height = 1, just = "left", gp = gpar(fill = names(top_genes_left[[nm]][2]), lwd = 0.5)
+    )
+    grid.text(y = 0.5, names(top_genes_left[[nm]])[1], gp = gpar(fontsize = 3, font = 3), x = 0.05, just = "left")
+  } else if (length(top_genes_left[[nm]]) == 6) {
+    grid.rect(
+      x = 0, y = 0.75, width = top_genes_left[[nm]][5] / 10,
+      height = 0.5, just = "left", gp = gpar(fill = names(top_genes_left[[nm]][5]), lwd = 0.5)
+    )
+    grid.rect(
+      x = 0, y = 0.75, width = top_genes_left[[nm]][3] / 10,
+      height = 0.5, just = "left", gp = gpar(fill = names(top_genes_left[[nm]][3]), lwd = 0.5)
+    )
+    grid.rect(
+      x = 0, y = 0.25, width = top_genes_left[[nm]][6] / 10,
+      height = 0.5, just = "left", gp = gpar(fill = names(top_genes_left[[nm]][6]), lwd = 0.5)
+    )
+    grid.rect(
+      x = 0, y = 0.25, width = top_genes_left[[nm]][4] / 10,
+      height = 0.5, just = "left", gp = gpar(fill = names(top_genes_left[[nm]][4]), lwd = 0.5)
+    )
+    grid.text(y = 0.75, names(top_genes_left[[nm]])[1], gp = gpar(fontsize = 3, font = 3), x = 0.05, just = "left")
+    grid.text(y = 0.25, names(top_genes_left[[nm]])[2], gp = gpar(fontsize = 3, font = 3), x = 0.05, just = "left")
+  } else if (length(top_genes_left[[nm]]) == 9) {
+    grid.rect(
+      x = 0, y = 0.5 + 1 / 3, width = top_genes_left[[nm]][7] / 10,
+      height = 1 / 3, just = "left", gp = gpar(fill = names(top_genes_left[[nm]][7]), lwd = 0.5)
+    )
+    grid.rect(
+      x = 0, y = 0.5 + 1 / 3, width = top_genes_left[[nm]][4] / 10,
+      height = 1 / 3, just = "left", gp = gpar(fill = names(top_genes_left[[nm]][4]), lwd = 0.5)
+    )
+    grid.rect(
+      x = 0, y = 0.5, width = top_genes_left[[nm]][8] / 10,
+      height = 1 / 3, just = "left", gp = gpar(fill = names(top_genes_left[[nm]][8]), lwd = 0.5)
+    )
+    grid.rect(
+      x = 0, y = 0.5, width = top_genes_left[[nm]][5] / 10,
+      height = 1 / 3, just = "left", gp = gpar(fill = names(top_genes_left[[nm]][5]), lwd = 0.5)
+    )
+    grid.rect(
+      x = 0, y = 0.5 - 1 / 3, width = top_genes_left[[nm]][9] / 10,
+      height = 1 / 3, just = "left", gp = gpar(fill = names(top_genes_left[[nm]][9]), lwd = 0.5)
+    )
+    grid.rect(
+      x = 0, y = 0.5 - 1 / 3, width = top_genes_left[[nm]][6] / 10,
+      height = 1 / 3, just = "left", gp = gpar(fill = names(top_genes_left[[nm]][6]), lwd = 0.5)
+    )
+    grid.text(
+      y = 0.5 + 1 / 3, names(top_genes_left[[nm]])[1], gp = gpar(fontsize = 3, font = 3), x = 0.05, just = "left"
+    )
+    grid.text(y = 0.5, names(top_genes_left[[nm]])[2], gp = gpar(fontsize = 3, font = 3), x = 0.05, just = "left")
+    grid.text(
+      y = 0.5 - 1 / 3, names(top_genes_left[[nm]])[3], gp = gpar(fontsize = 3, font = 3), x = 0.05, just = "left"
+    )
+  } else if (length(top_genes_left[[nm]]) == 12) {
+    grid.rect(
+      x = 0, y = 0.875, width = top_genes_left[[nm]][9] / 10,
+      height = 0.25, just = "left", gp = gpar(fill = names(top_genes_left[[nm]][9]), lwd = 0.5)
+    )
+    grid.rect(
+      x = 0, y = 0.875, width = top_genes_left[[nm]][5] / 10,
+      height = 0.25, just = "left", gp = gpar(fill = names(top_genes_left[[nm]][5]), lwd = 0.5)
+    )
+    grid.rect(
+      x = 0, y = 0.625, width = top_genes_left[[nm]][10] / 10,
+      height = 0.25, just = "left", gp = gpar(fill = names(top_genes_left[[nm]][10]), lwd = 0.5)
+    )
+    grid.rect(
+      x = 0, y = 0.625, width = top_genes_left[[nm]][6] / 10,
+      height = 0.25, just = "left", gp = gpar(fill = names(top_genes_left[[nm]][6]), lwd = 0.5)
+    )
+    grid.rect(
+      x = 0, y = 0.375, width = top_genes_left[[nm]][11] / 10,
+      height = 0.25, just = "left", gp = gpar(fill = names(top_genes_left[[nm]][11]), lwd = 0.5)
+    )
+    grid.rect(
+      x = 0, y = 0.375, width = top_genes_left[[nm]][7] / 10,
+      height = 0.25, just = "left", gp = gpar(fill = names(top_genes_left[[nm]][7]), lwd = 0.5)
+    )
+    grid.rect(
+      x = 0, y = 0.125, width = top_genes_left[[nm]][12] / 10,
+      height = 0.25, just = "left", gp = gpar(fill = names(top_genes_left[[nm]][12]), lwd = 0.5)
+    )
+    grid.rect(
+      x = 0, y = 0.125, width = top_genes_left[[nm]][8] / 10,
+      height = 0.25, just = "left", gp = gpar(fill = names(top_genes_left[[nm]][8]), lwd = 0.5)
+    )
+    grid.text(y = 0.875, names(top_genes_left[[nm]])[1], gp = gpar(fontsize = 3, font = 3), x = 0.05, just = "left")
+    grid.text(y = 0.625, names(top_genes_left[[nm]])[2], gp = gpar(fontsize = 3, font = 3), x = 0.05, just = "left")
+    grid.text(y = 0.375, names(top_genes_left[[nm]])[3], gp = gpar(fontsize = 3, font = 3), x = 0.05, just = "left")
+    grid.text(y = 0.125, names(top_genes_left[[nm]])[4], gp = gpar(fontsize = 3, font = 3), x = 0.05, just = "left")
+  }
+
   grid.xaxis(gp = gpar(fontsize = 2, lwd = 0.5), main = FALSE, label = FALSE)
   popViewport()
 }
@@ -1090,7 +1211,7 @@ right_anno <-  HeatmapAnnotation(
     padding = unit(c(0.5, 0.1, 0.25, 0.5), "mm"),
     background_gp = gpar(fill = "transparent", lwd = 0.75),
   ),
-  width = unit(1.8, "cm")
+  width = unit(2, "cm")
 )
 
 left_anno <- rowAnnotation(
@@ -1144,16 +1265,107 @@ draw(
 
 panel_fun <- function(index, nm) {
   pushViewport(viewport(xscale = c(0, 10)))
-  grid.rect(
-    x = 0, y = 0.5, width = top_genes_right[[nm]][2] / 10,
-    height = 1, just = "left", gp = gpar(fill = names(top_genes_right[[nm]][2]), lwd = 0.5)
-  )
-  grid.rect(
-    x = 0, y = 0.5, width = top_genes_right[[nm]][3] / 10,
-    height = 1, just = "left", gp = gpar(fill = names(top_genes_right[[nm]][3]), lwd = 0.5)
-  )
 
-  grid.text(y = 0.5, names(top_genes_right[[nm]])[1], gp = gpar(fontsize = 3, font = 3), x = 0.05, just = "left")
+  if (length(top_genes_right[[nm]]) == 3) {
+    grid.rect(
+      x = 0, y = 0.5, width = top_genes_right[[nm]][2] / 10,
+      height = 1, just = "left", gp = gpar(fill = names(top_genes_right[[nm]][2]), lwd = 0.5)
+    )
+    grid.rect(
+      x = 0, y = 0.5, width = top_genes_right[[nm]][3] / 10,
+      height = 1, just = "left", gp = gpar(fill = names(top_genes_right[[nm]][3]), lwd = 0.5)
+    )
+    grid.text(y = 0.5, names(top_genes_right[[nm]])[1], gp = gpar(fontsize = 3, font = 3), x = 0.05, just = "left")
+  } else if (length(top_genes_right[[nm]]) == 6) {
+    grid.rect(
+      x = 0, y = 0.75, width = top_genes_right[[nm]][3] / 10,
+      height = 0.5, just = "left", gp = gpar(fill = names(top_genes_right[[nm]][3]), lwd = 0.5)
+    )
+    grid.rect(
+      x = 0, y = 0.75, width = top_genes_right[[nm]][5] / 10,
+      height = 0.5, just = "left", gp = gpar(fill = names(top_genes_right[[nm]][5]), lwd = 0.5)
+    )
+    grid.rect(
+      x = 0, y = 0.25, width = top_genes_right[[nm]][4] / 10,
+      height = 0.5, just = "left", gp = gpar(fill = names(top_genes_right[[nm]][4]), lwd = 0.5)
+    )
+    grid.rect(
+      x = 0, y = 0.25, width = top_genes_right[[nm]][6] / 10,
+      height = 0.5, just = "left", gp = gpar(fill = names(top_genes_right[[nm]][6]), lwd = 0.5)
+    )
+    grid.text(y = 0.75, names(top_genes_right[[nm]])[1], gp = gpar(fontsize = 3, font = 3), x = 0.05, just = "left")
+    grid.text(y = 0.25, names(top_genes_right[[nm]])[2], gp = gpar(fontsize = 3, font = 3), x = 0.05, just = "left")
+  } else if (length(top_genes_right[[nm]]) == 9) {
+    grid.rect(
+      x = 0, y = 0.5 + 1 / 3, width = top_genes_right[[nm]][4] / 10,
+      height = 1 / 3, just = "left", gp = gpar(fill = names(top_genes_right[[nm]][4]), lwd = 0.5)
+    )
+    grid.rect(
+      x = 0, y = 0.5 + 1 / 3, width = top_genes_right[[nm]][7] / 10,
+      height = 1 / 3, just = "left", gp = gpar(fill = names(top_genes_right[[nm]][7]), lwd = 0.5)
+    )
+    grid.rect(
+      x = 0, y = 0.5, width = top_genes_right[[nm]][5] / 10,
+      height = 1 / 3, just = "left", gp = gpar(fill = names(top_genes_right[[nm]][5]), lwd = 0.5)
+    )
+    grid.rect(
+      x = 0, y = 0.5, width = top_genes_right[[nm]][8] / 10,
+      height = 1 / 3, just = "left", gp = gpar(fill = names(top_genes_right[[nm]][8]), lwd = 0.5)
+    )
+    grid.rect(
+      x = 0, y = 0.5 - 1 / 3, width = top_genes_right[[nm]][6] / 10,
+      height = 1 / 3, just = "left", gp = gpar(fill = names(top_genes_right[[nm]][6]), lwd = 0.5)
+    )
+    grid.rect(
+      x = 0, y = 0.5 - 1 / 3, width = top_genes_right[[nm]][9] / 10,
+      height = 1 / 3, just = "left", gp = gpar(fill = names(top_genes_right[[nm]][9]), lwd = 0.5)
+    )
+    grid.text(
+      y = 0.5 + 1 / 3, names(top_genes_right[[nm]])[1], gp = gpar(fontsize = 3, font = 3), x = 0.05, just = "left"
+    )
+    grid.text(y = 0.5, names(top_genes_right[[nm]])[2], gp = gpar(fontsize = 3, font = 3), x = 0.05, just = "left")
+    grid.text(
+      y = 0.5 - 1 / 3, names(top_genes_right[[nm]])[3], gp = gpar(fontsize = 3, font = 3), x = 0.05, just = "left"
+    )
+  } else if (length(top_genes_right[[nm]]) == 12) {
+    grid.rect(
+      x = 0, y = 0.875, width = top_genes_right[[nm]][5] / 10,
+      height = 0.25, just = "left", gp = gpar(fill = names(top_genes_right[[nm]][5]), lwd = 0.5)
+    )
+    grid.rect(
+      x = 0, y = 0.875, width = top_genes_right[[nm]][9] / 10,
+      height = 0.25, just = "left", gp = gpar(fill = names(top_genes_right[[nm]][9]), lwd = 0.5)
+    )
+    grid.rect(
+      x = 0, y = 0.625, width = top_genes_right[[nm]][6] / 10,
+      height = 0.25, just = "left", gp = gpar(fill = names(top_genes_right[[nm]][6]), lwd = 0.5)
+    )
+    grid.rect(
+      x = 0, y = 0.625, width = top_genes_right[[nm]][10] / 10,
+      height = 0.25, just = "left", gp = gpar(fill = names(top_genes_right[[nm]][10]), lwd = 0.5)
+    )
+    grid.rect(
+      x = 0, y = 0.375, width = top_genes_right[[nm]][7] / 10,
+      height = 0.25, just = "left", gp = gpar(fill = names(top_genes_right[[nm]][7]), lwd = 0.5)
+    )
+    grid.rect(
+      x = 0, y = 0.375, width = top_genes_right[[nm]][11] / 10,
+      height = 0.25, just = "left", gp = gpar(fill = names(top_genes_right[[nm]][11]), lwd = 0.5)
+    )
+    grid.rect(
+      x = 0, y = 0.125, width = top_genes_right[[nm]][8] / 10,
+      height = 0.25, just = "left", gp = gpar(fill = names(top_genes_right[[nm]][8]), lwd = 0.5)
+    )
+    grid.rect(
+      x = 0, y = 0.125, width = top_genes_right[[nm]][12] / 10,
+      height = 0.25, just = "left", gp = gpar(fill = names(top_genes_right[[nm]][12]), lwd = 0.5)
+    )
+    grid.text(y = 0.875, names(top_genes_right[[nm]])[1], gp = gpar(fontsize = 3, font = 3), x = 0.05, just = "left")
+    grid.text(y = 0.625, names(top_genes_right[[nm]])[2], gp = gpar(fontsize = 3, font = 3), x = 0.05, just = "left")
+    grid.text(y = 0.375, names(top_genes_right[[nm]])[3], gp = gpar(fontsize = 3, font = 3), x = 0.05, just = "left")
+    grid.text(y = 0.125, names(top_genes_right[[nm]])[4], gp = gpar(fontsize = 3, font = 3), x = 0.05, just = "left")
+  }
+
   grid.xaxis(gp = gpar(fontsize = 2, lwd = 0.5), main = FALSE, label = FALSE)
   popViewport()
 }
@@ -1176,7 +1388,7 @@ right_anno <-  HeatmapAnnotation(
     padding = unit(c(0.5, 0.1, 0.25, 0.5), "mm"),
     background_gp = gpar(fill = "transparent", lwd = 0.75),
   ),
-  width = unit(2.1, "cm")
+  width = unit(1.65, "cm")
 )
 
 left_anno <- rowAnnotation(

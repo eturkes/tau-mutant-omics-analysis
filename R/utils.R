@@ -1040,7 +1040,7 @@ word_cloud = function(x, width = NULL, dict = c()){
              "birth",
              "mline", "sarcomere", "titin", "zdisc",
              "cord", "spinal", "acrosome", "urogenital",
-             "dental", "actin", "odontoblast",
+             "dental", "odontoblast",
              "virion", "pellucida", "prostate", "blastula",
              "absorption", "epiblast", "chalcones", "neuroblasts",
              "pluripotent", "spermatozoon", "phytoalexins", "embryonic",
@@ -1072,7 +1072,10 @@ word_cloud = function(x, width = NULL, dict = c()){
              "serve", "systems", "aminocarbamoylpropanoic", "estrogen",
              "recoiling", "bloodnerve", "gpi", "benzaldehyde",
              "benzoate", "virus", "asparagine", "atfcreb", "colorless",
-             "gas", "monoxide"),
+             "gas", "monoxide", "ectodermal", "destination",
+             "bean", "localized", "slack", "actively",
+             "mucosaassociated", "autonomously", "differentiating", "mucosalassociated",
+             "nodules"),
              c("invades", "somatic", "adhere"))
   # c("cyclins", "cyclin", "crosslinking", "crosslink",
   #   "crosslinks", "transcript", "transcripts"))

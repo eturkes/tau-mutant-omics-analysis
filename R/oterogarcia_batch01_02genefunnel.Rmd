@@ -216,8 +216,8 @@ if (file.exists(rds) & file.exists(rds2)) {
   saveRDS(seurat, rds)
 }
 
-keep <- which(seurat$Cell.Types == "Ex01_CUX2-LAMP5 (L2-L3)")
-seurat <- seurat[ , keep]
+# keep <- which(seurat$Cell.Types == "Ex01_CUX2-LAMP5 (L2-L3)")
+# seurat <- seurat[ , keep]
 
 remove <- which(seurat$SORT == "MAP2control")
 seurat <- seurat[ , -remove]
