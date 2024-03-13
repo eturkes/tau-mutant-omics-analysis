@@ -121,7 +121,7 @@ module_colors <- cols25(25)
 ## BA9 EX Neurons
 
 ```{r, fig.width = 8, fig.height = 6, dpi = 72}
-ctype <- "BA9 EX Neurons (AdjP < 0.05)"
+ctype <- "BA9 EX Neurons"
 
 groups <- factor(
   sub(".*?(\\w+)-\\w+$", "\\1", colnames(gse)),
@@ -1301,7 +1301,7 @@ draw(
     row_split = optimal_k[1],
     column_split = factor(groups, levels = unique(groups)),
     show_column_names = FALSE,
-    column_title = ctype,
+    column_title = paste0(ctype, " (AdjP < 0.05)"),
     column_title_gp = gpar(fontsize = 4),
     left_annotation = left_anno,
     right_annotation = right_anno,
@@ -1549,7 +1549,7 @@ draw(
     row_split = optimal_k[2],
     column_split = factor(groups, levels = unique(groups)),
     show_column_names = FALSE,
-    column_title = ctype,
+    column_title = paste0(ctype, " (AdjP < 0.05)"),
     column_title_gp = gpar(fontsize = 4),
     left_annotation = left_anno,
     right_annotation = right_anno,
