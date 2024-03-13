@@ -1075,8 +1075,16 @@ word_cloud = function(x, width = NULL, dict = c()){
              "gas", "monoxide", "ectodermal", "destination",
              "bean", "localized", "slack", "actively",
              "mucosaassociated", "autonomously", "differentiating", "mucosalassociated",
-             "nodules"),
-             c("invades", "somatic", "adhere"))
+             "nodules", "determines", "breathing", "activators",
+             "smoothened", "inactivity", "car", "assisted",
+             "ancestors", "alternating", "arrest", "homotypic",
+             "transepithelial", "bicellular", "decrease", "immature",
+             "conditions", "difficult", "dedifferentiation", "history",
+             "fire", "low", "ipsc", "inactivation", "packed",
+             "cul", "cerebellar", "purkinje", "galnac", "tightly",
+             "star"),
+             c("invades", "somatic", "killer", "dentate",
+               "als"))
   # c("cyclins", "cyclin", "crosslinking", "crosslink",
   #   "crosslinks", "transcript", "transcripts"))
   # c("cerevisiae", "saccharomyces", "skeleton", "fiber",
