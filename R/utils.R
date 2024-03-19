@@ -1082,7 +1082,8 @@ word_cloud = function(x, width = NULL, dict = c()){
              "conditions", "difficult", "dedifferentiation", "history",
              "fire", "low", "ipsc", "inactivation", "packed",
              "cul", "cerebellar", "purkinje", "galnac", "tightly",
-             "star"),
+             "star", "lightening", "responsible", "node",
+             "oval", "round", "shaped", "dglucuronic", "glca"),
              c("invades", "somatic", "killer", "dentate",
                "als"))
   # c("cyclins", "cyclin", "crosslinking", "crosslink",

@@ -66,7 +66,8 @@ library(conflicted)
 conflicts_prefer(AnnotationDbi::select, edgeR::cpm, DT::JS, base::intersect, reshape2::melt, .quiet = TRUE)
 packages <- c(
   "GSEABase", "Seurat", "ggplot2", "dplyr", "ggrepel", "scuttle", "GO.db", "tm", "pals", "ComplexHeatmap", "edgeR",
-  "DT", "circlize", "purrr", "networkD3", "factoextra", "reshape2", "dendextend", "data.table", "scales"
+  "DT", "circlize", "purrr", "networkD3", "factoextra", "reshape2", "dendextend", "data.table", "scales", "igraph",
+  "qgraph", "multienrichjam"
 )
 invisible(suppressPackageStartupMessages(lapply(packages, FUN = library, character.only = TRUE)))
 # -----------------------------------------------------
@@ -89,6 +90,7 @@ sample <- "oterogarcia"
 batch <- "comb"
 step <- 1
 
+results_dir <- file.path("..", "results")
 cache_dir <- file.path("..", "cache", sample, batch, paste0("0", step))
 if (!dir.exists(cache_dir)) {
   dir.create(cache_dir, recursive = TRUE)
@@ -194,15 +196,22 @@ write.fit(
 results <- read.delim(file.path(cache_dir, "results.tsv"))
 rownames(results) <- results$X
 results <- results[ , -1]
-results <- results[results$P.value.adj < 0.05, ]
-results_up <- results[results$Coef > 0, ]
-results_down <- results[results$Coef < -0, ]
-results_list <- list(results_up, results_down)
+results_sig <- results[results$P.value.adj < 0.05, ]
+results_left <- results[results$Coef > 0, ]
+results_right <- results[results$Coef < -0, ]
+results_list <- list(results_left, results_right)
 
 avg_log2FC_all <- results$Coef
 names(avg_log2FC_all) <- rownames(results)
 avg_log2FC_all_scaled <- (avg_log2FC_all - min(avg_log2FC_all)) / (max(avg_log2FC_all) - min(avg_log2FC_all))
 avg_log2FC_all_scaled_rev <- (avg_log2FC_all - max(avg_log2FC_all)) / (min(avg_log2FC_all) - max(avg_log2FC_all))
+
+avg_log2FC_left <- results_left$Coef
+names(avg_log2FC_left) <- rownames(results_left)
+avg_log2FC_left_scaled <- (avg_log2FC_left - min(avg_log2FC_left)) / (max(avg_log2FC_left) - min(avg_log2FC_left))
+avg_log2FC_right <- results_right$Coef
+names(avg_log2FC_right) <- rownames(results_right)
+avg_log2FC_right_scaled <- (avg_log2FC_right - max(avg_log2FC_right)) / (min(avg_log2FC_right) - max(avg_log2FC_right))
 
 module_direction <- vector("list", length = length(levels(groups)))
 module_direction[[1]] <- markers$gene[markers$cluster == levels(groups)[1]]
@@ -229,7 +238,7 @@ frequent_genes_tmp <- frequent_genes_tmp[
   frequent_genes_tmp$Var1 %in% gene_anno$ensembl_gene_id,
 ]
 rownames(frequent_genes_tmp) <- NULL
-frequent_genes_up <- frequent_genes_tmp
+frequent_genes_left <- frequent_genes_tmp
 
 module_gene_sets_sub <- gene_sets[names(gene_sets) %in% module_direction[[2]]]
 frequent_genes_tmp <- as.data.frame(table(unlist(geneIds(module_gene_sets_sub))))
@@ -237,8 +246,8 @@ frequent_genes_tmp <- frequent_genes_tmp[
   frequent_genes_tmp$Var1 %in% gene_anno$ensembl_gene_id,
 ]
 rownames(frequent_genes_tmp) <- NULL
-frequent_genes_down <- frequent_genes_tmp
-frequent_genes <- rbind(frequent_genes_up, frequent_genes_down)
+frequent_genes_right <- frequent_genes_tmp
+frequent_genes <- rbind(frequent_genes_left, frequent_genes_right)
 
 gene_sets_sub <- gene_sets[names(gene_sets) %in% markers$gene]
 
@@ -279,13 +288,13 @@ for (i in seq_along(levels(groups))) {
   modules_with_hubs[[1]] <- 0
   modules_with_hubs[[2]] <- 0
   modules_with_hubs[[3]] <- 0
-  # modules_with_hubs[[4]] <- 0
-  # modules_with_hubs[[5]] <- 0
+  modules_with_hubs[[4]] <- 0
+  modules_with_hubs[[5]] <- 0
   # modules_with_hubs[[6]] <- 0
   # modules_with_hubs[[7]] <- 0
   # modules_with_hubs[[8]] <- 0
   # modules_with_hubs[[9]] <- 0
-  for (l in 4:26) {
+  for (l in 6:26) {
     set.seed(1)
     heatmap <- Heatmap(
       mat, cluster_rows = clustering[[i]], cluster_columns = FALSE, show_column_names = FALSE,
@@ -304,10 +313,18 @@ for (i in seq_along(levels(groups))) {
         frequent_genes <- as.data.frame(table(unlist(geneIds(module_gene_sets_sub))))
         frequent_genes <- frequent_genes[frequent_genes$Var1 %in% rownames(results_list[[i]]), ]
 
-        results_sub <- results_list[[i]][rownames(results_list[[i]]) %in% frequent_genes$Var1, ]
-        results_sub <- results_sub[match(frequent_genes$Var1, rownames(results_sub)), ]
-        results_sub <- abs(results_sub$Coef)
-        results_sub <- (results_sub - min(results_sub)) / (max(results_sub) - min(results_sub))
+        # results_sub <- results_list[[i]][rownames(results_list[[i]]) %in% frequent_genes$Var1, ]
+        # results_sub <- results_sub[match(frequent_genes$Var1, rownames(results_sub)), ]
+        # results_sub <- abs(results_sub$Coef)
+        # results_sub <- (results_sub - min(results_sub)) / (max(results_sub) - min(results_sub))
+
+        if (i == 1) {
+          results_sub <- avg_log2FC_left_scaled[names(avg_log2FC_left_scaled) %in% frequent_genes$Var1]
+          results_sub <- results_sub[match(frequent_genes$Var1, names(results_sub))]
+        } else {
+          results_sub <- avg_log2FC_right_scaled[names(avg_log2FC_right_scaled) %in% frequent_genes$Var1]
+          results_sub <- results_sub[match(frequent_genes$Var1, names(results_sub))]
+        }
 
         module_membership_norm_sub <- module_membership_norm[rownames(module_membership_norm) %in% frequent_genes$Var1, ]
         module_membership_norm_sub <- module_membership_norm_sub[
@@ -366,6 +383,7 @@ for (i in seq_along(levels(groups))) {
         frequent_genes <- frequent_genes[order(frequent_genes$Freq, decreasing = TRUE), ]
       }
 
+      frequent_genes <- frequent_genes[frequent_genes$Var1 %in% rownames(results_sig), ]
       hub_gene_list[[m]] <- frequent_genes$Freq[1:ceiling(length(modules_up) / 4)]
       if (any(is.na(hub_gene_list[[m]]))) {
         hub_gene_list[[m]] <- hub_gene_list[[m]][-which(is.na(hub_gene_list[[m]]))]
@@ -380,7 +398,7 @@ for (i in seq_along(levels(groups))) {
   print(plot(unlist(modules_with_hubs)))
   optimal_k <- c(optimal_k, 27 - which.max(rev(modules_with_hubs)))
 }
-# optimal_k <- c(5, 7)
+optimal_k <- c(15, 16)
 
 clustering_left <- color_branches(clustering[[1]], k = optimal_k[1], col = module_colors[seq(optimal_k[1])])
 mat_left <- gse_cpm[rownames(gse_cpm) %in% module_direction[[1]], , drop = FALSE]
@@ -391,6 +409,7 @@ heatmap_left <- Heatmap(
 )
 modules <- suppressWarnings(row_order(heatmap_left))
 hub_gene_list_left <- vector("list", length(modules))
+hub_gene_list_left_all <- hub_gene_list_left
 for (m in seq_along(modules)) {
   module_sets <- rownames(mat_left)[modules[[m]]]
   modules_up <- module_sets[module_sets %in% module_direction[[1]]]
@@ -400,12 +419,15 @@ for (m in seq_along(modules)) {
   } else {
     module_gene_sets_sub <- gene_sets[names(gene_sets) %in% modules_up]
     frequent_genes <- as.data.frame(table(unlist(geneIds(module_gene_sets_sub))))
-    frequent_genes <- frequent_genes[frequent_genes$Var1 %in% rownames(results_up), ]
+    frequent_genes <- frequent_genes[frequent_genes$Var1 %in% rownames(results_left), ]
 
-    results_sub <- results_up[rownames(results_up) %in% frequent_genes$Var1, ]
-    results_sub <- results_sub[match(frequent_genes$Var1, rownames(results_sub)), ]
-    results_sub <- abs(results_sub$Coef)
-    results_sub <- (results_sub - min(results_sub)) / (max(results_sub) - min(results_sub))
+    # results_sub <- results_left[rownames(results_left) %in% frequent_genes$Var1, ]
+    # results_sub <- results_sub[match(frequent_genes$Var1, rownames(results_sub)), ]
+    # results_sub <- abs(results_sub$Coef)
+    # results_sub <- (results_sub - min(results_sub)) / (max(results_sub) - min(results_sub))
+
+    results_sub <- avg_log2FC_left_scaled[names(avg_log2FC_left_scaled) %in% frequent_genes$Var1]
+    results_sub <- results_sub[match(frequent_genes$Var1, names(results_sub))]
     
     module_membership_norm_sub <- module_membership_norm[rownames(module_membership_norm) %in% frequent_genes$Var1, ]
     module_membership_norm_sub <- module_membership_norm_sub[
@@ -453,6 +475,12 @@ for (m in seq_along(modules)) {
     frequent_genes <- frequent_genes[order(frequent_genes$Freq, decreasing = TRUE), ]
   }
 
+  hub_gene_list_left_all[[m]] <- frequent_genes
+  if (any(is.na(hub_gene_list_left_all[[m]]))) {
+    hub_gene_list_left_all[[m]] <- hub_gene_list_left_all[[m]][-which(is.na(hub_gene_list_left_all[[m]]))]
+  }
+
+  frequent_genes <- frequent_genes[frequent_genes$Var1 %in% rownames(results_sig), ]
   hub_gene_list_left[[m]] <- as.vector(frequent_genes$Var1)[1:ceiling(length(modules_up) / 4)]
   if (any(is.na(hub_gene_list_left[[m]]))) {
     hub_gene_list_left[[m]] <- hub_gene_list_left[[m]][-which(is.na(hub_gene_list_left[[m]]))]
@@ -470,6 +498,7 @@ heatmap_right <- Heatmap(
 )
 modules <- suppressWarnings(row_order(heatmap_right))
 hub_gene_list_right <- vector("list", length(modules))
+hub_gene_list_right_all <- hub_gene_list_right
 for (m in seq_along(modules)) {
   module_sets <- rownames(mat_right)[modules[[m]]]
   modules_up <- module_sets[module_sets %in% module_direction[[2]]]
@@ -479,12 +508,15 @@ for (m in seq_along(modules)) {
   } else {
     module_gene_sets_sub <- gene_sets[names(gene_sets) %in% modules_up]
     frequent_genes <- as.data.frame(table(unlist(geneIds(module_gene_sets_sub))))
-    frequent_genes <- frequent_genes[frequent_genes$Var1 %in% rownames(results_down), ]
+    frequent_genes <- frequent_genes[frequent_genes$Var1 %in% rownames(results_right), ]
 
-    results_sub <- results_down[rownames(results_down) %in% frequent_genes$Var1, ]
-    results_sub <- results_sub[match(frequent_genes$Var1, rownames(results_sub)), ]
-    results_sub <- abs(results_sub$Coef)
-    results_sub <- (results_sub - min(results_sub)) / (max(results_sub) - min(results_sub))
+    # results_sub <- results_right[rownames(results_right) %in% frequent_genes$Var1, ]
+    # results_sub <- results_sub[match(frequent_genes$Var1, rownames(results_sub)), ]
+    # results_sub <- abs(results_sub$Coef)
+    # results_sub <- (results_sub - min(results_sub)) / (max(results_sub) - min(results_sub))
+
+    results_sub <- avg_log2FC_right_scaled[names(avg_log2FC_right_scaled) %in% frequent_genes$Var1]
+    results_sub <- results_sub[match(frequent_genes$Var1, names(results_sub))]
     
     module_membership_norm_sub <- module_membership_norm[rownames(module_membership_norm) %in% frequent_genes$Var1, ]
     module_membership_norm_sub <- module_membership_norm_sub[
@@ -532,6 +564,12 @@ for (m in seq_along(modules)) {
     frequent_genes <- frequent_genes[order(frequent_genes$Freq, decreasing = TRUE), ]
   }
 
+  hub_gene_list_right_all[[m]] <- frequent_genes
+  if (any(is.na(hub_gene_list_right_all[[m]]))) {
+    hub_gene_list_right_all[[m]] <- hub_gene_list_right_all[[m]][-which(is.na(hub_gene_list_right_all[[m]]))]
+  }
+
+  frequent_genes <- frequent_genes[frequent_genes$Var1 %in% rownames(results_sig), ]
   hub_gene_list_right[[m]] <- as.vector(frequent_genes$Var1)[1:ceiling(length(modules_up) / 4)]
   if (any(is.na(hub_gene_list_right[[m]]))) {
     hub_gene_list_right[[m]] <- hub_gene_list_right[[m]][-which(is.na(hub_gene_list_right[[m]]))]
@@ -727,8 +765,8 @@ for (i in seq_along(top_genes_left)) {
   # counts_cpm_scaled <- t(
   #   apply(counts_cpm, MARGIN = 1, FUN = function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1))
   # )
-  avg_log2FC <- results_up$Coef
-  names(avg_log2FC) <- rownames(results_up)
+  avg_log2FC <- results_left$Coef
+  names(avg_log2FC) <- rownames(results_left)
   # counts_cpm_scaled <- (2 * (counts_cpm - min(counts_cpm)) / (max(counts_cpm) - min(counts_cpm))) - 1
   # if (i == 1) {
     # avg_log2FC_scaled <- (avg_log2FC - max(avg_log2FC)) / (min(avg_log2FC) - max(avg_log2FC))
@@ -996,8 +1034,8 @@ for (i in seq_along(top_genes_right)) {
   # counts_cpm_scaled <- t(
   #   apply(counts_cpm, MARGIN = 1, FUN = function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1))
   # )
-  avg_log2FC <- results_down$Coef
-  names(avg_log2FC) <- rownames(results_down)
+  avg_log2FC <- results_right$Coef
+  names(avg_log2FC) <- rownames(results_right)
   # counts_cpm_scaled <- (2 * (counts_cpm - min(counts_cpm)) / (max(counts_cpm) - min(counts_cpm))) - 1
   # if (i == 1) {
     # avg_log2FC_scaled <- (avg_log2FC - max(avg_log2FC)) / (min(avg_log2FC) - max(avg_log2FC))
