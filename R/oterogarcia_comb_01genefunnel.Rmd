@@ -117,7 +117,7 @@ counts <- counts(readRDS(file.path(cache_dir, "..", "..", "..", "oterogarcia/01/
 colour <- colorRamp2(c(-3, 0, 3), c("#0077BB", "#FFFFFF", "#CC3311"))
 module_colors <- cols25(25)
 
-keep <- filterGeneSets(gene_sets, min.sz = 2, max.sz = 25)
+keep <- filterGeneSets(gene_sets, min.sz = 5, max.sz = 25)
 gene_sets <- gene_sets[names(gene_sets) %in% names(keep)]
 
 gse <- gse[rownames(gse) %in% names(gene_sets), ]
