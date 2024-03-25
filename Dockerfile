@@ -53,11 +53,11 @@ RUN apt-get update \
         -e "BiocManager::install('GSEABase')" \
         -e "BiocManager::install('GSVA')" \
         -e "BiocManager::install('edgeR')" \
-        -e "BiocManager::install('ComplexHeatmap')" \
         -e "BiocManager::install('GO.db')" \
         -e "BiocManager::install('DropletUtils')" \
         -e "BiocManager::install('scDblFinder')" \
         -e "BiocManager::install('DEP')" \
+        -e "remotes::install_github('eturkes/ComplexHeatmap')" \
         -e "remotes::install_github('jmw86069/multienrichjam', dependencies = TRUE)" \
         -e "remotes::install_github('immunogenomics/presto')" \
     && apt-get clean \
