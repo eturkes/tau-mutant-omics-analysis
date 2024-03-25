@@ -969,7 +969,7 @@ word_cloud = function(x, width = NULL, dict = c()){
              "oligopeptide", "oligopeptides", "balance", "gshgssg",
              "indicating", "nadnadh", "cytoplasms", "cytoplasm",
              "cytoplasmic", "daltons", "dalton", "live",
-             "offspring", "intramitochondria", "intramitochondrial"),
+             "offspring", "intramitochondria", "intramitochondrial", "stretch"),
            dict,
            c("mitosis", "heme", "spermiogenesis", "prolactin",
              "trophoblast", "adipose", "hepatocyte", "follicles",

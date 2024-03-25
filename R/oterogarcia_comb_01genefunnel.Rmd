@@ -117,12 +117,12 @@ counts <- counts(readRDS(file.path(cache_dir, "..", "..", "..", "oterogarcia/01/
 colour <- colorRamp2(c(-3, 0, 3), c("#0077BB", "#FFFFFF", "#CC3311"))
 module_colors <- cols25(25)
 
-keep <- filterGeneSets(gene_sets, min.sz = 5, max.sz = 25)
-gene_sets <- gene_sets[names(gene_sets) %in% names(keep)]
-
-gse <- gse[rownames(gse) %in% names(gene_sets), ]
-gene_anno <- gene_anno[gene_anno$ensembl_gene_id %in% unique(unlist(geneIds(gene_sets))), ]
-counts <- counts[rownames(counts) %in% gene_anno$ensembl_gene_id, ]
+# keep <- filterGeneSets(gene_sets, min.sz = 5, max.sz = 25)
+# gene_sets <- gene_sets[names(gene_sets) %in% names(keep)]
+# 
+# gse <- gse[rownames(gse) %in% names(gene_sets), ]
+# gene_anno <- gene_anno[gene_anno$ensembl_gene_id %in% unique(unlist(geneIds(gene_sets))), ]
+# counts <- counts[rownames(counts) %in% gene_anno$ensembl_gene_id, ]
 ```
 
 # GSE
@@ -344,11 +344,12 @@ for (i in seq_along(levels(groups))) {
         }
 
         hub_gene_all_GO_sub <- hub_gene_all_GO[names(hub_gene_all_GO) %in% frequent_genes$Var1]
-        tmp <- (abs(rowSums(module_membership_norm_sub)) / hub_gene_all_GO_sub) * rowSums(module_membership_norm_sub)
+        # tmp <- (rowSums(module_membership_norm_sub) / hub_gene_all_GO_sub) * abs(rowSums(module_membership_norm_sub))
+        tmp <- (rowSums(module_membership_norm_sub) / hub_gene_all_GO_sub)
         # tmp <- (tmp - min(tmp)) / (max(tmp) - min(tmp))
 
         frequent_genes$Freq <-
-          frequent_genes$Freq *
+          # frequent_genes$Freq *
           tmp *
           (frequent_genes$Freq / nrow(mat)) *
           (frequent_genes$Freq / length(modules_up)) *
@@ -392,6 +393,7 @@ for (i in seq_along(levels(groups))) {
 
       frequent_genes <- frequent_genes[frequent_genes$Var1 %in% rownames(results_sig), ]
       hub_gene_list[[m]] <- frequent_genes$Freq[1:ceiling(length(modules_up) / 4)]
+      # hub_gene_list[[m]] <- frequent_genes$Freq
       if (any(is.na(hub_gene_list[[m]]))) {
         hub_gene_list[[m]] <- hub_gene_list[[m]][-which(is.na(hub_gene_list[[m]]))]
       }
@@ -443,11 +445,12 @@ for (m in seq_along(modules)) {
     module_membership_norm_sub$up <- frequent_genes$Freq
 
     hub_gene_all_GO_sub <- hub_gene_all_GO[names(hub_gene_all_GO) %in% frequent_genes$Var1]
-    tmp <- (abs(rowSums(module_membership_norm_sub)) / hub_gene_all_GO_sub) * rowSums(module_membership_norm_sub)
+    # tmp <- (rowSums(module_membership_norm_sub) / hub_gene_all_GO_sub) * abs(rowSums(module_membership_norm_sub))
+    tmp <- (rowSums(module_membership_norm_sub) / hub_gene_all_GO_sub)
     # tmp <- (tmp - min(tmp)) / (max(tmp) - min(tmp))
 
     frequent_genes$Freq <-
-      frequent_genes$Freq *
+      # frequent_genes$Freq *
       tmp *
       (frequent_genes$Freq / nrow(mat)) *
       (frequent_genes$Freq / length(modules_up)) *
@@ -489,6 +492,7 @@ for (m in seq_along(modules)) {
 
   frequent_genes <- frequent_genes[frequent_genes$Var1 %in% rownames(results_sig), ]
   hub_gene_list_left[[m]] <- as.vector(frequent_genes$Var1)[1:ceiling(length(modules_up) / 4)]
+  # hub_gene_list_left[[m]] <- as.vector(frequent_genes$Var1)
   if (any(is.na(hub_gene_list_left[[m]]))) {
     hub_gene_list_left[[m]] <- hub_gene_list_left[[m]][-which(is.na(hub_gene_list_left[[m]]))]
   }
@@ -532,11 +536,12 @@ for (m in seq_along(modules)) {
     module_membership_norm_sub$down <- frequent_genes$Freq * -1
 
     hub_gene_all_GO_sub <- hub_gene_all_GO[names(hub_gene_all_GO) %in% frequent_genes$Var1]
-    tmp <- (abs(rowSums(module_membership_norm_sub)) / hub_gene_all_GO_sub) * rowSums(module_membership_norm_sub)
+    # tmp <- (rowSums(module_membership_norm_sub) / hub_gene_all_GO_sub) * abs(rowSums(module_membership_norm_sub))
+    tmp <- (rowSums(module_membership_norm_sub) / hub_gene_all_GO_sub)
     # tmp <- (tmp - min(tmp)) / (max(tmp) - min(tmp))
 
     frequent_genes$Freq <-
-      frequent_genes$Freq *
+      # frequent_genes$Freq *
       tmp *
       (frequent_genes$Freq / nrow(mat)) *
       (frequent_genes$Freq / length(modules_up)) *
@@ -578,6 +583,7 @@ for (m in seq_along(modules)) {
 
   frequent_genes <- frequent_genes[frequent_genes$Var1 %in% rownames(results_sig), ]
   hub_gene_list_right[[m]] <- as.vector(frequent_genes$Var1)[1:ceiling(length(modules_up) / 4)]
+  # hub_gene_list_right[[m]] <- as.vector(frequent_genes$Var1)
   if (any(is.na(hub_gene_list_right[[m]]))) {
     hub_gene_list_right[[m]] <- hub_gene_list_right[[m]][-which(is.na(hub_gene_list_right[[m]]))]
   }
@@ -1279,7 +1285,7 @@ panel_fun <- function(index, nm) {
 right_anno <-  HeatmapAnnotation(
   top_genes = anno_link(
     align_to = optimal_k_left, which = "row", panel_fun = panel_fun,
-    link_width = unit(0, "mm"), gap = unit(0.75, "mm"), width = unit(5, "mm")
+    link_width = unit(0, "mm"), gap = unit(0.75, "mm"), width = unit(7, "mm")
   ),
   which = "row",
   clusters = anno_block(
@@ -1527,7 +1533,7 @@ panel_fun <- function(index, nm) {
 right_anno <-  HeatmapAnnotation(
   top_genes = anno_link(
     align_to = optimal_k_right, which = "row", panel_fun = panel_fun,
-    link_width = unit(0, "mm"), gap = unit(0.75, "mm"), width = unit(5, "mm")
+    link_width = unit(0, "mm"), gap = unit(0.75, "mm"), width = unit(7, "mm")
   ),
   which = "row",
   clusters = anno_block(
@@ -1723,9 +1729,23 @@ for (i in seq_along(unique(hub_gene_data$module))) {
 }
 hub_gene_data <- hub_gene_data_new
 
+hub_gene_data_list <- vector("list", length = length(unique(hub_gene_data$gene_set)))
+names(hub_gene_data_list) <- unique(hub_gene_data$gene_set)
+for (i in seq_along(hub_gene_data_list)) {
+  hub_gene_data_sub <- hub_gene_data[hub_gene_data$gene_set %in% names(hub_gene_data_list)[i], ]
+  hub_gene_data_list[[i]] <- hub_gene_data_sub$DE
+}
+
+remove <- which(unlist(lapply(hub_gene_data_list, FUN = function(x) all(x == "no"))))
+if (length(remove) > 0) {
+  remove <- names(hub_gene_data_list)[remove]
+  remove <- which(hub_gene_data$gene_set %in% remove)
+  hub_gene_data <- hub_gene_data[-remove, ]
+}
+
 # hub_gene_data_sub <- hub_gene_data[hub_gene_data$DE == "yes", ]
 # hub_gene_data <- hub_gene_data[hub_gene_data$hub_score >= min(hub_gene_data_sub$hub_score), ]
-# hub_gene_data <- hub_gene_data[hub_gene_data$hub_score >= 0.0001, ]
+# hub_gene_data <- hub_gene_data[hub_gene_data$hub_score >= 0.00001, ]
 
 hub_gene_data_sorted <- hub_gene_data[order(hub_gene_data$hub_score, decreasing = TRUE), ]
 hub_gene_data_sorted <- hub_gene_data_sorted[-which(duplicated(hub_gene_data_sorted$ensembl_gene_id)), ]
@@ -2005,9 +2025,23 @@ for (i in seq_along(unique(hub_gene_data$module))) {
 }
 hub_gene_data <- hub_gene_data_new
 
+hub_gene_data_list <- vector("list", length = length(unique(hub_gene_data$gene_set)))
+names(hub_gene_data_list) <- unique(hub_gene_data$gene_set)
+for (i in seq_along(hub_gene_data_list)) {
+  hub_gene_data_sub <- hub_gene_data[hub_gene_data$gene_set %in% names(hub_gene_data_list)[i], ]
+  hub_gene_data_list[[i]] <- hub_gene_data_sub$DE
+}
+
+remove <- which(unlist(lapply(hub_gene_data_list, FUN = function(x) all(x == "no"))))
+if (length(remove) > 0) {
+  remove <- names(hub_gene_data_list)[remove]
+  remove <- which(hub_gene_data$gene_set %in% remove)
+  hub_gene_data <- hub_gene_data[-remove, ]
+}
+
 # hub_gene_data_sub <- hub_gene_data[hub_gene_data$DE == "yes", ]
 # hub_gene_data <- hub_gene_data[hub_gene_data$hub_score >= min(hub_gene_data_sub$hub_score), ]
-# hub_gene_data <- hub_gene_data[hub_gene_data$hub_score >= 0.0001, ]
+# hub_gene_data <- hub_gene_data[hub_gene_data$hub_score >= 0.00001, ]
 
 hub_gene_data_sorted <- hub_gene_data[order(hub_gene_data$hub_score, decreasing = TRUE), ]
 hub_gene_data_sorted <- hub_gene_data_sorted[-which(duplicated(hub_gene_data_sorted$ensembl_gene_id)), ]
