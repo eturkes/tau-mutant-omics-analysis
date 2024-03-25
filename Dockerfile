@@ -42,6 +42,7 @@ RUN apt-get update \
         -e "install.packages('fastmatch')" \
         -e "install.packages('moments')" \
         -e "install.packages('networkD3')" \
+        -e "install.packages('colorRamp2')" \
         -e "install.packages('BiocManager')" \
         -e "install.packages('remotes')" \
         -e "BiocManager::install('SingleCellExperiment')" \
@@ -56,6 +57,7 @@ RUN apt-get update \
         -e "BiocManager::install('GO.db')" \
         -e "BiocManager::install('DropletUtils')" \
         -e "BiocManager::install('scDblFinder')" \
+        -e "BiocManager::install('DEP')" \
         -e "remotes::install_github('jmw86069/multienrichjam', dependencies = TRUE)" \
         -e "remotes::install_github('immunogenomics/presto')" \
     && apt-get clean \

@@ -1,0 +1,945 @@
+---
+title: "LCM Human PFC N8 - Batch 01 - 01 Prep"
+author:
+  - name: "Emir Turkes"
+date: '`r strftime(Sys.time(), format = "%B %d, %Y")`'
+link-citations: true
+output:
+  html_document:
+    code_folding: hide
+    number_sections: true
+    theme: lumen
+    highlight: haddock
+    toc: true
+    toc_depth: 3
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+knit: (function(inputFile, encoding) {
+  rmarkdown::render(
+    inputFile, encoding = encoding,
+    output_file = file.path("..", "results", "LCM_human_PFC_N8_batch01_01prep.html")
+  )})
+---
+
+<style type="text/css">
+body {font-size: 16px;}
+h1.title {font-size: 35px;}
+h1 {font-size: 24px;}
+h2 {font-size: 22px;}
+h3 {font-size: 20px;}
+.toc-content {padding-left: 0px; padding-right: 0px;}
+div.tocify {width: 100%;}
+.tocify-subheader .tocify-item {font-size: 0.95em; padding-left: 25px; text-indent: 0;}
+.tocify-subheader .tocify-subheader .tocify-item {font-size: 0.95em; padding-left: 35px; text-indent: 0;}
+div.main-container {max-width: none; width: 100%;}
+</style>
+
+*This file is a part of [tau-mutant-omics-analysis](https://github.com/eturkes/tau-mutant-omics-analysis).*
+
+The table of contents in the top left is clickable and can be used to quickly navigate the document.
+To toggle the visibility of code, use the `CODE` toggles at the top right of chunks.
+The toggle at the start of the document controls the visibility of all chunks.
+
+```{r}
+#    This file is part of tau-mutant-omics-analysis.
+#    Copyright (C) 2023-2024  Emir Turkes, Naoto Watamura, UK DRI at UCL
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+#    Emir Turkes can be contacted at emir.turkes@eturkes.com
+
+# Load required packages, suppressing startup messages.
+# -----------------------------------------------------
+library(conflicted)
+packages <- c(
+  "DEP", "SummarizedExperiment", "plotly", "limma", "dplyr", "DT", "ComplexHeatmap", "colorRamp2", "RColorBrewer", "tm"
+)
+invisible(suppressPackageStartupMessages(lapply(packages, FUN = library, character.only = TRUE)))
+# -----------------------------------------------------
+
+# Define global settings.
+# -----------------------
+knitr::opts_chunk$set(fig.width = 10, fig.height = 7, dpi = 300)
+# -----------------------
+
+# Define functions.
+# -----------------
+source("utils.R")
+# -----------------
+
+# Useful variables.
+# -----------------
+sample <- "LCM_human_PFC_N8"
+batch <- 1
+step <- 1
+
+data_dir <- file.path("..", "data", sample)
+cache_dir <- file.path("..", "cache", sample, paste0("0", batch), paste0("0", step))
+if (!dir.exists(cache_dir)) {
+  dir.create(cache_dir, recursive = TRUE)
+}
+# -----------------
+```
+
+# Prep
+
+```{r}
+data <- read.delim(file.path(data_dir, "report.pg_matrix.tsv")) # Read in data.
+
+# Use some regex magic to tidy up sample names.
+# ---------------------------------------------
+colnames(data) <- sub("^.*?([0-9]+_[^_]+_[0-9]+_[^_]+).*", replacement = "\\1", x = colnames(data))
+colnames(data) <- c(colnames(data)[1:5], paste0("Donor", colnames(data)[6:60]))
+colnames(data) <- c(
+  colnames(data)[1:5], sub("(.*_){1}(\\d+)_.+", replacement = "\\1TechRep\\2", colnames(data)[6:60])
+)
+# ---------------------------------------------
+
+# Remove proteins that do not have a gene annotation.
+# ---------------------------------------------------
+remove <- which(data$Genes == "")
+if (length(remove > 0)) { # Need to check that "remove" is non-empty.
+  data <- data[-remove, ]
+}
+# ---------------------------------------------------
+
+# Adds "name" and "id" columns to end of the data frame that contain one gene and protein name per row, as
+# opposed to several semicolon delimited entries as seen in the "Genes" and "Protein.Ids" columns.
+# --------------------------------------------------------------------------------------------------------
+data <- make_unique(data, names = "Genes", ids = "Protein.Ids")
+# --------------------------------------------------------------------------------------------------------
+
+# Create a data frame for metadata.
+# "label", "condition", and "replicate" are required for the DEP package.
+# -----------------------------------------------------------------------
+experimental_design <- data.frame(
+  label = colnames(data)[6:60],
+  condition = sub("^[^_]*_([^_]*).*", replacement = "\\1", colnames(data)[6:60]),
+  techrep = sub(".*_", replacement = "", colnames(data)[6:60]),
+  donor = sub("_.*", replacement = "", colnames(data)[6:60])
+)
+experimental_design$replicate <- paste(experimental_design$donor, experimental_design$techrep, sep = "_")
+# -----------------------------------------------------------------------
+
+# Create SummarizedExperiment object for use with DEP.
+# ----------------------------------------------------
+data <- make_se(data, columns = 6:60, expdesign = experimental_design)
+data_bak <- data # Make a copy of unprocessed data for later.
+# ----------------------------------------------------
+
+experimental_design$label <- colnames(data) # make_se changes colnames for some reason.
+```
+
+# Preprocessing
+
+Basic QC visualisations are shown here and the data is normalised and imputed, using standard methods.
+
+```{r}
+hist(assay(data), n = 100) # Visualise data distribution.
+
+# Various plotting methods to assess missing values.
+# --------------------------------------------------
+plot_numbers(data)
+plot_frequency(data)
+plot_detect(data)
+plot_missval(data)
+# --------------------------------------------------
+
+# Must remove samples where no proteins at all were detected.
+# -----------------------------------------------------------
+remove <- which(colSums(assay(data), na.rm = TRUE) == 0)
+if (length(remove > 0)) {
+  data <- data[ , -remove]
+}
+# -----------------------------------------------------------
+
+# Normalise data using a variance stabilising transformation (VSN).
+# -----------------------------------------------------------------
+orig <- data # Make a copy of the pre-normalised data for plotting later.
+data <- normalize_vsn(data)
+meanSdPlot(data)
+plot_normalization(orig)
+plot_normalization(data)
+# -----------------------------------------------------------------
+```
+
+```{r}
+# Check proteins of interest.
+# ---------------------------
+keep <- grep("MAPT|SQSTM1", rownames(data))
+tmp <- assay(data)[keep, ]
+
+remove <- which(colSums(tmp, na.rm = TRUE) == 0)
+if (length(remove > 0)) {
+  tmp <- tmp[ , -remove]
+}
+
+set.seed(1)
+draw(
+  Heatmap(
+    tmp[ , order(colnames(tmp))],
+    cluster_rows = FALSE,
+    cluster_columns = FALSE,
+    column_split = c(rep("Neg", 15), rep("Pos", 18)))
+)
+set.seed(1)
+draw(
+  Heatmap(
+    t(
+      apply(
+        tmp[ , order(colnames(tmp))],
+        MARGIN = 1,
+        FUN = function (x) ((2 * (x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE))) - 1)
+      )
+    ),
+    cluster_rows = FALSE,
+    cluster_columns = FALSE,
+    column_split = c(rep("Neg", 15), rep("Pos", 18)))
+)
+
+tmp_design <- experimental_design[experimental_design$label %in% colnames(tmp), ]
+design_formula <- model.matrix(~ 0 + tmp_design$condition)
+corr_fit <- duplicateCorrelation(tmp, design = design_formula, block = tmp_design$donor)
+
+tmp <- removeBatchEffect(
+  tmp,
+  batch = tmp_design$donor,
+  design = model.matrix(
+    ~ 0 + tmp_design$condition, block = tmp_design$donor, cor = corr_fit$consensus.correlation
+  )
+)
+
+set.seed(1)
+draw(
+  Heatmap(
+    tmp[ , order(colnames(tmp))],
+    cluster_rows = FALSE,
+    cluster_columns = FALSE,
+    column_split = c(rep("Neg", 15), rep("Pos", 18)))
+)
+set.seed(1)
+draw(
+  Heatmap(
+    t(
+      apply(
+        tmp[ , order(colnames(tmp))],
+        MARGIN = 1,
+        FUN = function (x) ((2 * (x - min(x, na.rm = TRUE)) / (max(x, na.rm = TRUE) - min(x, na.rm = TRUE))) - 1)
+      )
+    ),
+    cluster_rows = FALSE,
+    cluster_columns = FALSE,
+    column_split = c(rep("Neg", 15), rep("Pos", 18)))
+)
+# ---------------------------
+```
+
+```{r}
+# Impute data using the MinProb algorithmn.
+# -----------------------------------------
+orig <- data
+set.seed(1)
+data <- impute(data, fun = "MinProb")
+plot_imputation(orig, data)
+# -----------------------------------------
+
+rm(orig) # Remove temporary objects.
+```
+
+# PCA
+
+Create PCA plots for the data.
+The plots have interactive features when moused-over.
+
+```{r, dpi = 96}
+# Manually perform PCA for more flexible plotting.
+# ------------------------------------------------
+pca <- prcomp(t(assay(data))) # Transpose because PCA assumes rows are observations and columns are variables.
+df <- as.data.frame(predict(pca)[ , 1:2]) # Extract the first two PCs.
+df$Condition <- data$condition
+df$Donor <- data$donor
+df$Sample <- colnames(data)
+summary <- summary(pca)$importance # Extract variance explained.
+# ------------------------------------------------
+
+# Plot PCA using ggplot2 rather than DEP's built-in function.
+# ggplots are also wrapped in ggplotly for interactivity.
+# -----------------------------------------------------------
+ggplotly(
+  ggplot(df, aes(PC1, PC2, color = Sample, text = paste("Donor:", Donor))) +
+    geom_point(aes(shape = Condition), size = 2, stroke = 1) +
+    labs(
+      x = paste0("PC1: ", round(summary[2, 1] * 100, digits = 1), "% of Variance Explained"),
+      y = paste0("PC2: ", round(summary[2, 2] * 100, digits = 1), "% of Variance Explained")
+    ) +
+    theme_bw()
+)
+ggplotly(
+  ggplot(df, aes(PC1, PC2, color = Donor, text = paste("Sample:", Sample))) +
+    geom_point(aes(shape = Condition), size = 2, stroke = 1) +
+    labs(
+      x = paste0("PC1: ", round(summary[2, 1] * 100, digits = 1), "% of Variance Explained"),
+      y = paste0("PC2: ", round(summary[2, 2] * 100, digits = 1), "% of Variance Explained")
+    ) +
+    theme_bw()
+)
+# -----------------------------------------------------------
+```
+
+# Subsetting
+
+Subset the data to those samples that group together on the basis of missing fewer values.
+
+```{r}
+keep <- rownames(df[which(df$PC1 < 0 & df$PC2 > 5), ]) # Top left of PCA seems to have highest quality results.
+data_bak_sub <- data_bak[ , keep] # Use unprocessed copy to visualise missing values.
+
+plot_numbers(data_bak_sub)
+
+remove <- which(data_bak_sub$donor == "Donor9") # Remove Donor9 because there are no good tangle-neg. samples.
+data_bak_sub <- data_bak_sub[ , -remove]
+
+plot_numbers(data_bak_sub)
+
+# Apply subsetting to the processed dataset.
+# ------------------------------------------
+data <- data[ , keep]
+data <- data[ , -remove]
+# ------------------------------------------
+```
+
+# PCA
+
+Create more PCA plots after subsetting.
+
+```{r, dpi = 96}
+# Manually perform PCA for more flexible plotting.
+# ------------------------------------------------
+pca <- prcomp(t(assay(data))) # Transpose because PCA assumes rows are observations and columns are variables.
+df <- as.data.frame(predict(pca)[ , 1:2]) # Extract the first two PCs.
+df$Condition <- data$condition
+df$Donor <- data$donor
+df$Sample <- colnames(data)
+summary <- summary(pca)$importance # Extract variance explained.
+# ------------------------------------------------
+
+# Plot PCA using ggplot2 rather than DEP's built-in function.
+# ggplots are also wrapped in ggplotly for interactivity.
+# -----------------------------------------------------------
+ggplotly(
+  ggplot(df, aes(PC1, PC2, color = Sample, text = paste("Donor:", Donor))) +
+    geom_point(aes(shape = Condition), size = 2, stroke = 1) +
+    labs(
+      x = paste0("PC1: ", round(summary[2, 1] * 100, digits = 1), "% of Variance Explained"),
+      y = paste0("PC2: ", round(summary[2, 2] * 100, digits = 1), "% of Variance Explained")
+    ) +
+    theme_bw()
+)
+ggplotly(
+  ggplot(df, aes(PC1, PC2, color = Donor, text = paste("Sample:", Sample))) +
+    geom_point(aes(shape = Condition), size = 2, stroke = 1) +
+    labs(
+      x = paste0("PC1: ", round(summary[2, 1] * 100, digits = 1), "% of Variance Explained"),
+      y = paste0("PC2: ", round(summary[2, 2] * 100, digits = 1), "% of Variance Explained")
+    ) +
+    theme_bw()
+)
+# -----------------------------------------------------------
+```
+
+# Reprocessing
+
+We start with the unprocessed data again, this time with the low-quality samples removed in order to achieve better proprocessing.
+
+```{r}
+data <- data_bak_sub # Make the main data object the unprocessed version.
+
+hist(assay(data), n = 100) # Visualise data distribution.
+
+# Various plotting methods to assess missing values.
+# --------------------------------------------------
+plot_numbers(data)
+plot_frequency(data)
+plot_detect(data)
+plot_missval(data)
+# --------------------------------------------------
+
+# Must remove samples where no proteins at all were detected.
+# -----------------------------------------------------------
+remove <- which(colSums(assay(data), na.rm = TRUE) == 0)
+if (length(remove > 0)) {
+  data <- data[ , -remove]
+}
+# -----------------------------------------------------------
+
+# Normalise data using a variance stabilising transformation (VSN).
+# -----------------------------------------------------------------
+orig <- data # Make a copy of the pre-normalised data for plotting later.
+data <- normalize_vsn(data)
+meanSdPlot(data)
+plot_normalization(orig)
+plot_normalization(data)
+# -----------------------------------------------------------------
+
+# Impute data using the MinProb algorithmn.
+# -----------------------------------------
+orig <- data
+set.seed(1)
+data <- impute(data, fun = "MinProb")
+plot_imputation(orig, data)
+# -----------------------------------------
+
+rm(orig) # Remove temporary objects.
+```
+
+# PCA
+
+Create more PCA plots with the reprocessed data.
+
+```{r, dpi = 96}
+# Manually perform PCA for more flexible plotting.
+# ------------------------------------------------
+pca <- prcomp(t(assay(data))) # Transpose because PCA assumes rows are observations and columns are variables.
+df <- as.data.frame(predict(pca)[ , 1:2]) # Extract the first two PCs.
+df$Condition <- data$condition
+df$Donor <- data$donor
+df$Sample <- colnames(data)
+summary <- summary(pca)$importance # Extract variance explained.
+# ------------------------------------------------
+
+# Plot PCA using ggplot2 rather than DEP's built-in function.
+# ggplots are also wrapped in ggplotly for interactivity.
+# -----------------------------------------------------------
+ggplotly(
+  ggplot(df, aes(PC1, PC2, color = Sample, text = paste("Donor:", Donor))) +
+    geom_point(aes(shape = Condition), size = 2, stroke = 1) +
+    labs(
+      x = paste0("PC1: ", round(summary[2, 1] * 100, digits = 1), "% of Variance Explained"),
+      y = paste0("PC2: ", round(summary[2, 2] * 100, digits = 1), "% of Variance Explained")
+    ) +
+    theme_bw()
+)
+ggplotly(
+  ggplot(df, aes(PC1, PC2, color = Donor, text = paste("Sample:", Sample))) +
+    geom_point(aes(shape = Condition), size = 2, stroke = 1) +
+    labs(
+      x = paste0("PC1: ", round(summary[2, 1] * 100, digits = 1), "% of Variance Explained"),
+      y = paste0("PC2: ", round(summary[2, 2] * 100, digits = 1), "% of Variance Explained")
+    ) +
+    theme_bw()
+)
+# -----------------------------------------------------------
+```
+
+# Differential Expression
+
+We test for differential expression between tangle-positive and tangle-negative samples.
+In order to account to technical replication, we include a custom version of the `test_diff` function from DEP.
+We also include a custom version of `datatable` from DT, which allows downloading of the data.
+
+```{r}
+#' Custom version of \code{test_diff} from DEP which accounts for technical replicates.
+#'
+#' \code{test_diff_custom} performs a differential enrichment test based on
+#' protein-wise linear models and empirical Bayes
+#' statistics using \pkg{limma}. False Discovery Rates are estimated
+#' using \pkg{fdrtool}.
+#'
+#' @param se SummarizedExperiment,
+#' Proteomics data (output from \code{\link{make_se}()} or
+#' \code{\link{make_se_parse}()}). It is adviced to first remove
+#' proteins with too many missing values using \code{\link{filter_missval}()},
+#' normalize the data using \code{\link{normalize_vsn}()} and
+#' impute remaining missing values using \code{\link{impute}()}.
+#' @param type "control", "all" or "manual",
+#' The type of contrasts that will be tested.
+#' This can be all possible pairwise comparisons ("all"),
+#' limited to the comparisons versus the control ("control"), or
+#' manually defined contrasts ("manual").
+#' @param control Character(1),
+#' The condition to which contrasts are generated if type = "control"
+#' (a control condition would be most appropriate).
+#' @param test Character,
+#' The contrasts that will be tested if type = "manual".
+#' These should be formatted as "SampleA_vs_SampleB" or
+#' c("SampleA_vs_SampleC", "SampleB_vs_SampleC").
+#' @param design_formula Formula,
+#' Used to create the design matrix.
+#' @return A SummarizedExperiment object
+#' containing fdr estimates of differential expression.
+#' @examples
+#' # Load example
+#' data <- UbiLength
+#' data <- data[data$Reverse != "+" & data$Potential.contaminant != "+",]
+#' data_unique <- make_unique(data, "Gene.names", "Protein.IDs", delim = ";")
+#'
+#' # Make SummarizedExperiment
+#' columns <- grep("LFQ.", colnames(data_unique))
+#' exp_design <- UbiLength_ExpDesign
+#' se <- make_se(data_unique, columns, exp_design)
+#'
+#' # Filter, normalize and impute missing values
+#' filt <- filter_missval(se, thr = 0)
+#' norm <- normalize_vsn(filt)
+#' imputed <- impute(norm, fun = "MinProb", q = 0.01)
+#'
+#' # Test for differentially expressed proteins
+#' diff <- test_diff_custom(imputed, "control", "Ctrl")
+#' diff <- test_diff_custom(imputed, "manual",
+#'     test = c("Ubi4_vs_Ctrl", "Ubi6_vs_Ctrl"))
+#'
+#' # Test for differentially expressed proteins with a custom design formula
+#' diff <- test_diff_custom(imputed, "control", "Ctrl",
+#'     design_formula = formula(~ 0 + condition + replicate))
+#' @export
+test_diff_custom <- function(se, type = c("control", "all", "manual"),
+                      control = NULL, test = NULL,
+                      design_formula = formula(~ 0 + condition)) {
+
+  # Show error if inputs are not the required classes
+  assertthat::assert_that(inherits(se, "SummarizedExperiment"),
+                          is.character(type),
+                          class(design_formula) == "formula")
+
+  # Show error if inputs do not contain required columns
+  type <- match.arg(type)
+
+  col_data <- colData(se)
+  raw <- assay(se)
+
+  if(any(!c("name", "ID") %in% colnames(rowData(se, use.names = FALSE)))) {
+    stop("'name' and/or 'ID' columns are not present in '",
+         deparse(substitute(se)),
+         "'\nRun make_unique() and make_se() to obtain the required columns",
+         call. = FALSE)
+  }
+  if(any(!c("label", "condition", "replicate") %in% colnames(col_data))) {
+    stop("'label', 'condition' and/or 'replicate' columns are not present in '",
+         deparse(substitute(se)),
+         "'\nRun make_se() or make_se_parse() to obtain the required columns",
+         call. = FALSE)
+  }
+  if(any(is.na(raw))) {
+    warning("Missing values in '", deparse(substitute(se)), "'")
+  }
+
+  if(!is.null(control)) {
+    # Show error if control input is not valid
+    assertthat::assert_that(is.character(control),
+                            length(control) == 1)
+    if(!control %in% unique(col_data$condition)) {
+      stop("run test_diff_custom() with a valid control.\nValid controls are: '",
+           paste0(unique(col_data$condition), collapse = "', '"), "'",
+           call. = FALSE)
+    }
+  }
+
+  # variables in formula
+  variables <- terms.formula(design_formula) %>%
+    attr(., "variables") %>%
+    as.character() %>%
+    .[-1]
+
+  # Throw error if variables are not col_data columns
+  if(any(!variables %in% colnames(col_data))) {
+    stop("run make_diff() with an appropriate 'design_formula'")
+  }
+  if(variables[1] != "condition") {
+    stop("first factor of 'design_formula' should be 'condition'")
+  }
+
+  # Obtain variable factors
+  for(var in variables) {
+    temp <- factor(col_data[[var]])
+    assign(var, temp)
+  }
+
+  # Make an appropriate design matrix
+  design <- model.matrix(design_formula, data = environment())
+  colnames(design) <- gsub("condition", "", colnames(design))
+
+  # Generate contrasts to be tested
+  # Either make all possible combinations ("all"),
+  # only the contrasts versus the control sample ("control") or
+  # use manual contrasts
+  conditions <- as.character(unique(condition))
+  if(type == "all") {
+    # All possible combinations
+    cntrst <- apply(utils::combn(conditions, 2), 2, paste, collapse = " - ")
+
+    if(!is.null(control)) {
+      # Make sure that contrast containing
+      # the control sample have the control as denominator
+      flip <- grep(paste("^", control, sep = ""), cntrst)
+      if(length(flip) >= 1) {
+        cntrst[flip] <- cntrst[flip] %>%
+          gsub(paste(control, "- ", sep = " "), "", .) %>%
+          paste(" - ", control, sep = "")
+      }
+    }
+
+  }
+  if(type == "control") {
+    # Throw error if no control argument is present
+    if(is.null(control))
+      stop("run test_diff_custom(type = 'control') with a 'control' argument")
+
+    # Make contrasts
+    cntrst <- paste(conditions[!conditions %in% control],
+                    control,
+                    sep = " - ")
+  }
+  if(type == "manual") {
+    # Throw error if no test argument is present
+    if(is.null(test)) {
+      stop("run test_diff_custom(type = 'manual') with a 'test' argument")
+    }
+    assertthat::assert_that(is.character(test))
+
+    if(any(!unlist(strsplit(test, "_vs_")) %in% conditions)) {
+      stop("run test_diff_custom() with valid contrasts in 'test'",
+           ".\nValid contrasts should contain combinations of: '",
+           paste0(conditions, collapse = "', '"),
+           "', for example '", paste0(conditions[1], "_vs_", conditions[2]),
+           "'.", call. = FALSE)
+    }
+
+    cntrst <- gsub("_vs_", " - ", test)
+
+  }
+  # Print tested contrasts
+  message("Tested contrasts: ",
+          paste(gsub(" - ", "_vs_", cntrst), collapse = ", "))
+
+  # Test for differential expression by empirical Bayes moderation
+  # of a linear model on the predefined contrasts
+  corr_fit <- duplicateCorrelation(raw, design, block = col_data$donor)
+  fit <- lmFit(raw, design, block = col_data$donor, cor = corr_fit$consensus)
+  made_contrasts <- makeContrasts(contrasts = cntrst, levels = design)
+  contrast_fit <- contrasts.fit(fit, made_contrasts)
+
+  if(any(is.na(raw))) {
+    for(i in cntrst) {
+      covariates <- strsplit(i, " - ") %>% unlist
+      single_contrast <- makeContrasts(contrasts = i, levels = design[, covariates])
+      single_contrast_fit <- contrasts.fit(fit[, covariates], single_contrast)
+      contrast_fit$coefficients[, i] <- single_contrast_fit$coefficients[, 1]
+      contrast_fit$stdev.unscaled[, i] <- single_contrast_fit$stdev.unscaled[, 1]
+    }
+  }
+
+  eB_fit <- eBayes(contrast_fit)
+
+  # function to retrieve the results of
+  # the differential expression test using 'fdrtool'
+  retrieve_fun <- function(comp, fit = eB_fit){
+    res <- topTable(fit, sort.by = "t", coef = comp,
+                    number = Inf, confint = TRUE)
+    res <- res[!is.na(res$t),]
+    fdr_res <- fdrtool::fdrtool(res$t, plot = FALSE, verbose = FALSE)
+    res$qval <- fdr_res$qval
+    res$lfdr <- fdr_res$lfdr
+    res$comparison <- rep(comp, dim(res)[1])
+    res <- tibble::rownames_to_column(res)
+    return(res)
+  }
+
+  # Retrieve the differential expression test results
+  limma_res <- purrr::map_df(cntrst, retrieve_fun)
+
+  # Select the logFC, CI and qval variables
+  table <- limma_res %>%
+    select(rowname, logFC, CI.L, CI.R, P.Value, qval, comparison) %>%
+    mutate(comparison = gsub(" - ", "_vs_", comparison)) %>%
+    tidyr::gather(variable, value, -c(rowname,comparison)) %>%
+    mutate(variable = recode(variable, logFC = "diff", P.Value = "p.val", qval = "p.adj")) %>%
+    tidyr::unite(temp, comparison, variable) %>%
+    tidyr::spread(temp, value)
+  rowData(se) <- merge(rowData(se, use.names = FALSE), table,
+                       by.x = "name", by.y = "rowname", all.x = TRUE, sort=FALSE)
+  return(se)
+}
+
+#' Adds download buttons and horizontal scrolling to \code{"DT::datatable"}.
+#'
+#' @param dt A data.table object.
+#' @examples
+#' datatable_download(dt = data_table)
+#'
+datatable_download <- function(dt) {
+
+  datatable(
+    dt,
+    list(
+      scrollX = TRUE, dom = "Blfrtip",
+      buttons = list(
+        "copy", "print",
+        list(extend = "collection", buttons = c("csv", "excel", "pdf"), text = "Download")
+      )
+    ),
+    extensions = "Buttons"
+  )
+}
+
+data_results <- test_diff_custom(data, type = "control", control = "Neg", design_formula = ~ 0 + condition)
+data_results <- add_rejections(data_results, lfc = 0) # Set significance at 0.05 adjP and 0 log2 fold change.
+results <- get_results(data_results)
+sig <- results[results$significant, ]
+print(paste0(nrow(sig), " significant proteins."))
+
+results <- results[order(results$Pos_vs_Neg_p.val), ] # Order by unadjusted p-value.
+datatable_download(results) # Without p-value cutoff.
+results <- results[results$Pos_vs_Neg_p.val < 0.05, ]
+datatable_download(results) # With 0.05 p-value cutoff.
+
+heatmap_data <- assay(data)[rownames(data) %in% results$name[1:20], ] # Plot top 20 proteins.
+colour <- colorRamp2( # Create a custom colour palette.
+  c(min(assay(data)), (max(assay(data)) + min(assay(data))) / 2, max(assay(data))),
+  c(brewer.pal(3, "RdYlBu")[3], brewer.pal(3, "RdYlBu")[2], brewer.pal(3, "RdYlBu")[1])
+)
+Heatmap(
+  heatmap_data,
+  col = colour,
+  column_names_side = "top",
+  cluster_columns = FALSE,
+  cluster_rows = FALSE,
+  row_order = match(results$name[1:20], rownames(heatmap_data)),
+  column_split = data$condition,
+  column_gap = unit(2, "mm"),
+  heatmap_legend_param = list(title = "log2 Intensity", title_position = "leftcenter-rot")
+)
+
+heatmap_data <- t( # Perform row-wise scaling.
+  apply(heatmap_data, MARGIN = 1, FUN = function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1))
+)
+colour2 <- colorRamp2(
+  c(min(heatmap_data), (max(heatmap_data) + min(heatmap_data)) / 2, max(heatmap_data)),
+  c(brewer.pal(3, "RdYlBu")[3], brewer.pal(3, "RdYlBu")[2], brewer.pal(3, "RdYlBu")[1])
+)
+Heatmap(
+  heatmap_data,
+  col = colour2,
+  column_names_side = "top",
+  cluster_columns = FALSE,
+  cluster_rows = FALSE,
+  row_order = match(results$name[1:20], rownames(heatmap_data)),
+  column_split = data$condition,
+  column_gap = unit(2, "mm"),
+  heatmap_legend_param = list(title = "log2 Intensity", title_position = "leftcenter-rot")
+)
+
+results_up <- results[results$Pos_vs_Neg_ratio > 0, ] # Only upregulated in tangle-positive neurons.
+datatable_download(results_up)
+
+heatmap_data <- assay(data)[rownames(data) %in% results_up$name[1:20], ] # Plot top 20 upregulated proteins.
+colour <- colorRamp2( # Create a custom colour palette.
+  c(min(assay(data)), (max(assay(data)) + min(assay(data))) / 2, max(assay(data))),
+  c(brewer.pal(3, "RdYlBu")[3], brewer.pal(3, "RdYlBu")[2], brewer.pal(3, "RdYlBu")[1])
+)
+Heatmap(
+  heatmap_data,
+  col = colour,
+  column_names_side = "top",
+  cluster_columns = FALSE,
+  cluster_rows = FALSE,
+  row_order = match(results_up$name[1:20], rownames(heatmap_data)),
+  column_split = data$condition,
+  column_gap = unit(2, "mm"),
+  heatmap_legend_param = list(title = "log2 Intensity", title_position = "leftcenter-rot")
+)
+
+heatmap_data <- t( # Perform row-wise scaling.
+  apply(heatmap_data, MARGIN = 1, FUN = function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1))
+)
+colour2 <- colorRamp2(
+  c(min(heatmap_data), (max(heatmap_data) + min(heatmap_data)) / 2, max(heatmap_data)),
+  c(brewer.pal(3, "RdYlBu")[3], brewer.pal(3, "RdYlBu")[2], brewer.pal(3, "RdYlBu")[1])
+)
+Heatmap(
+  heatmap_data,
+  col = colour2,
+  column_names_side = "top",
+  cluster_columns = FALSE,
+  cluster_rows = FALSE,
+  row_order = match(results_up$name[1:20], rownames(heatmap_data)),
+  column_split = data$condition,
+  column_gap = unit(2, "mm"),
+  heatmap_legend_param = list(title = "log2 Intensity", title_position = "leftcenter-rot")
+)
+
+results_down <- results[results$Pos_vs_Neg_ratio < 0, ] # Only downregulated in tangle-positive neurons.
+datatable_download(results_down)
+
+heatmap_data <- assay(data)[rownames(data) %in% results_down$name[1:20], ] # Plot top 20 downregulated proteins.
+colour <- colorRamp2( # Create a custom colour palette.
+  c(min(assay(data)), (max(assay(data)) + min(assay(data))) / 2, max(assay(data))),
+  c(brewer.pal(3, "RdYlBu")[3], brewer.pal(3, "RdYlBu")[2], brewer.pal(3, "RdYlBu")[1])
+)
+Heatmap(
+  heatmap_data,
+  col = colour,
+  column_names_side = "top",
+  cluster_columns = FALSE,
+  cluster_rows = FALSE,
+  row_order = match(results_down$name[1:20], rownames(heatmap_data)),
+  column_split = data$condition,
+  column_gap = unit(2, "mm"),
+  heatmap_legend_param = list(title = "log2 Intensity", title_position = "leftcenter-rot")
+)
+
+heatmap_data <- t( # Perform row-wise scaling.
+  apply(heatmap_data, MARGIN = 1, FUN = function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1))
+)
+colour2 <- colorRamp2(
+  c(min(heatmap_data), (max(heatmap_data) + min(heatmap_data)) / 2, max(heatmap_data)),
+  c(brewer.pal(3, "RdYlBu")[3], brewer.pal(3, "RdYlBu")[2], brewer.pal(3, "RdYlBu")[1])
+)
+Heatmap(
+  heatmap_data,
+  col = colour2,
+  column_names_side = "top",
+  cluster_columns = FALSE,
+  cluster_rows = FALSE,
+  row_order = match(results_down$name[1:20], rownames(heatmap_data)),
+  column_split = data$condition,
+  column_gap = unit(2, "mm"),
+  heatmap_legend_param = list(title = "log2 Intensity", title_position = "leftcenter-rot")
+)
+
+results <- results[order(abs(results$Pos_vs_Neg_ratio), decreasing = TRUE), ] # Order by log2 fold change.
+datatable_download(results)
+
+heatmap_data <- assay(data)[rownames(data) %in% results$name[1:20], ] # Plot top 20 proteins.
+colour <- colorRamp2( # Create a custom colour palette.
+  c(min(assay(data)), (max(assay(data)) + min(assay(data))) / 2, max(assay(data))),
+  c(brewer.pal(3, "RdYlBu")[3], brewer.pal(3, "RdYlBu")[2], brewer.pal(3, "RdYlBu")[1])
+)
+Heatmap(
+  heatmap_data,
+  col = colour,
+  column_names_side = "top",
+  cluster_columns = FALSE,
+  cluster_rows = FALSE,
+  row_order = match(results$name[1:20], rownames(heatmap_data)),
+  column_split = data$condition,
+  column_gap = unit(2, "mm"),
+  heatmap_legend_param = list(title = "log2 Intensity", title_position = "leftcenter-rot")
+)
+
+heatmap_data <- t( # Perform row-wise scaling.
+  apply(heatmap_data, MARGIN = 1, FUN = function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1))
+)
+colour2 <- colorRamp2(
+  c(min(heatmap_data), (max(heatmap_data) + min(heatmap_data)) / 2, max(heatmap_data)),
+  c(brewer.pal(3, "RdYlBu")[3], brewer.pal(3, "RdYlBu")[2], brewer.pal(3, "RdYlBu")[1])
+)
+Heatmap(
+  heatmap_data,
+  col = colour2,
+  column_names_side = "top",
+  cluster_columns = FALSE,
+  cluster_rows = FALSE,
+  row_order = match(results$name[1:20], rownames(heatmap_data)),
+  column_split = data$condition,
+  column_gap = unit(2, "mm"),
+  heatmap_legend_param = list(title = "log2 Intensity", title_position = "leftcenter-rot")
+)
+
+results_up <- results_up[order(results_up$Pos_vs_Neg_ratio, decreasing = TRUE), ] # Order by positive log2 FC.
+datatable_download(results_up)
+
+heatmap_data <- assay(data)[rownames(data) %in% results_up$name[1:20], ] # Plot top 20 proteins.
+colour <- colorRamp2( # Create a custom colour palette.
+  c(min(assay(data)), (max(assay(data)) + min(assay(data))) / 2, max(assay(data))),
+  c(brewer.pal(3, "RdYlBu")[3], brewer.pal(3, "RdYlBu")[2], brewer.pal(3, "RdYlBu")[1])
+)
+Heatmap(
+  heatmap_data,
+  col = colour,
+  column_names_side = "top",
+  cluster_columns = FALSE,
+  cluster_rows = FALSE,
+  row_order = match(results_up$name[1:20], rownames(heatmap_data)),
+  column_split = data$condition,
+  column_gap = unit(2, "mm"),
+  heatmap_legend_param = list(title = "log2 Intensity", title_position = "leftcenter-rot")
+)
+
+heatmap_data <- t( # Perform row-wise scaling.
+  apply(heatmap_data, MARGIN = 1, FUN = function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1))
+)
+colour2 <- colorRamp2(
+  c(min(heatmap_data), (max(heatmap_data) + min(heatmap_data)) / 2, max(heatmap_data)),
+  c(brewer.pal(3, "RdYlBu")[3], brewer.pal(3, "RdYlBu")[2], brewer.pal(3, "RdYlBu")[1])
+)
+Heatmap(
+  heatmap_data,
+  col = colour2,
+  column_names_side = "top",
+  cluster_columns = FALSE,
+  cluster_rows = FALSE,
+  row_order = match(results_up$name[1:20], rownames(heatmap_data)),
+  column_split = data$condition,
+  column_gap = unit(2, "mm"),
+  heatmap_legend_param = list(title = "log2 Intensity", title_position = "leftcenter-rot")
+)
+
+results_down <- results_down[order(results_down$Pos_vs_Neg_ratio), ] # Order by negative log2 FC.
+datatable_download(results_down)
+
+heatmap_data <- assay(data)[rownames(data) %in% results_down$name[1:20], ] # Plot top 20 proteins.
+colour <- colorRamp2( # Create a custom colour palette.
+  c(min(assay(data)), (max(assay(data)) + min(assay(data))) / 2, max(assay(data))),
+  c(brewer.pal(3, "RdYlBu")[3], brewer.pal(3, "RdYlBu")[2], brewer.pal(3, "RdYlBu")[1])
+)
+Heatmap(
+  heatmap_data,
+  col = colour,
+  column_names_side = "top",
+  cluster_columns = FALSE,
+  cluster_rows = FALSE,
+  row_order = match(results_down$name[1:20], rownames(heatmap_data)),
+  column_split = data$condition,
+  column_gap = unit(2, "mm"),
+  heatmap_legend_param = list(title = "log2 Intensity", title_position = "leftcenter-rot")
+)
+
+heatmap_data <- t( # Perform row-wise scaling.
+  apply(heatmap_data, MARGIN = 1, FUN = function (x) ((2 * (x - min(x)) / (max(x) - min(x))) - 1))
+)
+colour2 <- colorRamp2(
+  c(min(heatmap_data), (max(heatmap_data) + min(heatmap_data)) / 2, max(heatmap_data)),
+  c(brewer.pal(3, "RdYlBu")[3], brewer.pal(3, "RdYlBu")[2], brewer.pal(3, "RdYlBu")[1])
+)
+Heatmap(
+  heatmap_data,
+  col = colour2,
+  column_names_side = "top",
+  cluster_columns = FALSE,
+  cluster_rows = FALSE,
+  row_order = match(results_down$name[1:20], rownames(heatmap_data)),
+  column_split = data$condition,
+  column_gap = unit(2, "mm"),
+  heatmap_legend_param = list(title = "log2 Intensity", title_position = "leftcenter-rot")
+)
+```
+
+# References
+
+This is the concluding section of the document, where we output the `sessionInfo`, and create a bibliography for works cited.
+
+```{r}
+sessionInfo()
+```
