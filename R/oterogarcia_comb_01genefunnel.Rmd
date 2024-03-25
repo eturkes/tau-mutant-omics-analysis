@@ -1613,6 +1613,572 @@ draw(
 )
 ```
 
+```{r}
+hub_gene_left_all <- lapply(hub_gene_list_left_all, function(x) cbind(rowname = rownames(x), x))
+hub_gene_left_all <- Reduce(function(x, y) merge(x, y, all = TRUE), hub_gene_left_all)
+hub_gene_left <- lapply(hub_gene_list_left, function(x) cbind(rowname = rownames(x), x))
+hub_gene_left <- Reduce(function(x, y) merge(x, y, all = TRUE), hub_gene_left)
+
+hub_gene_data <- vector()
+for (l in seq_along(order_left)) {
+  module_sets <- rownames(mat_left)[order_left[[l]]]
+
+  # module_gene_sets_sub <- gene_sets[names(gene_sets) %in% modules_down]
+
+  frequent_genes <- vector()
+
+  module_gene_sets_sub <- gene_sets[names(gene_sets) %in% module_sets]
+  frequent_genes_tmp <- as.data.frame(table(unlist(geneIds(module_gene_sets_sub))))
+  frequent_genes_tmp <- frequent_genes_tmp[
+    frequent_genes_tmp$Var1 %in% gene_anno$ensembl_gene_id,
+  ]
+  rownames(frequent_genes_tmp) <- NULL
+  if (any(frequent_genes_tmp$Var1 %in% rownames(results_right))) {
+    discard <- which(
+      frequent_genes_tmp$Var1 %in% rownames(results_right)
+    )
+    if (length(discard) > 0) {
+      frequent_genes_tmp <- frequent_genes_tmp[-discard, ]
+    }
+  }
+  frequent_genes <- frequent_genes_tmp
+
+  # module_gene_sets_sub <- gene_sets[names(gene_sets) %in% module_sets]
+  node_data <- reshape2::melt(geneIds(module_gene_sets_sub))
+  node_data <- node_data[node_data$value %in% frequent_genes$Var1, ]
+  names(node_data) <- c("ensembl_gene_id", "gene_set")
+  gene_anno_sub <- gene_anno[
+    gene_anno$ensembl_gene_id %in% node_data$ensembl_gene_id,
+  ]
+  node_data <- node_data[node_data$ensembl_gene_id %in% gene_anno_sub$ensembl_gene_id, ]
+  node_data <- left_join(node_data, gene_anno_sub, by = "ensembl_gene_id")
+  node_data$direction <- "down"
+  node_data$DE <- ifelse(
+    node_data$ensembl_gene_id %in% rownames(results_sig), "yes", "no"
+  )
+  node_data <- node_data[node_data$ensembl_gene_id %in% hub_gene_left_all$Var1, ]
+  # node_data <- node_data[node_data$DE == "yes", ]
+  node_data$module <- l
+  hub_gene_data <- rbind(hub_gene_data, node_data)
+}
+
+# hub_gene_data <- hub_gene_data[hub_gene_data$DE == "yes", ]
+
+unique_direction <- as.data.frame.matrix(table(hub_gene_data[ , c(3, 4)]), )
+unique_direction$down <- unique_direction$down * -1
+discard <- which(rowSums(unique_direction) == 0)
+if (length(discard) > 0) {
+  unique_direction <- unique_direction[-discard, ]
+}
+module_membership_norm <- unique_direction
+unique_direction <- ifelse(rowSums(unique_direction) > 0, "up", "down")
+hub_gene_data <- hub_gene_data[
+  hub_gene_data$external_gene_name %in% names(unique_direction),
+]
+
+rownames(hub_gene_data) <- NULL
+discard <- vector()
+for (i_gene in seq_along(hub_gene_data$external_gene_name)) {
+  sub_gene <- hub_gene_data$external_gene_name[i_gene]
+  sub_unique_direction <- unique_direction[which(names(unique_direction) == sub_gene)]
+  if (hub_gene_data$direction[i_gene] != sub_unique_direction[[1]]) {
+    discard <- append(discard, i_gene)
+  }
+}
+if (length(discard) > 0) {
+  hub_gene_data <- hub_gene_data[-discard, ]
+}
+
+frequent_genes_tmp <- as.data.frame(table(hub_gene_data$external_gene_name))
+frequent_genes <- frequent_genes_tmp
+hub_gene_data <- hub_gene_data[
+  hub_gene_data$external_gene_name %in% frequent_genes$Var1,
+]
+
+# hub_gene_data <- hub_gene_data[which(hub_gene_data$DE == "yes"), ]
+
+hub_score <- c()
+for (i in seq_along(unique(hub_gene_data$module))) {
+  hub_gene_data_sub <- hub_gene_data[hub_gene_data$module == i, ]
+  hub_gene_sub <- hub_gene_list_left_all[[i]]
+  colnames(hub_gene_sub) <- c("ensembl_gene_id", "hub_score")
+  hub_gene_data_sub <- left_join(hub_gene_data_sub, hub_gene_sub, by = "ensembl_gene_id")
+  if (any(is.na(hub_gene_data_sub$hub_score))) {
+    discard <- which(is.na(hub_gene_data_sub$hub_score))
+    hub_gene_data_sub <- hub_gene_data_sub[-discard, ]
+  }
+  # hub_score <- c(hub_score, hub_gene_sub$Freq)
+  if (i == 1) {
+    hub_gene_data_new <- hub_gene_data_sub
+  } else {
+    hub_gene_data_new <- rbind(hub_gene_data_new, hub_gene_data_sub)
+  }
+}
+hub_gene_data <- hub_gene_data_new
+
+# hub_gene_data_sub <- hub_gene_data[hub_gene_data$DE == "yes", ]
+# hub_gene_data <- hub_gene_data[hub_gene_data$hub_score >= min(hub_gene_data_sub$hub_score), ]
+hub_gene_data <- hub_gene_data[hub_gene_data$hub_score >= 0.0001, ]
+
+hub_gene_data_sorted <- hub_gene_data[order(hub_gene_data$hub_score, decreasing = TRUE), ]
+hub_gene_data_sorted <- hub_gene_data_sorted[-which(duplicated(hub_gene_data_sorted$ensembl_gene_id)), ]
+# hub_gene_data_sorted <- hub_gene_data_sorted[match(names(membership), hub_gene_data_sorted$external_gene_name), ]
+
+# hub_score <- hub_gene_data_sorted$hub_score
+# names(hub_score) <- names(membership)
+
+hub_mat <- as.data.frame.matrix(table(hub_gene_data[ , c(3, 2)]), )
+hub_mat <- hub_mat[match(hub_gene_data_sorted$external_gene_name, rownames(hub_mat)), ]
+hub_mat <- hub_mat == 1
+co_mat <- hub_mat %*% t(hub_mat)
+diag(co_mat) <- 0
+graph <- graph_from_adjacency_matrix(co_mat, "upper", TRUE)
+
+edges <- get.edgelist(graph, FALSE)
+set.seed(1)
+layout <- qgraph.layout.fruchtermanreingold(
+  edges, vcount = vcount(graph), weight = E(graph)$weight,
+  area = vcount(graph), repulse.rad = vcount(graph) / 1
+)
+
+hub_gene_all_GO <- table(unlist(geneIds(gene_sets)))
+hub_gene_all_GO <- hub_gene_all_GO[
+  names(hub_gene_all_GO) %in% unique(hub_gene_data$ensembl_gene_id)
+]
+sub_gene_anno <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(hub_gene_all_GO), ]
+rownames(sub_gene_anno) <- NULL
+sub_gene_anno <- sub_gene_anno[
+  match(rownames(hub_gene_all_GO), sub_gene_anno$ensembl_gene_id),
+]
+rownames(hub_gene_all_GO) <- sub_gene_anno$external_gene_name
+hub_gene_all_GO <- hub_gene_all_GO[match(hub_gene_data_sorted$external_gene_name, names(hub_gene_all_GO))]
+
+module_membership <- as.data.frame.matrix(table(hub_gene_data[ , c(3, 6)]), )
+module_membership <- module_membership[match(hub_gene_data_sorted$external_gene_name, rownames(module_membership)), ]
+module_membership_binary <- module_membership
+module_membership_binary[module_membership_binary > 0] <- 1
+module_membership_list <- lapply(
+  split(module_membership, row.names(module_membership)), unlist
+)
+module_membership_list <- module_membership_list[
+  match(hub_gene_data_sorted$external_gene_name, names(module_membership_list))
+]
+module_network_colors <- module_colors[seq_along(order_left)]
+module_membership_norm <- module_membership_norm[
+  rownames(module_membership_norm) %in% rownames(module_membership), , drop = FALSE
+]
+module_membership_norm <- module_membership_norm[
+  match(hub_gene_data_sorted$external_gene_name, rownames(module_membership_norm)), , drop = FALSE
+]
+
+V(graph)$pie.color = list(module_network_colors)
+V(graph)$vertex.shape <- "pie"
+V(graph)$vertex.color <- module_membership_list
+V(graph)$vertex.label.family = "sans"
+
+module_max_genes <- apply(module_membership_norm, 2, function (x) which(x == max(x)))
+module_max_genes <- rownames(module_membership_norm)[unlist(module_max_genes)]
+module_max <- vector()
+for (l in seq(length(V(graph)))) {
+  if (V(graph)[l]$name %in% module_max_genes) {
+    module_max <- append(module_max, "yes")
+  } else {
+    module_max <- append(module_max, "no")
+  }
+}
+
+unique_markers <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(results_sig), ]
+DE <- vector()
+for (l in seq(length(V(graph)))) {
+  if (V(graph)[l]$name %in% unique_markers$external_gene_name) {
+    DE <- append(DE, "yes")
+  } else {
+    DE <- append(DE, "no")
+  }
+}
+
+# V(graph) <- V(graph)[DE == "yes"]
+
+direction <- vector()
+for (l in seq(length(E(graph)))) {
+  hub_gene_sub <- hub_gene_data[
+    hub_gene_data$external_gene_name %in% head_of(graph, l)[[1]]$name,
+  ]
+  direction <- append(direction, unique(hub_gene_sub$direction))
+}
+E(graph)$edge.color <- ifelse(direction == "up", "firebrick1", "dodgerblue")
+
+membership <- (abs(rowSums(module_membership_norm)) / hub_gene_all_GO) * abs(rowSums(module_membership_norm))
+
+vertex_frame_color <- data.frame(DE = DE) %>%
+  mutate(
+    type = case_when(
+      DE == "yes" ~ "white",
+      TRUE ~ "darkgray"
+    )
+  )
+vertex_frame_color <- vertex_frame_color$type
+
+vertex_label_color <- data.frame(DE = DE) %>%
+  mutate(
+    type = case_when(
+      DE == "yes" ~ "white",
+      TRUE ~ "darkgray"
+    )
+  )
+vertex_label_color <- vertex_label_color$type
+
+vertex_label_font <- data.frame(DE = DE) %>%
+  mutate(
+    type = case_when(
+      TRUE ~ 2
+    )
+  )
+vertex_label_font <- vertex_label_font$type
+
+vertex_label <- data.frame(DE = DE) %>%
+  mutate(
+    type = case_when(
+      TRUE ~ V(graph)$name
+    )
+  )
+vertex_label <- vertex_label$type
+vertex_label[vertex_label == "NA"] <- NA
+
+vertex_label_cex <- data.frame(DE = DE) %>%
+  mutate(
+    type = case_when(
+      DE == "yes" ~ 3,
+      TRUE ~ 2
+    )
+  )
+vertex_label_cex <- vertex_label_cex$type
+
+hub_score <- hub_gene_data_sorted$hub_score
+
+png(file.path(
+  results_dir, paste0("oterogarcia_comb_01genefunnel_network_left.png")), width = 5280, height = 4320, res = 300
+)
+par(bg = "black", mar = c(0, 0, 0, 18), xpd = TRUE)
+jam_igraph(
+    graph,
+    rescale = FALSE,
+    xlim = c(-1, 1),
+    ylim = c(-1, 1),
+    layout = norm_coords(layout),
+    vertex.size = sqrt(sqrt(hub_score * 1e5)),
+    vertex.label.color = vertex_label_color,
+    edge.width = (E(graph)$weight * 0.5) ^ 2,
+    vertex.shape = "pie",
+    vertex.pie = module_membership_list,
+    edge.color = ifelse(direction == "up", "firebrick1", "dodgerblue"),
+    vertex.label.family = "sans",
+    vertex.label.font = vertex_label_font,
+    vertex.label.cex = ifelse(DE == "yes", 1, 0.5),
+    vertex.frame.color = vertex_frame_color,
+    vertex.label = vertex_label,
+    use_shadowText = TRUE,
+    pie_to_jampie = FALSE
+)
+legend(
+    "right",
+    legend = paste0(
+      "Module ", unique(hub_gene_data$module)
+    ),
+    pch = 20,
+    col = module_network_colors,
+    pt.cex = 4,
+    cex = 1.5,
+    bty = "n",
+    text.col = "white",
+    y.intersp = 2,
+    inset = c(-0.175, 0)
+)
+dev.off()
+
+hub_gene_right_all <- lapply(hub_gene_list_right_all, function(x) cbind(rowname = rownames(x), x))
+hub_gene_right_all <- Reduce(function(x, y) merge(x, y, all = TRUE), hub_gene_right_all)
+hub_gene_right <- lapply(hub_gene_list_right, function(x) cbind(rowname = rownames(x), x))
+hub_gene_right <- Reduce(function(x, y) merge(x, y, all = TRUE), hub_gene_right)
+
+hub_gene_data <- vector()
+for (l in seq_along(order_right)) {
+  module_sets <- rownames(mat_right)[order_right[[l]]]
+
+  # module_gene_sets_sub <- gene_sets[names(gene_sets) %in% modules_down]
+
+  frequent_genes <- vector()
+
+  module_gene_sets_sub <- gene_sets[names(gene_sets) %in% module_sets]
+  frequent_genes_tmp <- as.data.frame(table(unlist(geneIds(module_gene_sets_sub))))
+  frequent_genes_tmp <- frequent_genes_tmp[
+    frequent_genes_tmp$Var1 %in% gene_anno$ensembl_gene_id,
+  ]
+  rownames(frequent_genes_tmp) <- NULL
+  if (any(frequent_genes_tmp$Var1 %in% rownames(results_left))) {
+    discard <- which(
+      frequent_genes_tmp$Var1 %in% rownames(results_left)
+    )
+    if (length(discard) > 0) {
+      frequent_genes_tmp <- frequent_genes_tmp[-discard, ]
+    }
+  }
+  frequent_genes <- frequent_genes_tmp
+
+  # module_gene_sets_sub <- gene_sets[names(gene_sets) %in% module_sets]
+  node_data <- reshape2::melt(geneIds(module_gene_sets_sub))
+  node_data <- node_data[node_data$value %in% frequent_genes$Var1, ]
+  names(node_data) <- c("ensembl_gene_id", "gene_set")
+  gene_anno_sub <- gene_anno[
+    gene_anno$ensembl_gene_id %in% node_data$ensembl_gene_id,
+  ]
+  node_data <- node_data[node_data$ensembl_gene_id %in% gene_anno_sub$ensembl_gene_id, ]
+  node_data <- left_join(node_data, gene_anno_sub, by = "ensembl_gene_id")
+  node_data$direction <- "up"
+  node_data$DE <- ifelse(
+    node_data$ensembl_gene_id %in% rownames(results_sig), "yes", "no"
+  )
+  node_data <- node_data[node_data$ensembl_gene_id %in% hub_gene_right_all$Var1, ]
+  # node_data <- node_data[node_data$DE == "yes", ]
+  node_data$module <- l
+  hub_gene_data <- rbind(hub_gene_data, node_data)
+}
+
+# hub_gene_data <- hub_gene_data[hub_gene_data$DE == "yes", ]
+
+unique_direction <- as.data.frame.matrix(table(hub_gene_data[ , c(3, 4)]), )
+unique_direction$up <- unique_direction$up * 1
+discard <- which(rowSums(unique_direction) == 0)
+if (length(discard) > 0) {
+  unique_direction <- unique_direction[-discard, ]
+}
+module_membership_norm <- unique_direction
+unique_direction <- ifelse(rowSums(unique_direction) > 0, "up", "down")
+hub_gene_data <- hub_gene_data[
+  hub_gene_data$external_gene_name %in% names(unique_direction),
+]
+
+rownames(hub_gene_data) <- NULL
+discard <- vector()
+for (i_gene in seq_along(hub_gene_data$external_gene_name)) {
+  sub_gene <- hub_gene_data$external_gene_name[i_gene]
+  sub_unique_direction <- unique_direction[which(names(unique_direction) == sub_gene)]
+  if (hub_gene_data$direction[i_gene] != sub_unique_direction[[1]]) {
+    discard <- append(discard, i_gene)
+  }
+}
+if (length(discard) > 0) {
+  hub_gene_data <- hub_gene_data[-discard, ]
+}
+
+frequent_genes_tmp <- as.data.frame(table(hub_gene_data$external_gene_name))
+frequent_genes <- frequent_genes_tmp
+hub_gene_data <- hub_gene_data[
+  hub_gene_data$external_gene_name %in% frequent_genes$Var1,
+]
+
+# hub_gene_data <- hub_gene_data[which(hub_gene_data$DE == "yes"), ]
+
+hub_score <- c()
+for (i in seq_along(unique(hub_gene_data$module))) {
+  hub_gene_data_sub <- hub_gene_data[hub_gene_data$module == i, ]
+  hub_gene_sub <- hub_gene_list_right_all[[i]]
+  colnames(hub_gene_sub) <- c("ensembl_gene_id", "hub_score")
+  hub_gene_data_sub <- left_join(hub_gene_data_sub, hub_gene_sub, by = "ensembl_gene_id")
+  if (any(is.na(hub_gene_data_sub$hub_score))) {
+    discard <- which(is.na(hub_gene_data_sub$hub_score))
+    hub_gene_data_sub <- hub_gene_data_sub[-discard, ]
+  }
+  # hub_score <- c(hub_score, hub_gene_sub$Freq)
+  if (i == 1) {
+    hub_gene_data_new <- hub_gene_data_sub
+  } else {
+    hub_gene_data_new <- rbind(hub_gene_data_new, hub_gene_data_sub)
+  }
+}
+hub_gene_data <- hub_gene_data_new
+
+# hub_gene_data_sub <- hub_gene_data[hub_gene_data$DE == "yes", ]
+# hub_gene_data <- hub_gene_data[hub_gene_data$hub_score >= min(hub_gene_data_sub$hub_score), ]
+hub_gene_data <- hub_gene_data[hub_gene_data$hub_score >= 0.0001, ]
+
+hub_gene_data_sorted <- hub_gene_data[order(hub_gene_data$hub_score, decreasing = TRUE), ]
+hub_gene_data_sorted <- hub_gene_data_sorted[-which(duplicated(hub_gene_data_sorted$ensembl_gene_id)), ]
+# hub_gene_data_sorted <- hub_gene_data_sorted[match(names(membership), hub_gene_data_sorted$external_gene_name), ]
+
+# hub_score <- hub_gene_data_sorted$hub_score
+# names(hub_score) <- names(membership)
+
+hub_mat <- as.data.frame.matrix(table(hub_gene_data[ , c(3, 2)]), )
+hub_mat <- hub_mat[match(hub_gene_data_sorted$external_gene_name, rownames(hub_mat)), ]
+hub_mat <- hub_mat == 1
+co_mat <- hub_mat %*% t(hub_mat)
+diag(co_mat) <- 0
+graph <- graph_from_adjacency_matrix(co_mat, "upper", TRUE)
+
+edges <- get.edgelist(graph, FALSE)
+set.seed(1)
+layout <- qgraph.layout.fruchtermanreingold(
+  edges, vcount = vcount(graph), weight = E(graph)$weight,
+  area = vcount(graph), repulse.rad = vcount(graph) / 1
+)
+
+hub_gene_all_GO <- table(unlist(geneIds(gene_sets)))
+hub_gene_all_GO <- hub_gene_all_GO[
+  names(hub_gene_all_GO) %in% unique(hub_gene_data$ensembl_gene_id)
+]
+sub_gene_anno <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(hub_gene_all_GO), ]
+rownames(sub_gene_anno) <- NULL
+sub_gene_anno <- sub_gene_anno[
+  match(rownames(hub_gene_all_GO), sub_gene_anno$ensembl_gene_id),
+]
+rownames(hub_gene_all_GO) <- sub_gene_anno$external_gene_name
+hub_gene_all_GO <- hub_gene_all_GO[match(hub_gene_data_sorted$external_gene_name, names(hub_gene_all_GO))]
+
+module_membership <- as.data.frame.matrix(table(hub_gene_data[ , c(3, 6)]), )
+module_membership <- module_membership[match(hub_gene_data_sorted$external_gene_name, rownames(module_membership)), ]
+module_membership_binary <- module_membership
+module_membership_binary[module_membership_binary > 0] <- 1
+module_membership_list <- lapply(
+  split(module_membership, row.names(module_membership)), unlist
+)
+module_membership_list <- module_membership_list[
+  match(hub_gene_data_sorted$external_gene_name, names(module_membership_list))
+]
+module_network_colors <- module_colors[seq_along(order_right)]
+module_membership_norm <- module_membership_norm[
+  rownames(module_membership_norm) %in% rownames(module_membership), , drop = FALSE
+]
+module_membership_norm <- module_membership_norm[
+  match(hub_gene_data_sorted$external_gene_name, rownames(module_membership_norm)), , drop = FALSE
+]
+
+V(graph)$pie.color = list(module_network_colors)
+V(graph)$vertex.shape <- "pie"
+V(graph)$vertex.color <- module_membership_list
+V(graph)$vertex.label.family = "sans"
+
+module_max_genes <- apply(module_membership_norm, 2, function (x) which(x == max(x)))
+module_max_genes <- rownames(module_membership_norm)[unlist(module_max_genes)]
+module_max <- vector()
+for (l in seq(length(V(graph)))) {
+  if (V(graph)[l]$name %in% module_max_genes) {
+    module_max <- append(module_max, "yes")
+  } else {
+    module_max <- append(module_max, "no")
+  }
+}
+
+unique_markers <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(results_sig), ]
+DE <- vector()
+for (l in seq(length(V(graph)))) {
+  if (V(graph)[l]$name %in% unique_markers$external_gene_name) {
+    DE <- append(DE, "yes")
+  } else {
+    DE <- append(DE, "no")
+  }
+}
+
+# V(graph) <- V(graph)[DE == "yes"]
+
+direction <- vector()
+for (l in seq(length(E(graph)))) {
+  hub_gene_sub <- hub_gene_data[
+    hub_gene_data$external_gene_name %in% head_of(graph, l)[[1]]$name,
+  ]
+  direction <- append(direction, unique(hub_gene_sub$direction))
+}
+E(graph)$edge.color <- ifelse(direction == "up", "firebrick1", "dodgerblue")
+
+membership <- (abs(rowSums(module_membership_norm)) / hub_gene_all_GO) * abs(rowSums(module_membership_norm))
+
+vertex_frame_color <- data.frame(DE = DE) %>%
+  mutate(
+    type = case_when(
+      DE == "yes" ~ "white",
+      TRUE ~ "darkgray"
+    )
+  )
+vertex_frame_color <- vertex_frame_color$type
+
+vertex_label_color <- data.frame(DE = DE) %>%
+  mutate(
+    type = case_when(
+      DE == "yes" ~ "white",
+      TRUE ~ "darkgray"
+    )
+  )
+vertex_label_color <- vertex_label_color$type
+
+vertex_label_font <- data.frame(DE = DE) %>%
+  mutate(
+    type = case_when(
+      TRUE ~ 2
+    )
+  )
+vertex_label_font <- vertex_label_font$type
+
+vertex_label <- data.frame(DE = DE) %>%
+  mutate(
+    type = case_when(
+      TRUE ~ V(graph)$name
+    )
+  )
+vertex_label <- vertex_label$type
+vertex_label[vertex_label == "NA"] <- NA
+
+vertex_label_cex <- data.frame(DE = DE) %>%
+  mutate(
+    type = case_when(
+      DE == "yes" ~ 3,
+      TRUE ~ 2
+    )
+  )
+vertex_label_cex <- vertex_label_cex$type
+
+hub_score <- hub_gene_data_sorted$hub_score
+
+png(file.path(
+  results_dir, paste0("oterogarcia_comb_01genefunnel_network_right.png")), width = 5280, height = 4320, res = 300
+)
+par(bg = "black", mar = c(0, 0, 0, 18), xpd = TRUE)
+jam_igraph(
+    graph,
+    rescale = FALSE,
+    xlim = c(-1, 1),
+    ylim = c(-1, 1),
+    layout = norm_coords(layout),
+    vertex.size = sqrt(sqrt(hub_score * 1e5)),
+    vertex.label.color = vertex_label_color,
+    edge.width = (E(graph)$weight * 0.5) ^ 2,
+    vertex.shape = "pie",
+    vertex.pie = module_membership_list,
+    edge.color = ifelse(direction == "up", "firebrick1", "dodgerblue"),
+    vertex.label.family = "sans",
+    vertex.label.font = vertex_label_font,
+    vertex.label.cex = ifelse(DE == "yes", 1, 0.5),
+    vertex.frame.color = vertex_frame_color,
+    vertex.label = vertex_label,
+    use_shadowText = TRUE,
+    pie_to_jampie = FALSE
+)
+legend(
+    "right",
+    legend = paste0(
+      "Module ", unique(hub_gene_data$module)
+    ),
+    pch = 20,
+    col = module_network_colors,
+    pt.cex = 4,
+    cex = 1.5,
+    bty = "n",
+    text.col = "white",
+    y.intersp = 2,
+    inset = c(-0.175, 0)
+)
+dev.off()
+```
+
 # References
 
 This is the concluding section of the document. Here we output the `sessionInfo` and create a bibliography for works cited.
