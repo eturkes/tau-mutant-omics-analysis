@@ -1672,6 +1672,9 @@ for (l in seq_along(order_left)) {
   node_data <- node_data[node_data$ensembl_gene_id %in% hub_gene_left_all$Var1, ]
   # node_data <- node_data[node_data$DE == "yes", ]
   node_data$module <- l
+  node_data$hub <- ifelse(
+    node_data$ensembl_gene_id %in% hub_gene_left$x, "yes", "no"
+  )
   hub_gene_data <- rbind(hub_gene_data, node_data)
 }
 
@@ -1733,7 +1736,7 @@ hub_gene_data_list <- vector("list", length = length(unique(hub_gene_data$gene_s
 names(hub_gene_data_list) <- unique(hub_gene_data$gene_set)
 for (i in seq_along(hub_gene_data_list)) {
   hub_gene_data_sub <- hub_gene_data[hub_gene_data$gene_set %in% names(hub_gene_data_list)[i], ]
-  hub_gene_data_list[[i]] <- hub_gene_data_sub$DE
+  hub_gene_data_list[[i]] <- hub_gene_data_sub$hub
 }
 
 remove <- which(unlist(lapply(hub_gene_data_list, FUN = function(x) all(x == "no"))))
@@ -1968,6 +1971,9 @@ for (l in seq_along(order_right)) {
   node_data <- node_data[node_data$ensembl_gene_id %in% hub_gene_right_all$Var1, ]
   # node_data <- node_data[node_data$DE == "yes", ]
   node_data$module <- l
+  node_data$hub <- ifelse(
+    node_data$ensembl_gene_id %in% hub_gene_right$x, "yes", "no"
+  )
   hub_gene_data <- rbind(hub_gene_data, node_data)
 }
 
@@ -2029,7 +2035,7 @@ hub_gene_data_list <- vector("list", length = length(unique(hub_gene_data$gene_s
 names(hub_gene_data_list) <- unique(hub_gene_data$gene_set)
 for (i in seq_along(hub_gene_data_list)) {
   hub_gene_data_sub <- hub_gene_data[hub_gene_data$gene_set %in% names(hub_gene_data_list)[i], ]
-  hub_gene_data_list[[i]] <- hub_gene_data_sub$DE
+  hub_gene_data_list[[i]] <- hub_gene_data_sub$hub
 }
 
 remove <- which(unlist(lapply(hub_gene_data_list, FUN = function(x) all(x == "no"))))
