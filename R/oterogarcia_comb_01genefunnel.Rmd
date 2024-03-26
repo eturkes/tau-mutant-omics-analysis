@@ -1740,13 +1740,13 @@ hub_gene_data_list <- vector("list", length = length(unique(hub_gene_data$module
 names(hub_gene_data_list) <- unique(hub_gene_data$module)
 for (i in seq_along(hub_gene_data_list)) {
   hub_gene_data_sub <- hub_gene_data[hub_gene_data$module %in% names(hub_gene_data_list)[i], ]
-  hub_gene_data_list[[i]] <- quantile(hub_gene_data_sub$hub_score, probs = 0.25)
+  hub_gene_data_list[[i]] <- quantile(hub_gene_data_sub$hub_score, probs = 0.5)
 }
 
 keep <- c()
 for (i in seq(nrow(hub_gene_data))) {
   gene_set_name <- hub_gene_data$module[i]
-  if (hub_gene_data$hub_score[i] >= hub_gene_data_list[[gene_set_name]] | hub_gene_data$DE[i] == "yes") {
+  if (hub_gene_data$hub_score[i] >= hub_gene_data_list[[gene_set_name]] | hub_gene_data$hub[i] == "yes") {
     keep <- c(keep, i)
   }
 }
@@ -1830,7 +1830,7 @@ for (l in seq(length(V(graph)))) {
   }
 }
 
-unique_markers <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(results_sig), ]
+unique_markers <- gene_anno[gene_anno$ensembl_gene_id %in% hub_gene_left$x, ]
 DE <- vector()
 for (l in seq(length(V(graph)))) {
   if (V(graph)[l]$name %in% unique_markers$external_gene_name) {
@@ -1909,7 +1909,7 @@ jam_igraph(
     xlim = c(-1, 1),
     ylim = c(-1, 1),
     layout = norm_coords(layout),
-    vertex.size = sqrt(sqrt(hub_score * 1e8)),
+    vertex.size = sqrt(sqrt(hub_score * 1e7)),
     vertex.label.color = vertex_label_color,
     edge.width = (E(graph)$weight * 1) ^ 3,
     vertex.shape = "pie",
@@ -2052,13 +2052,13 @@ hub_gene_data_list <- vector("list", length = length(unique(hub_gene_data$module
 names(hub_gene_data_list) <- unique(hub_gene_data$module)
 for (i in seq_along(hub_gene_data_list)) {
   hub_gene_data_sub <- hub_gene_data[hub_gene_data$module %in% names(hub_gene_data_list)[i], ]
-  hub_gene_data_list[[i]] <- quantile(hub_gene_data_sub$hub_score, probs = 0.25)
+  hub_gene_data_list[[i]] <- quantile(hub_gene_data_sub$hub_score, probs = 0.5)
 }
 
 keep <- c()
 for (i in seq(nrow(hub_gene_data))) {
   gene_set_name <- hub_gene_data$module[i]
-  if (hub_gene_data$hub_score[i] >= hub_gene_data_list[[gene_set_name]] | hub_gene_data$DE[i] == "yes") {
+  if (hub_gene_data$hub_score[i] >= hub_gene_data_list[[gene_set_name]] | hub_gene_data$hub[i] == "yes") {
     keep <- c(keep, i)
   }
 }
@@ -2142,7 +2142,7 @@ for (l in seq(length(V(graph)))) {
   }
 }
 
-unique_markers <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(results_sig), ]
+unique_markers <- gene_anno[gene_anno$ensembl_gene_id %in% hub_gene_right$x, ]
 DE <- vector()
 for (l in seq(length(V(graph)))) {
   if (V(graph)[l]$name %in% unique_markers$external_gene_name) {
@@ -2221,7 +2221,7 @@ jam_igraph(
     xlim = c(-1, 1),
     ylim = c(-1, 1),
     layout = norm_coords(layout),
-    vertex.size = sqrt(sqrt(hub_score * 1e8)),
+    vertex.size = sqrt(sqrt(hub_score * 1e7)),
     vertex.label.color = vertex_label_color,
     edge.width = (E(graph)$weight * 1) ^ 3,
     vertex.shape = "pie",
