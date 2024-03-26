@@ -1670,7 +1670,7 @@ for (l in seq_along(order_left)) {
     node_data$ensembl_gene_id %in% rownames(results_sig), "yes", "no"
   )
   node_data <- node_data[node_data$ensembl_gene_id %in% hub_gene_left_all$Var1, ]
-  node_data <- node_data[node_data$DE == "yes", ]
+  # node_data <- node_data[node_data$DE == "yes", ]
   node_data$module <- l
   node_data$hub <- ifelse(
     node_data$ensembl_gene_id %in% hub_gene_left$x, "yes", "no"
@@ -1678,7 +1678,7 @@ for (l in seq_along(order_left)) {
   node_data$top_gse <- ifelse(
     node_data$gene_set %in% unname(unlist(top_gse_left)), "yes", "no"
   )
-  # node_data <- node_data[node_data$top_gse == "yes", ]
+  node_data <- node_data[node_data$top_gse == "yes", ]
   hub_gene_data <- rbind(hub_gene_data, node_data)
 }
 
@@ -1891,9 +1891,9 @@ vertex_label_cex <- vertex_label_cex$type
 hub_score <- hub_gene_data_sorted$hub_score
 
 png(file.path(
-  results_dir, paste0("oterogarcia_comb_01genefunnel_network_left.png")), width = 900, height = 720, res = 150
+  results_dir, paste0("oterogarcia_comb_01genefunnel_network_left.png")), width = 4680, height = 4050, res = 300
 )
-par(bg = "black", mar = c(0, 0, 0, 4), xpd = TRUE)
+par(bg = "black", mar = c(0, 0, 0, 8), xpd = TRUE)
 jam_igraph(
     graph,
     rescale = FALSE,
@@ -1908,7 +1908,7 @@ jam_igraph(
     edge.color = ifelse(direction == "up", "firebrick1", "dodgerblue"),
     vertex.label.family = "sans",
     vertex.label.font = vertex_label_font,
-    vertex.label.cex = ifelse(DE == "yes", 0.5, 0.5),
+    vertex.label.cex = ifelse(DE == "yes", 2, 1),
     vertex.frame.color = vertex_frame_color,
     vertex.label = vertex_label,
     use_shadowText = TRUE,
@@ -1921,12 +1921,12 @@ legend(
     ),
     pch = 20,
     col = module_network_colors,
-    pt.cex = 1,
-    cex = 0.75,
+    pt.cex = 3,
+    cex = 1.5,
     bty = "n",
     text.col = "white",
     y.intersp = 1,
-    inset = c(-0.15, 0)
+    inset = c(-0.12, 0)
 )
 dev.off()
 
@@ -1973,7 +1973,7 @@ for (l in seq_along(order_right)) {
     node_data$ensembl_gene_id %in% rownames(results_sig), "yes", "no"
   )
   node_data <- node_data[node_data$ensembl_gene_id %in% hub_gene_right_all$Var1, ]
-  node_data <- node_data[node_data$DE == "yes", ]
+  # node_data <- node_data[node_data$DE == "yes", ]
   node_data$module <- l
   node_data$hub <- ifelse(
     node_data$ensembl_gene_id %in% hub_gene_right$x, "yes", "no"
@@ -1981,7 +1981,7 @@ for (l in seq_along(order_right)) {
   node_data$top_gse <- ifelse(
     node_data$gene_set %in% unname(unlist(top_gse_right)), "yes", "no"
   )
-  # node_data <- node_data[node_data$top_gse == "yes", ]
+  node_data <- node_data[node_data$top_gse == "yes", ]
   hub_gene_data <- rbind(hub_gene_data, node_data)
 }
 
@@ -2194,9 +2194,9 @@ vertex_label_cex <- vertex_label_cex$type
 hub_score <- hub_gene_data_sorted$hub_score
 
 png(file.path(
-  results_dir, paste0("oterogarcia_comb_01genefunnel_network_right.png")), width = 900, height = 720, res = 150
+  results_dir, paste0("oterogarcia_comb_01genefunnel_network_right.png")), width = 4680, height = 4050, res = 300
 )
-par(bg = "black", mar = c(0, 0, 0, 4), xpd = TRUE)
+par(bg = "black", mar = c(0, 0, 0, 8), xpd = TRUE)
 jam_igraph(
     graph,
     rescale = FALSE,
@@ -2211,7 +2211,7 @@ jam_igraph(
     edge.color = ifelse(direction == "up", "firebrick1", "dodgerblue"),
     vertex.label.family = "sans",
     vertex.label.font = vertex_label_font,
-    vertex.label.cex = ifelse(DE == "yes", 0.5, 0.5),
+    vertex.label.cex = ifelse(DE == "yes", 2, 1),
     vertex.frame.color = vertex_frame_color,
     vertex.label = vertex_label,
     use_shadowText = TRUE,
@@ -2224,12 +2224,12 @@ legend(
     ),
     pch = 20,
     col = module_network_colors,
-    pt.cex = 1,
-    cex = 0.75,
+    pt.cex = 3,
+    cex = 1.5,
     bty = "n",
     text.col = "white",
     y.intersp = 1,
-    inset = c(-0.15, 0)
+    inset = c(-0.12, 0)
 )
 dev.off()
 ```
