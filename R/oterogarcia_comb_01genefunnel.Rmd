@@ -1736,20 +1736,6 @@ for (i in seq_along(unique(hub_gene_data$module))) {
 }
 hub_gene_data <- hub_gene_data_new
 
-hub_gene_data_list <- vector("list", length = length(unique(hub_gene_data$gene_set)))
-names(hub_gene_data_list) <- unique(hub_gene_data$gene_set)
-for (i in seq_along(hub_gene_data_list)) {
-  hub_gene_data_sub <- hub_gene_data[hub_gene_data$gene_set %in% names(hub_gene_data_list)[i], ]
-  hub_gene_data_list[[i]] <- hub_gene_data_sub$hub
-}
-
-remove <- which(unlist(lapply(hub_gene_data_list, FUN = function(x) all(x == "no"))))
-if (length(remove) > 0) {
-  remove <- names(hub_gene_data_list)[remove]
-  remove <- which(hub_gene_data$gene_set %in% remove)
-  hub_gene_data <- hub_gene_data[-remove, ]
-}
-
 hub_gene_data_list <- vector("list", length = length(unique(hub_gene_data$module)))
 names(hub_gene_data_list) <- unique(hub_gene_data$module)
 for (i in seq_along(hub_gene_data_list)) {
@@ -1760,13 +1746,27 @@ for (i in seq_along(hub_gene_data_list)) {
 keep <- c()
 for (i in seq(nrow(hub_gene_data))) {
   gene_set_name <- hub_gene_data$module[i]
-  if (hub_gene_data$hub_score[i] >= quantile(hub_gene_data$hub_score, probs = 0.75) | hub_gene_data$hub[i] == "yes") {
+  if (hub_gene_data$hub_score[i] >= hub_gene_data_list[[gene_set_name]]) {
     keep <- c(keep, i)
   }
 }
 hub_gene_data <- hub_gene_data[keep, ]
 
-# hub_gene_data_sub <- hub_gene_data[hub_gene_data$DE == "yes", ]
+# hub_gene_data_list <- vector("list", length = length(unique(hub_gene_data$gene_set)))
+# names(hub_gene_data_list) <- unique(hub_gene_data$gene_set)
+# for (i in seq_along(hub_gene_data_list)) {
+#   hub_gene_data_sub <- hub_gene_data[hub_gene_data$gene_set %in% names(hub_gene_data_list)[i], ]
+#   hub_gene_data_list[[i]] <- hub_gene_data_sub$DE
+# }
+# 
+# remove <- which(unlist(lapply(hub_gene_data_list, FUN = function(x) all(x == "no"))))
+# if (length(remove) > 0) {
+#   remove <- names(hub_gene_data_list)[remove]
+#   remove <- which(hub_gene_data$gene_set %in% remove)
+#   hub_gene_data <- hub_gene_data[-remove, ]
+# }
+
+hub_gene_data <- hub_gene_data[hub_gene_data$DE == "yes", ]
 # hub_gene_data <- hub_gene_data[hub_gene_data$hub_score >= min(hub_gene_data_sub$hub_score), ]
 # hub_gene_data <- hub_gene_data[hub_gene_data$hub_score >= 0.00001 | hub_gene_data$DE == "yes", ]
 
@@ -1837,7 +1837,7 @@ for (l in seq(length(V(graph)))) {
   }
 }
 
-unique_markers <- gene_anno[gene_anno$ensembl_gene_id %in% hub_gene_left$x, ]
+unique_markers <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(results_sig), ]
 DE <- vector()
 for (l in seq(length(V(graph)))) {
   if (V(graph)[l]$name %in% unique_markers$external_gene_name) {
@@ -2055,20 +2055,6 @@ for (i in seq_along(unique(hub_gene_data$module))) {
 }
 hub_gene_data <- hub_gene_data_new
 
-hub_gene_data_list <- vector("list", length = length(unique(hub_gene_data$gene_set)))
-names(hub_gene_data_list) <- unique(hub_gene_data$gene_set)
-for (i in seq_along(hub_gene_data_list)) {
-  hub_gene_data_sub <- hub_gene_data[hub_gene_data$gene_set %in% names(hub_gene_data_list)[i], ]
-  hub_gene_data_list[[i]] <- hub_gene_data_sub$hub
-}
-
-remove <- which(unlist(lapply(hub_gene_data_list, FUN = function(x) all(x == "no"))))
-if (length(remove) > 0) {
-  remove <- names(hub_gene_data_list)[remove]
-  remove <- which(hub_gene_data$gene_set %in% remove)
-  hub_gene_data <- hub_gene_data[-remove, ]
-}
-
 hub_gene_data_list <- vector("list", length = length(unique(hub_gene_data$module)))
 names(hub_gene_data_list) <- unique(hub_gene_data$module)
 for (i in seq_along(hub_gene_data_list)) {
@@ -2079,15 +2065,29 @@ for (i in seq_along(hub_gene_data_list)) {
 keep <- c()
 for (i in seq(nrow(hub_gene_data))) {
   gene_set_name <- hub_gene_data$module[i]
-  if (hub_gene_data$hub_score[i] >= quantile(hub_gene_data$hub_score, probs = 0.75) | hub_gene_data$hub[i] == "yes") {
+  if (hub_gene_data$hub_score[i] >= hub_gene_data_list[[gene_set_name]]) {
     keep <- c(keep, i)
   }
 }
 hub_gene_data <- hub_gene_data[keep, ]
 
-# hub_gene_data_sub <- hub_gene_data[hub_gene_data$DE == "yes", ]
+# hub_gene_data_list <- vector("list", length = length(unique(hub_gene_data$gene_set)))
+# names(hub_gene_data_list) <- unique(hub_gene_data$gene_set)
+# for (i in seq_along(hub_gene_data_list)) {
+#   hub_gene_data_sub <- hub_gene_data[hub_gene_data$gene_set %in% names(hub_gene_data_list)[i], ]
+#   hub_gene_data_list[[i]] <- hub_gene_data_sub$DE
+# }
+# 
+# remove <- which(unlist(lapply(hub_gene_data_list, FUN = function(x) all(x == "no"))))
+# if (length(remove) > 0) {
+#   remove <- names(hub_gene_data_list)[remove]
+#   remove <- which(hub_gene_data$gene_set %in% remove)
+#   hub_gene_data <- hub_gene_data[-remove, ]
+# }
+
+hub_gene_data <- hub_gene_data[hub_gene_data$DE == "yes", ]
 # hub_gene_data <- hub_gene_data[hub_gene_data$hub_score >= min(hub_gene_data_sub$hub_score), ]
-hub_gene_data <- hub_gene_data[hub_gene_data$hub_score >= 0.00001 | hub_gene_data$DE == "yes", ]
+# hub_gene_data <- hub_gene_data[hub_gene_data$hub_score >= 0.00001 | hub_gene_data$DE == "yes", ]
 
 hub_gene_data_sorted <- hub_gene_data[order(hub_gene_data$hub_score, decreasing = TRUE), ]
 hub_gene_data_sorted <- hub_gene_data_sorted[-which(duplicated(hub_gene_data_sorted$ensembl_gene_id)), ]
@@ -2156,7 +2156,7 @@ for (l in seq(length(V(graph)))) {
   }
 }
 
-unique_markers <- gene_anno[gene_anno$ensembl_gene_id %in% hub_gene_right$x, ]
+unique_markers <- gene_anno[gene_anno$ensembl_gene_id %in% rownames(results_sig), ]
 DE <- vector()
 for (l in seq(length(V(graph)))) {
   if (V(graph)[l]$name %in% unique_markers$external_gene_name) {
