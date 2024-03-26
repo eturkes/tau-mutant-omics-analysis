@@ -1752,7 +1752,7 @@ hub_gene_data <- hub_gene_data_new
 
 # hub_gene_data_sub <- hub_gene_data[hub_gene_data$DE == "yes", ]
 # hub_gene_data <- hub_gene_data[hub_gene_data$hub_score >= min(hub_gene_data_sub$hub_score), ]
-# hub_gene_data <- hub_gene_data[hub_gene_data$hub_score >= 0.00001, ]
+hub_gene_data <- hub_gene_data[hub_gene_data$hub_score >= 0.00001 | hub_gene_data$DE == "yes", ]
 
 hub_gene_data_sorted <- hub_gene_data[order(hub_gene_data$hub_score, decreasing = TRUE), ]
 hub_gene_data_sorted <- hub_gene_data_sorted[-which(duplicated(hub_gene_data_sorted$ensembl_gene_id)), ]
@@ -1848,7 +1848,7 @@ vertex_frame_color <- data.frame(DE = DE) %>%
   mutate(
     type = case_when(
       DE == "yes" ~ "white",
-      TRUE ~ "darkgray"
+      TRUE ~ "lightgray"
     )
   )
 vertex_frame_color <- vertex_frame_color$type
@@ -1857,7 +1857,7 @@ vertex_label_color <- data.frame(DE = DE) %>%
   mutate(
     type = case_when(
       DE == "yes" ~ "white",
-      TRUE ~ "darkgray"
+      TRUE ~ "lightgray"
     )
   )
 vertex_label_color <- vertex_label_color$type
@@ -1902,7 +1902,7 @@ jam_igraph(
     layout = norm_coords(layout),
     vertex.size = sqrt(sqrt(hub_score * 1e8)),
     vertex.label.color = vertex_label_color,
-    edge.width = (E(graph)$weight * 0.75) ^ 3,
+    edge.width = (E(graph)$weight * 1) ^ 3,
     vertex.shape = "pie",
     vertex.pie = module_membership_list,
     edge.color = ifelse(direction == "up", "firebrick1", "dodgerblue"),
@@ -2055,7 +2055,7 @@ hub_gene_data <- hub_gene_data_new
 
 # hub_gene_data_sub <- hub_gene_data[hub_gene_data$DE == "yes", ]
 # hub_gene_data <- hub_gene_data[hub_gene_data$hub_score >= min(hub_gene_data_sub$hub_score), ]
-# hub_gene_data <- hub_gene_data[hub_gene_data$hub_score >= 0.00001, ]
+hub_gene_data <- hub_gene_data[hub_gene_data$hub_score >= 0.00001 | hub_gene_data$DE == "yes", ]
 
 hub_gene_data_sorted <- hub_gene_data[order(hub_gene_data$hub_score, decreasing = TRUE), ]
 hub_gene_data_sorted <- hub_gene_data_sorted[-which(duplicated(hub_gene_data_sorted$ensembl_gene_id)), ]
@@ -2151,7 +2151,7 @@ vertex_frame_color <- data.frame(DE = DE) %>%
   mutate(
     type = case_when(
       DE == "yes" ~ "white",
-      TRUE ~ "darkgray"
+      TRUE ~ "lightgray"
     )
   )
 vertex_frame_color <- vertex_frame_color$type
@@ -2160,7 +2160,7 @@ vertex_label_color <- data.frame(DE = DE) %>%
   mutate(
     type = case_when(
       DE == "yes" ~ "white",
-      TRUE ~ "darkgray"
+      TRUE ~ "lightgray"
     )
   )
 vertex_label_color <- vertex_label_color$type
@@ -2205,7 +2205,7 @@ jam_igraph(
     layout = norm_coords(layout),
     vertex.size = sqrt(sqrt(hub_score * 1e8)),
     vertex.label.color = vertex_label_color,
-    edge.width = (E(graph)$weight * 0.75) ^ 3,
+    edge.width = (E(graph)$weight * 1) ^ 3,
     vertex.shape = "pie",
     vertex.pie = module_membership_list,
     edge.color = ifelse(direction == "up", "firebrick1", "dodgerblue"),
