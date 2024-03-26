@@ -1740,7 +1740,7 @@ hub_gene_data_list <- vector("list", length = length(unique(hub_gene_data$module
 names(hub_gene_data_list) <- unique(hub_gene_data$module)
 for (i in seq_along(hub_gene_data_list)) {
   hub_gene_data_sub <- hub_gene_data[hub_gene_data$module %in% names(hub_gene_data_list)[i], ]
-  hub_gene_data_list[[i]] <- median(hub_gene_data_sub$hub_score)
+  hub_gene_data_list[[i]] <- quantile(hub_gene_data_sub$hub_score, probs = 0.25)
 }
 
 keep <- c()
@@ -2052,7 +2052,7 @@ hub_gene_data_list <- vector("list", length = length(unique(hub_gene_data$module
 names(hub_gene_data_list) <- unique(hub_gene_data$module)
 for (i in seq_along(hub_gene_data_list)) {
   hub_gene_data_sub <- hub_gene_data[hub_gene_data$module %in% names(hub_gene_data_list)[i], ]
-  hub_gene_data_list[[i]] <- median(hub_gene_data_sub$hub_score)
+  hub_gene_data_list[[i]] <- quantile(hub_gene_data_sub$hub_score, probs = 0.25)
 }
 
 keep <- c()
