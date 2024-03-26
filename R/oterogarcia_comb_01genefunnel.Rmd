@@ -1736,13 +1736,22 @@ for (i in seq_along(unique(hub_gene_data$module))) {
 }
 hub_gene_data <- hub_gene_data_new
 
-# hub_gene_data_list <- vector("list", length = length(unique(hub_gene_data$gene_set)))
-# names(hub_gene_data_list) <- unique(hub_gene_data$gene_set)
-# for (i in seq_along(hub_gene_data_list)) {
-#   hub_gene_data_sub <- hub_gene_data[hub_gene_data$gene_set %in% names(hub_gene_data_list)[i], ]
-#   hub_gene_data_list[[i]] <- hub_gene_data_sub$hub
-# }
-#
+hub_gene_data_list <- vector("list", length = length(unique(hub_gene_data$gene_set)))
+names(hub_gene_data_list) <- unique(hub_gene_data$gene_set)
+for (i in seq_along(hub_gene_data_list)) {
+  hub_gene_data_sub <- hub_gene_data[hub_gene_data$gene_set %in% names(hub_gene_data_list)[i], ]
+  hub_gene_data_list[[i]] <- median(hub_gene_data_sub$hub_score)
+}
+
+keep <- c()
+for (i in seq(nrow(hub_gene_data))) {
+  gene_set_name <- hub_gene_data$gene_set[i]
+  if (hub_gene_data$hub_score[i] >= hub_gene_data_list[[gene_set_name]] | hub_gene_data$DE[i] == "yes") {
+    keep <- c(keep, i)
+  }
+}
+hub_gene_data <- hub_gene_data[keep, ]
+
 # remove <- which(unlist(lapply(hub_gene_data_list, FUN = function(x) all(x == "no"))))
 # if (length(remove) > 0) {
 #   remove <- names(hub_gene_data_list)[remove]
@@ -1752,7 +1761,7 @@ hub_gene_data <- hub_gene_data_new
 
 # hub_gene_data_sub <- hub_gene_data[hub_gene_data$DE == "yes", ]
 # hub_gene_data <- hub_gene_data[hub_gene_data$hub_score >= min(hub_gene_data_sub$hub_score), ]
-hub_gene_data <- hub_gene_data[hub_gene_data$hub_score >= 0.00001 | hub_gene_data$DE == "yes", ]
+# hub_gene_data <- hub_gene_data[hub_gene_data$hub_score >= 0.00001 | hub_gene_data$DE == "yes", ]
 
 hub_gene_data_sorted <- hub_gene_data[order(hub_gene_data$hub_score, decreasing = TRUE), ]
 hub_gene_data_sorted <- hub_gene_data_sorted[-which(duplicated(hub_gene_data_sorted$ensembl_gene_id)), ]
@@ -2039,13 +2048,22 @@ for (i in seq_along(unique(hub_gene_data$module))) {
 }
 hub_gene_data <- hub_gene_data_new
 
-# hub_gene_data_list <- vector("list", length = length(unique(hub_gene_data$gene_set)))
-# names(hub_gene_data_list) <- unique(hub_gene_data$gene_set)
-# for (i in seq_along(hub_gene_data_list)) {
-#   hub_gene_data_sub <- hub_gene_data[hub_gene_data$gene_set %in% names(hub_gene_data_list)[i], ]
-#   hub_gene_data_list[[i]] <- hub_gene_data_sub$hub
-# }
-#
+hub_gene_data_list <- vector("list", length = length(unique(hub_gene_data$gene_set)))
+names(hub_gene_data_list) <- unique(hub_gene_data$gene_set)
+for (i in seq_along(hub_gene_data_list)) {
+  hub_gene_data_sub <- hub_gene_data[hub_gene_data$gene_set %in% names(hub_gene_data_list)[i], ]
+  hub_gene_data_list[[i]] <- median(hub_gene_data_sub$hub_score)
+}
+
+keep <- c()
+for (i in seq(nrow(hub_gene_data))) {
+  gene_set_name <- hub_gene_data$gene_set[i]
+  if (hub_gene_data$hub_score[i] >= hub_gene_data_list[[gene_set_name]] | hub_gene_data$DE[i] == "yes") {
+    keep <- c(keep, i)
+  }
+}
+hub_gene_data <- hub_gene_data[keep, ]
+
 # remove <- which(unlist(lapply(hub_gene_data_list, FUN = function(x) all(x == "no"))))
 # if (length(remove) > 0) {
 #   remove <- names(hub_gene_data_list)[remove]
