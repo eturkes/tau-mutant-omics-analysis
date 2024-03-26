@@ -1736,16 +1736,16 @@ for (i in seq_along(unique(hub_gene_data$module))) {
 }
 hub_gene_data <- hub_gene_data_new
 
-hub_gene_data_list <- vector("list", length = length(unique(hub_gene_data$gene_set)))
-names(hub_gene_data_list) <- unique(hub_gene_data$gene_set)
+hub_gene_data_list <- vector("list", length = length(unique(hub_gene_data$module)))
+names(hub_gene_data_list) <- unique(hub_gene_data$module)
 for (i in seq_along(hub_gene_data_list)) {
-  hub_gene_data_sub <- hub_gene_data[hub_gene_data$gene_set %in% names(hub_gene_data_list)[i], ]
+  hub_gene_data_sub <- hub_gene_data[hub_gene_data$module %in% names(hub_gene_data_list)[i], ]
   hub_gene_data_list[[i]] <- median(hub_gene_data_sub$hub_score)
 }
 
 keep <- c()
 for (i in seq(nrow(hub_gene_data))) {
-  gene_set_name <- hub_gene_data$gene_set[i]
+  gene_set_name <- hub_gene_data$module[i]
   if (hub_gene_data$hub_score[i] >= hub_gene_data_list[[gene_set_name]] | hub_gene_data$DE[i] == "yes") {
     keep <- c(keep, i)
   }
@@ -2048,16 +2048,16 @@ for (i in seq_along(unique(hub_gene_data$module))) {
 }
 hub_gene_data <- hub_gene_data_new
 
-hub_gene_data_list <- vector("list", length = length(unique(hub_gene_data$gene_set)))
-names(hub_gene_data_list) <- unique(hub_gene_data$gene_set)
+hub_gene_data_list <- vector("list", length = length(unique(hub_gene_data$module)))
+names(hub_gene_data_list) <- unique(hub_gene_data$module)
 for (i in seq_along(hub_gene_data_list)) {
-  hub_gene_data_sub <- hub_gene_data[hub_gene_data$gene_set %in% names(hub_gene_data_list)[i], ]
+  hub_gene_data_sub <- hub_gene_data[hub_gene_data$module %in% names(hub_gene_data_list)[i], ]
   hub_gene_data_list[[i]] <- median(hub_gene_data_sub$hub_score)
 }
 
 keep <- c()
 for (i in seq(nrow(hub_gene_data))) {
-  gene_set_name <- hub_gene_data$gene_set[i]
+  gene_set_name <- hub_gene_data$module[i]
   if (hub_gene_data$hub_score[i] >= hub_gene_data_list[[gene_set_name]] | hub_gene_data$DE[i] == "yes") {
     keep <- c(keep, i)
   }
