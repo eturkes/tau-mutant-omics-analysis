@@ -392,7 +392,8 @@ for (i in seq_along(levels(groups))) {
       }
 
       frequent_genes <- frequent_genes[frequent_genes$Var1 %in% rownames(results_sig), ]
-      hub_gene_list[[m]] <- frequent_genes$Freq[1:ceiling(length(modules_up) / 4)]
+      cutoff <- quantile(frequent_genes$Freq, probs = 0.75)
+      hub_gene_list[[m]] <- frequent_genes$Freq[frequent_genes$Freq >= cutoff]
       # hub_gene_list[[m]] <- frequent_genes$Freq
       if (any(is.na(hub_gene_list[[m]]))) {
         hub_gene_list[[m]] <- hub_gene_list[[m]][-which(is.na(hub_gene_list[[m]]))]
@@ -491,7 +492,8 @@ for (m in seq_along(modules)) {
   }
 
   frequent_genes <- frequent_genes[frequent_genes$Var1 %in% rownames(results_sig), ]
-  hub_gene_list_left[[m]] <- as.vector(frequent_genes$Var1)[1:ceiling(length(modules_up) / 4)]
+  cutoff <- quantile(frequent_genes$Freq, probs = 0.75)
+  hub_gene_list_left[[m]] <- as.vector(frequent_genes$Var1)[frequent_genes$Freq >= cutoff]
   # hub_gene_list_left[[m]] <- as.vector(frequent_genes$Var1)
   if (any(is.na(hub_gene_list_left[[m]]))) {
     hub_gene_list_left[[m]] <- hub_gene_list_left[[m]][-which(is.na(hub_gene_list_left[[m]]))]
@@ -582,7 +584,8 @@ for (m in seq_along(modules)) {
   }
 
   frequent_genes <- frequent_genes[frequent_genes$Var1 %in% rownames(results_sig), ]
-  hub_gene_list_right[[m]] <- as.vector(frequent_genes$Var1)[1:ceiling(length(modules_up) / 4)]
+  cutoff <- quantile(frequent_genes$Freq, probs = 0.75)
+  hub_gene_list_right[[m]] <- as.vector(frequent_genes$Var1)[frequent_genes$Freq >= cutoff]
   # hub_gene_list_right[[m]] <- as.vector(frequent_genes$Var1)
   if (any(is.na(hub_gene_list_right[[m]]))) {
     hub_gene_list_right[[m]] <- hub_gene_list_right[[m]][-which(is.na(hub_gene_list_right[[m]]))]
@@ -661,7 +664,7 @@ for (i in seq_along(top_words_list)) {
   genes <- geneIds(genes[match(modules[[i]], names(genes))])
   idx <- colSums(
     sapply(genes, "%in%", x = c(hub_gene_list_left[[i]], NA, NA))
-  ) >= ceiling(length(hub_gene_list_left[[i]]) / 4)
+  ) >= ceiling(length(hub_gene_list_left[[i]]) / 8)
   top_words_tmp_sub <- top_words_tmp_sub[idx, ]
   markers_sub <- markers_left[which(markers_left$cluster == levels(markers_left$cluster)[i]), , drop = FALSE]
   markers_sub <- markers_sub[match(modules[[i]], markers_sub$gene), , drop = FALSE]
@@ -930,7 +933,7 @@ for (i in seq_along(top_words_list)) {
   genes <- geneIds(genes[match(modules[[i]], names(genes))])
   idx <- colSums(
     sapply(genes, "%in%", x = c(hub_gene_list_right[[i]], NA, NA))
-  )  >= ceiling(length(hub_gene_list_right[[i]]) / 4)
+  )  >= ceiling(length(hub_gene_list_right[[i]]) / 8)
   top_words_tmp_sub <- top_words_tmp_sub[idx, ]
   markers_sub <- markers_right[which(markers_right$cluster == levels(markers_right$cluster)[i]), , drop = FALSE]
   markers_sub <- markers_sub[match(modules[[i]], markers_sub$gene), , drop = FALSE]
@@ -1679,6 +1682,7 @@ for (l in seq_along(order_left)) {
     node_data$gene_set %in% unname(unlist(top_gse_left)), "yes", "no"
   )
   # node_data <- node_data[node_data$top_gse == "yes", ]
+  node_data <- node_data[node_data$hub == "yes", ]
   hub_gene_data <- rbind(hub_gene_data, node_data)
 }
 
@@ -1736,21 +1740,21 @@ for (i in seq_along(unique(hub_gene_data$module))) {
 }
 hub_gene_data <- hub_gene_data_new
 
-hub_gene_data_list <- vector("list", length = length(unique(hub_gene_data$module)))
-names(hub_gene_data_list) <- unique(hub_gene_data$module)
-for (i in seq_along(hub_gene_data_list)) {
-  hub_gene_data_sub <- hub_gene_data[hub_gene_data$module %in% names(hub_gene_data_list)[i], ]
-  hub_gene_data_list[[i]] <- quantile(hub_gene_data_sub$hub_score, probs = 0.9)
-}
-
-keep <- c()
-for (i in seq(nrow(hub_gene_data))) {
-  gene_set_name <- hub_gene_data$module[i]
-  if (hub_gene_data$hub_score[i] >= hub_gene_data_list[[gene_set_name]]) {
-    keep <- c(keep, i)
-  }
-}
-hub_gene_data <- hub_gene_data[keep, ]
+# hub_gene_data_list <- vector("list", length = length(unique(hub_gene_data$module)))
+# names(hub_gene_data_list) <- unique(hub_gene_data$module)
+# for (i in seq_along(hub_gene_data_list)) {
+#   hub_gene_data_sub <- hub_gene_data[hub_gene_data$module %in% names(hub_gene_data_list)[i], ]
+#   hub_gene_data_list[[i]] <- quantile(hub_gene_data_sub$hub_score, probs = 0.9)
+# }
+# 
+# keep <- c()
+# for (i in seq(nrow(hub_gene_data))) {
+#   gene_set_name <- hub_gene_data$module[i]
+#   if (hub_gene_data$hub_score[i] >= hub_gene_data_list[[gene_set_name]]) {
+#     keep <- c(keep, i)
+#   }
+# }
+# hub_gene_data <- hub_gene_data[keep, ]
 
 # hub_gene_data_list <- vector("list", length = length(unique(hub_gene_data$gene_set)))
 # names(hub_gene_data_list) <- unique(hub_gene_data$gene_set)
@@ -1766,7 +1770,7 @@ hub_gene_data <- hub_gene_data[keep, ]
 #   hub_gene_data <- hub_gene_data[-remove, ]
 # }
 
-hub_gene_data <- hub_gene_data[hub_gene_data$DE == "yes", ]
+# hub_gene_data <- hub_gene_data[hub_gene_data$DE == "yes", ]
 # hub_gene_data <- hub_gene_data[hub_gene_data$hub_score >= min(hub_gene_data_sub$hub_score), ]
 # hub_gene_data <- hub_gene_data[hub_gene_data$hub_score >= 0.00001 | hub_gene_data$DE == "yes", ]
 
@@ -1788,7 +1792,7 @@ edges <- get.edgelist(graph, FALSE)
 set.seed(1)
 layout <- qgraph.layout.fruchtermanreingold(
   edges, vcount = vcount(graph), weight = E(graph)$weight,
-  area = vcount(graph) / 1, repulse.rad = vcount(graph) / 2
+  area = vcount(graph) / 1, repulse.rad = vcount(graph) / 1
 )
 
 hub_gene_all_GO <- table(unlist(geneIds(gene_sets)))
@@ -1907,7 +1911,7 @@ vertex_label_cex <- vertex_label_cex$type
 hub_score <- hub_gene_data_sorted$hub_score
 
 png(file.path(
-  results_dir, paste0("oterogarcia_comb_01genefunnel_network_left.png")), width = 4680, height = 4050, res = 300
+  results_dir, paste0("oterogarcia_comb_01genefunnel_network_left.png")), width = 4680, height = 4500, res = 300
 )
 par(bg = "black", mar = c(0, 0, 0, 8), xpd = TRUE)
 jam_igraph(
@@ -1916,7 +1920,7 @@ jam_igraph(
     xlim = c(-1, 1),
     ylim = c(-1, 1),
     layout = norm_coords(layout),
-    vertex.size = sqrt(sqrt(hub_score * 1e7)),
+    vertex.size = sqrt(hub_score * 1e5) * 1.5,
     vertex.label.color = vertex_label_color,
     edge.width = (E(graph)$weight * 1) ^ 3,
     vertex.shape = "pie",
@@ -1998,6 +2002,7 @@ for (l in seq_along(order_right)) {
     node_data$gene_set %in% unname(unlist(top_gse_right)), "yes", "no"
   )
   # node_data <- node_data[node_data$top_gse == "yes", ]
+  node_data <- node_data[node_data$hub == "yes", ]
   hub_gene_data <- rbind(hub_gene_data, node_data)
 }
 
@@ -2055,21 +2060,21 @@ for (i in seq_along(unique(hub_gene_data$module))) {
 }
 hub_gene_data <- hub_gene_data_new
 
-hub_gene_data_list <- vector("list", length = length(unique(hub_gene_data$module)))
-names(hub_gene_data_list) <- unique(hub_gene_data$module)
-for (i in seq_along(hub_gene_data_list)) {
-  hub_gene_data_sub <- hub_gene_data[hub_gene_data$module %in% names(hub_gene_data_list)[i], ]
-  hub_gene_data_list[[i]] <- quantile(hub_gene_data_sub$hub_score, probs = 0.9)
-}
-
-keep <- c()
-for (i in seq(nrow(hub_gene_data))) {
-  gene_set_name <- hub_gene_data$module[i]
-  if (hub_gene_data$hub_score[i] >= hub_gene_data_list[[gene_set_name]]) {
-    keep <- c(keep, i)
-  }
-}
-hub_gene_data <- hub_gene_data[keep, ]
+# hub_gene_data_list <- vector("list", length = length(unique(hub_gene_data$module)))
+# names(hub_gene_data_list) <- unique(hub_gene_data$module)
+# for (i in seq_along(hub_gene_data_list)) {
+#   hub_gene_data_sub <- hub_gene_data[hub_gene_data$module %in% names(hub_gene_data_list)[i], ]
+#   hub_gene_data_list[[i]] <- quantile(hub_gene_data_sub$hub_score, probs = 0.9)
+# }
+# 
+# keep <- c()
+# for (i in seq(nrow(hub_gene_data))) {
+#   gene_set_name <- hub_gene_data$module[i]
+#   if (hub_gene_data$hub_score[i] >= hub_gene_data_list[[gene_set_name]]) {
+#     keep <- c(keep, i)
+#   }
+# }
+# hub_gene_data <- hub_gene_data[keep, ]
 
 # hub_gene_data_list <- vector("list", length = length(unique(hub_gene_data$gene_set)))
 # names(hub_gene_data_list) <- unique(hub_gene_data$gene_set)
@@ -2085,7 +2090,7 @@ hub_gene_data <- hub_gene_data[keep, ]
 #   hub_gene_data <- hub_gene_data[-remove, ]
 # }
 
-hub_gene_data <- hub_gene_data[hub_gene_data$DE == "yes", ]
+# hub_gene_data <- hub_gene_data[hub_gene_data$DE == "yes", ]
 # hub_gene_data <- hub_gene_data[hub_gene_data$hub_score >= min(hub_gene_data_sub$hub_score), ]
 # hub_gene_data <- hub_gene_data[hub_gene_data$hub_score >= 0.00001 | hub_gene_data$DE == "yes", ]
 
@@ -2107,7 +2112,7 @@ edges <- get.edgelist(graph, FALSE)
 set.seed(1)
 layout <- qgraph.layout.fruchtermanreingold(
   edges, vcount = vcount(graph), weight = E(graph)$weight,
-  area = vcount(graph) / 1, repulse.rad = vcount(graph) / 2
+  area = vcount(graph) / 1, repulse.rad = vcount(graph) / 1
 )
 
 hub_gene_all_GO <- table(unlist(geneIds(gene_sets)))
@@ -2226,7 +2231,7 @@ vertex_label_cex <- vertex_label_cex$type
 hub_score <- hub_gene_data_sorted$hub_score
 
 png(file.path(
-  results_dir, paste0("oterogarcia_comb_01genefunnel_network_right.png")), width = 4680, height = 4050, res = 300
+  results_dir, paste0("oterogarcia_comb_01genefunnel_network_right.png")), width = 4680, height = 4500, res = 300
 )
 par(bg = "black", mar = c(0, 0, 0, 8), xpd = TRUE)
 jam_igraph(
@@ -2235,7 +2240,7 @@ jam_igraph(
     xlim = c(-1, 1),
     ylim = c(-1, 1),
     layout = norm_coords(layout),
-    vertex.size = sqrt(sqrt(hub_score * 1e7)),
+    vertex.size = sqrt(hub_score * 1e5) * 1.5,
     vertex.label.color = vertex_label_color,
     edge.width = (E(graph)$weight * 1) ^ 3,
     vertex.shape = "pie",
