@@ -1678,7 +1678,7 @@ for (l in seq_along(order_left)) {
   node_data$top_gse <- ifelse(
     node_data$gene_set %in% unname(unlist(top_gse_left)), "yes", "no"
   )
-  node_data <- node_data[node_data$top_gse == "yes", ]
+  # node_data <- node_data[node_data$top_gse == "yes", ]
   hub_gene_data <- rbind(hub_gene_data, node_data)
 }
 
@@ -1736,11 +1736,25 @@ for (i in seq_along(unique(hub_gene_data$module))) {
 }
 hub_gene_data <- hub_gene_data_new
 
+hub_gene_data_list <- vector("list", length = length(unique(hub_gene_data$gene_set)))
+names(hub_gene_data_list) <- unique(hub_gene_data$gene_set)
+for (i in seq_along(hub_gene_data_list)) {
+  hub_gene_data_sub <- hub_gene_data[hub_gene_data$gene_set %in% names(hub_gene_data_list)[i], ]
+  hub_gene_data_list[[i]] <- hub_gene_data_sub$hub
+}
+
+remove <- which(unlist(lapply(hub_gene_data_list, FUN = function(x) all(x == "no"))))
+if (length(remove) > 0) {
+  remove <- names(hub_gene_data_list)[remove]
+  remove <- which(hub_gene_data$gene_set %in% remove)
+  hub_gene_data <- hub_gene_data[-remove, ]
+}
+
 hub_gene_data_list <- vector("list", length = length(unique(hub_gene_data$module)))
 names(hub_gene_data_list) <- unique(hub_gene_data$module)
 for (i in seq_along(hub_gene_data_list)) {
   hub_gene_data_sub <- hub_gene_data[hub_gene_data$module %in% names(hub_gene_data_list)[i], ]
-  hub_gene_data_list[[i]] <- quantile(hub_gene_data_sub$hub_score, probs = 0.5)
+  hub_gene_data_list[[i]] <- quantile(hub_gene_data_sub$hub_score, probs = 0.9)
 }
 
 keep <- c()
@@ -1751,13 +1765,6 @@ for (i in seq(nrow(hub_gene_data))) {
   }
 }
 hub_gene_data <- hub_gene_data[keep, ]
-
-# remove <- which(unlist(lapply(hub_gene_data_list, FUN = function(x) all(x == "no"))))
-# if (length(remove) > 0) {
-#   remove <- names(hub_gene_data_list)[remove]
-#   remove <- which(hub_gene_data$gene_set %in% remove)
-#   hub_gene_data <- hub_gene_data[-remove, ]
-# }
 
 # hub_gene_data_sub <- hub_gene_data[hub_gene_data$DE == "yes", ]
 # hub_gene_data <- hub_gene_data[hub_gene_data$hub_score >= min(hub_gene_data_sub$hub_score), ]
@@ -1990,7 +1997,7 @@ for (l in seq_along(order_right)) {
   node_data$top_gse <- ifelse(
     node_data$gene_set %in% unname(unlist(top_gse_right)), "yes", "no"
   )
-  node_data <- node_data[node_data$top_gse == "yes", ]
+  # node_data <- node_data[node_data$top_gse == "yes", ]
   hub_gene_data <- rbind(hub_gene_data, node_data)
 }
 
@@ -2048,11 +2055,25 @@ for (i in seq_along(unique(hub_gene_data$module))) {
 }
 hub_gene_data <- hub_gene_data_new
 
+hub_gene_data_list <- vector("list", length = length(unique(hub_gene_data$gene_set)))
+names(hub_gene_data_list) <- unique(hub_gene_data$gene_set)
+for (i in seq_along(hub_gene_data_list)) {
+  hub_gene_data_sub <- hub_gene_data[hub_gene_data$gene_set %in% names(hub_gene_data_list)[i], ]
+  hub_gene_data_list[[i]] <- hub_gene_data_sub$hub
+}
+
+remove <- which(unlist(lapply(hub_gene_data_list, FUN = function(x) all(x == "no"))))
+if (length(remove) > 0) {
+  remove <- names(hub_gene_data_list)[remove]
+  remove <- which(hub_gene_data$gene_set %in% remove)
+  hub_gene_data <- hub_gene_data[-remove, ]
+}
+
 hub_gene_data_list <- vector("list", length = length(unique(hub_gene_data$module)))
 names(hub_gene_data_list) <- unique(hub_gene_data$module)
 for (i in seq_along(hub_gene_data_list)) {
   hub_gene_data_sub <- hub_gene_data[hub_gene_data$module %in% names(hub_gene_data_list)[i], ]
-  hub_gene_data_list[[i]] <- quantile(hub_gene_data_sub$hub_score, probs = 0.5)
+  hub_gene_data_list[[i]] <- quantile(hub_gene_data_sub$hub_score, probs = 0.9)
 }
 
 keep <- c()
@@ -2063,13 +2084,6 @@ for (i in seq(nrow(hub_gene_data))) {
   }
 }
 hub_gene_data <- hub_gene_data[keep, ]
-
-# remove <- which(unlist(lapply(hub_gene_data_list, FUN = function(x) all(x == "no"))))
-# if (length(remove) > 0) {
-#   remove <- names(hub_gene_data_list)[remove]
-#   remove <- which(hub_gene_data$gene_set %in% remove)
-#   hub_gene_data <- hub_gene_data[-remove, ]
-# }
 
 # hub_gene_data_sub <- hub_gene_data[hub_gene_data$DE == "yes", ]
 # hub_gene_data <- hub_gene_data[hub_gene_data$hub_score >= min(hub_gene_data_sub$hub_score), ]
