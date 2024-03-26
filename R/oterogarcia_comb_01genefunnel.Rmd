@@ -1760,7 +1760,7 @@ for (i in seq_along(hub_gene_data_list)) {
 keep <- c()
 for (i in seq(nrow(hub_gene_data))) {
   gene_set_name <- hub_gene_data$module[i]
-  if (hub_gene_data$hub_score[i] >= hub_gene_data_list[[gene_set_name]] | hub_gene_data$hub[i] == "yes") {
+  if (hub_gene_data$hub_score[i] >= quantile(hub_gene_data$hub_score, probs = 0.75) | hub_gene_data$hub[i] == "yes") {
     keep <- c(keep, i)
   }
 }
@@ -2079,7 +2079,7 @@ for (i in seq_along(hub_gene_data_list)) {
 keep <- c()
 for (i in seq(nrow(hub_gene_data))) {
   gene_set_name <- hub_gene_data$module[i]
-  if (hub_gene_data$hub_score[i] >= hub_gene_data_list[[gene_set_name]] | hub_gene_data$hub[i] == "yes") {
+  if (hub_gene_data$hub_score[i] >= quantile(hub_gene_data$hub_score, probs = 0.75) | hub_gene_data$hub[i] == "yes") {
     keep <- c(keep, i)
   }
 }
